@@ -22,6 +22,30 @@ const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
         checkBiometric();
     }, []);
 
+    // Add keyboard support for desktop
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            // Handle number keys (0-9)
+            if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                handlePinInput(e.key);
+            }
+            // Handle backspace
+            else if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleBackspace();
+            }
+            // Handle enter to submit
+            else if (e.key === 'Enter' && pin.length >= 4) {
+                e.preventDefault();
+                handlePinSubmit(e as any);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [pin]); // Re-attach when pin changes
+
     const handlePinSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface PinSetupModalProps {
     isOpen: boolean;
@@ -14,6 +14,41 @@ const PinSetupModal: React.FC<PinSetupModalProps> = ({ isOpen, onClose, onSetup,
     const [confirmPin, setConfirmPin] = useState('');
     const [oldPin, setOldPin] = useState('');
     const [error, setError] = useState('');
+
+    // Add keyboard support for desktop
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyPress = (e: KeyboardEvent) => {
+            // Handle number keys (0-9)
+            if (e.key >= '0' && e.key <= '9') {
+                e.preventDefault();
+                handlePinInput(e.key);
+            }
+            // Handle backspace
+            else if (e.key === 'Backspace') {
+                e.preventDefault();
+                handleBackspace();
+            }
+            // Handle enter to submit
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                const currentPinLength = step === 'current' ? oldPin.length :
+                                       step === 'new' ? pin.length : confirmPin.length;
+                if (currentPinLength >= 4) {
+                    handleNext();
+                }
+            }
+            // Handle escape to close
+            else if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [isOpen, step, pin, confirmPin, oldPin]); // Re-attach when dependencies change
 
     if (!isOpen) return null;
 
