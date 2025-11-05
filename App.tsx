@@ -24,11 +24,16 @@ import QuickAddHealthLogModal from './components/modals/QuickAddHealthLogModal';
 import QuickAddNoteModal from './components/modals/QuickAddNoteModal';
 import QuickLogPrayerModal from './components/modals/QuickLogPrayerModal';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import LockScreen from './components/LockScreen';
+
+// Import security service
+import { isLockEnabled, shouldLock, updateLastActive } from './services/securityService';
 
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [activeModule, setActiveModule] = useState<Module>(Module.DASHBOARD);
+    const [isLocked, setIsLocked] = useState(false);
 
     // State for Quick Add Modals
     const [isAddTransactionOpen, setAddTransactionOpen] = useState(false);
@@ -36,7 +41,7 @@ const App: React.FC = () => {
     const [isAddHealthLogOpen, setAddHealthLogOpen] = useState(false);
     const [isAddNoteOpen, setAddNoteOpen] = useState(false);
     const [isLogPrayerOpen, setLogPrayerOpen] = useState(false);
-    
+
     // State for Notification Center
     const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
@@ -50,6 +55,11 @@ const App: React.FC = () => {
                 const { data: { session } } = await supabase.auth.getSession();
                 setUser(session?.user || null);
                 setAuthLoading(false);
+
+                // Check if app should be locked
+                if (isLockEnabled() && shouldLock()) {
+                    setIsLocked(true);
+                }
 
                 // If user is logged in, sync data in background (non-blocking)
                 if (session?.user) {
@@ -128,6 +138,41 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [authLoading]);
+
+    // Track user activity for auto-lock
+    useEffect(() => {
+        if (!isLockEnabled() || isLocked) return;
+
+        const handleActivity = () => {
+            updateLastActive();
+        };
+
+        // Track various user activities
+        window.addEventListener('mousedown', handleActivity);
+        window.addEventListener('keydown', handleActivity);
+        window.addEventListener('touchstart', handleActivity);
+        window.addEventListener('scroll', handleActivity);
+
+        // Check if app should lock every minute
+        const lockCheckInterval = setInterval(() => {
+            if (shouldLock()) {
+                setIsLocked(true);
+            }
+        }, 60000); // Check every minute
+
+        return () => {
+            window.removeEventListener('mousedown', handleActivity);
+            window.removeEventListener('keydown', handleActivity);
+            window.removeEventListener('touchstart', handleActivity);
+            window.removeEventListener('scroll', handleActivity);
+            clearInterval(lockCheckInterval);
+        };
+    }, [isLocked]);
+
+    const handleUnlock = () => {
+        setIsLocked(false);
+        updateLastActive();
+    };
 
     useEffect(() => {
         const checkReminders = async () => {
@@ -257,6 +302,11 @@ const App: React.FC = () => {
                 </div>
             </div>
         );
+    }
+
+    // Show lock screen if app is locked
+    if (isLocked) {
+        return <LockScreen onUnlock={handleUnlock} />;
     }
 
     // Show auth screen if not logged in

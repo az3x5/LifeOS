@@ -5,6 +5,19 @@ import { supabase } from '../services/supabase';
 import { syncAllData } from '../services/syncService';
 import AlertModal from '../components/modals/AlertModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import PinSetupModal from '../components/modals/PinSetupModal';
+import {
+    setupPin,
+    changePin,
+    removePin,
+    isPinSet,
+    isLockEnabled,
+    isBiometricAvailable,
+    isBiometricEnabled,
+    setBiometricEnabled,
+    setLockTimeout,
+    getLockTimeout
+} from '../services/securityService';
 
 const Settings: React.FC = () => {
     const [user, setUser] = useState<any>(null);
@@ -15,6 +28,9 @@ const Settings: React.FC = () => {
     const [syncing, setSyncing] = useState(false);
 
     const [pinLock, setPinLock] = useState(false);
+    const [biometricLock, setBiometricLock] = useState(false);
+    const [biometricAvailable, setBiometricAvailable] = useState(false);
+    const [lockTimeout, setLockTimeoutState] = useState(5);
     const [reminders, setReminders] = useState(Notification.permission === 'granted');
     const [theme, setTheme] = useState('dark');
     const [language, setLanguage] = useState('en');
@@ -27,6 +43,7 @@ const Settings: React.FC = () => {
 
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+    const [pinSetupModal, setPinSetupModal] = useState<{ isOpen: boolean; mode: 'setup' | 'change' } | null>(null);
 
     const integrationSetting = useLiveQuery(() => db.settings.get('islamicHabitIntegration'));
     const integrationEnabled = integrationSetting?.value ?? false;
@@ -55,6 +72,17 @@ const Settings: React.FC = () => {
         setAutoSync(savedAutoSync);
         setSyncInterval(savedSyncInterval);
         setLastSyncTime(savedLastSync);
+
+        // Load security settings
+        const loadSecuritySettings = async () => {
+            setPinLock(isLockEnabled());
+            setBiometricLock(isBiometricEnabled());
+            setLockTimeoutState(getLockTimeout());
+
+            const available = await isBiometricAvailable();
+            setBiometricAvailable(available);
+        };
+        loadSecuritySettings();
     }, []);
 
     const handleManualSync = async () => {
@@ -195,6 +223,106 @@ const Settings: React.FC = () => {
                 icon: '❌'
             });
         }
+    };
+
+    // Security handlers
+    const handleTogglePinLock = () => {
+        if (pinLock) {
+            // Disable PIN lock
+            setConfirmModal({
+                isOpen: true,
+                title: 'Disable PIN Lock',
+                message: 'Are you sure you want to disable PIN lock? Your app will no longer be protected.',
+                onConfirm: () => {
+                    removePin();
+                    setPinLock(false);
+                    setBiometricLock(false);
+                    setAlertModal({
+                        isOpen: true,
+                        title: 'PIN Lock Disabled',
+                        message: 'Your app is no longer protected with a PIN.',
+                        icon: '🔓'
+                    });
+                }
+            });
+        } else {
+            // Enable PIN lock - show setup modal
+            setPinSetupModal({ isOpen: true, mode: 'setup' });
+        }
+    };
+
+    const handleSetupPin = async (pin: string): Promise<boolean> => {
+        const success = await setupPin(pin);
+        if (success) {
+            setPinLock(true);
+            setAlertModal({
+                isOpen: true,
+                title: 'PIN Lock Enabled',
+                message: 'Your app is now protected with a PIN!',
+                icon: '🔒'
+            });
+        } else {
+            setAlertModal({
+                isOpen: true,
+                title: 'Setup Failed',
+                message: 'Failed to set up PIN. Please try again.',
+                icon: '❌'
+            });
+        }
+        return success;
+    };
+
+    const handleChangePin = () => {
+        setPinSetupModal({ isOpen: true, mode: 'change' });
+    };
+
+    const handleToggleBiometric = async () => {
+        if (!pinLock) {
+            setAlertModal({
+                isOpen: true,
+                title: 'PIN Required',
+                message: 'Please enable PIN lock first before enabling biometric authentication.',
+                icon: '⚠️'
+            });
+            return;
+        }
+
+        if (!biometricAvailable) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Not Available',
+                message: 'Biometric authentication is not available on this device.',
+                icon: '❌'
+            });
+            return;
+        }
+
+        const newValue = !biometricLock;
+        const success = await setBiometricEnabled(newValue);
+
+        if (success) {
+            setBiometricLock(newValue);
+            setAlertModal({
+                isOpen: true,
+                title: newValue ? 'Biometric Enabled' : 'Biometric Disabled',
+                message: newValue
+                    ? 'You can now use biometric authentication to unlock the app!'
+                    : 'Biometric authentication has been disabled.',
+                icon: newValue ? '👆' : '🔒'
+            });
+        } else {
+            setAlertModal({
+                isOpen: true,
+                title: 'Failed',
+                message: 'Failed to ' + (newValue ? 'enable' : 'disable') + ' biometric authentication.',
+                icon: '❌'
+            });
+        }
+    };
+
+    const handleLockTimeoutChange = (minutes: number) => {
+        setLockTimeoutState(minutes);
+        setLockTimeout(minutes);
     };
 
     const handleToggleIntegration = async () => {
@@ -439,12 +567,57 @@ const Settings: React.FC = () => {
              </SettingsCard>
             
             <SettingsCard title="Security">
-                <SettingItem title="Enable PIN/Biometric Lock" description="Secure your financial records locally.">
-                     <Toggle enabled={pinLock} setEnabled={setPinLock} disabled={true} title="PIN Lock (coming soon)" />
+                <SettingItem title="Enable PIN Lock" description="Protect your app with a PIN code.">
+                    <Toggle enabled={pinLock} setEnabled={handleTogglePinLock} />
                 </SettingItem>
-                 <div className="mt-4 p-4 bg-yellow-900/50 border border-yellow-700 rounded-lg text-yellow-300 text-sm">
-                    Local encryption and biometric security features are coming soon!
-                </div>
+
+                {pinLock && (
+                    <>
+                        <div className="border-t border-tertiary"></div>
+                        <SettingItem title="Change PIN" description="Update your PIN code.">
+                            <button
+                                onClick={handleChangePin}
+                                className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                            >
+                                Change PIN
+                            </button>
+                        </SettingItem>
+
+                        <div className="border-t border-tertiary"></div>
+                        <SettingItem
+                            title="Enable Biometric Authentication"
+                            description={biometricAvailable ? "Use fingerprint or face recognition to unlock." : "Not available on this device."}
+                        >
+                            <Toggle
+                                enabled={biometricLock}
+                                setEnabled={handleToggleBiometric}
+                                disabled={!biometricAvailable}
+                                title={!biometricAvailable ? "Not available" : undefined}
+                            />
+                        </SettingItem>
+
+                        <div className="border-t border-tertiary"></div>
+                        <SettingItem title="Auto-Lock Timeout" description="Lock app after inactivity.">
+                            <select
+                                value={lockTimeout}
+                                onChange={(e) => handleLockTimeoutChange(parseInt(e.target.value))}
+                                className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                            >
+                                <option value="1">1 minute</option>
+                                <option value="5">5 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="60">1 hour</option>
+                            </select>
+                        </SettingItem>
+                    </>
+                )}
+
+                {pinLock && (
+                    <div className="mt-4 p-4 bg-green-900/50 border border-green-700 rounded-lg text-green-300 text-sm">
+                        🔒 Your app is protected with {biometricLock ? 'PIN and biometric' : 'PIN'} authentication.
+                    </div>
+                )}
             </SettingsCard>
            
             <SettingsCard title="Device Integration">
@@ -584,6 +757,15 @@ const Settings: React.FC = () => {
                     message={confirmModal.message}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
+                />
+            )}
+
+            {pinSetupModal && (
+                <PinSetupModal
+                    isOpen={pinSetupModal.isOpen}
+                    mode={pinSetupModal.mode}
+                    onClose={() => setPinSetupModal(null)}
+                    onSetup={handleSetupPin}
                 />
             )}
         </div>
