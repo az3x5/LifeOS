@@ -2,26 +2,85 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
+import { syncAllData } from '../services/syncService';
 import AlertModal from '../components/modals/AlertModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 
 const Settings: React.FC = () => {
+    const [user, setUser] = useState<any>(null);
     const [cloudSync, setCloudSync] = useState(false);
+    const [autoSync, setAutoSync] = useState(true);
+    const [syncInterval, setSyncInterval] = useState('5');
+    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+    const [syncing, setSyncing] = useState(false);
+
     const [pinLock, setPinLock] = useState(false);
     const [reminders, setReminders] = useState(Notification.permission === 'granted');
+    const [theme, setTheme] = useState('dark');
+    const [language, setLanguage] = useState('en');
 
     // State for Habit Preferences
     const [defaultReminderTime, setDefaultReminderTime] = useState('09:00');
     const [aiInsights, setAiInsights] = useState(true);
     const [gamification, setGamification] = useState(false);
+    const [weekStartsOn, setWeekStartsOn] = useState('sunday');
 
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
     const integrationSetting = useLiveQuery(() => db.settings.get('islamicHabitIntegration'));
     const integrationEnabled = integrationSetting?.value ?? false;
 
     useEffect(() => {
         setReminders(Notification.permission === 'granted');
+
+        // Get current user
+        supabase.auth.getUser().then(({ data }) => {
+            setUser(data.user);
+        });
+
+        // Load settings from localStorage
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const savedLanguage = localStorage.getItem('language') || 'en';
+        const savedWeekStart = localStorage.getItem('weekStartsOn') || 'sunday';
+        const savedReminderTime = localStorage.getItem('defaultReminderTime') || '09:00';
+        const savedAutoSync = localStorage.getItem('autoSync') !== 'false';
+        const savedSyncInterval = localStorage.getItem('syncInterval') || '5';
+        const savedLastSync = localStorage.getItem('lastSyncTime');
+
+        setTheme(savedTheme);
+        setLanguage(savedLanguage);
+        setWeekStartsOn(savedWeekStart);
+        setDefaultReminderTime(savedReminderTime);
+        setAutoSync(savedAutoSync);
+        setSyncInterval(savedSyncInterval);
+        setLastSyncTime(savedLastSync);
     }, []);
+
+    const handleManualSync = async () => {
+        setSyncing(true);
+        try {
+            await syncAllData();
+            const now = new Date().toLocaleString();
+            setLastSyncTime(now);
+            localStorage.setItem('lastSyncTime', now);
+            setAlertModal({
+                isOpen: true,
+                title: 'Sync Complete',
+                message: 'Your data has been successfully synced with the cloud!',
+                icon: '✅'
+            });
+        } catch (error: any) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Sync Failed',
+                message: error.message || 'Failed to sync data. Please try again.',
+                icon: '❌'
+            });
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const handleToggleReminders = async () => {
         if (Notification.permission === 'granted') {
@@ -40,6 +99,100 @@ const Settings: React.FC = () => {
         if (permission === 'granted') {
             new Notification("LifeOS Reminders Enabled", {
                 body: "You'll now receive reminders for your habits!",
+            });
+        }
+    };
+
+    const handleExportData = async () => {
+        try {
+            const data = {
+                habits: await db.habits.toArray(),
+                habitLogs: await db.habitLogs.toArray(),
+                notes: await db.notes.toArray(),
+                accounts: await db.accounts.toArray(),
+                transactions: await db.transactions.toArray(),
+                healthMetrics: await db.healthMetrics.toArray(),
+                healthLogs: await db.healthLogs.toArray(),
+                reminders: await db.reminders.toArray(),
+                fastingLogs: await db.fastingLogs.toArray(),
+                islamicEvents: await db.islamicEvents.toArray(),
+                dailyReflections: await db.dailyReflections.toArray(),
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lifeos-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setAlertModal({
+                isOpen: true,
+                title: 'Export Successful',
+                message: 'Your data has been exported successfully!',
+                icon: '📥'
+            });
+        } catch (error: any) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Export Failed',
+                message: error.message || 'Failed to export data.',
+                icon: '❌'
+            });
+        }
+    };
+
+    const handleClearAllData = () => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Clear All Data',
+            message: 'Are you sure you want to delete ALL local data? This action cannot be undone. Your cloud data will remain safe.',
+            onConfirm: async () => {
+                try {
+                    await db.delete();
+                    await db.open();
+                    setAlertModal({
+                        isOpen: true,
+                        title: 'Data Cleared',
+                        message: 'All local data has been cleared successfully.',
+                        icon: '🗑️'
+                    });
+                } catch (error: any) {
+                    setAlertModal({
+                        isOpen: true,
+                        title: 'Error',
+                        message: error.message || 'Failed to clear data.',
+                        icon: '❌'
+                    });
+                }
+                setConfirmModal(null);
+            }
+        });
+    };
+
+    const handleChangePassword = async () => {
+        setAlertModal({
+            isOpen: true,
+            title: 'Change Password',
+            message: 'Password reset email will be sent to your email address. Check your inbox!',
+            icon: '📧'
+        });
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(user?.email || '', {
+                redirectTo: window.location.origin,
+            });
+
+            if (error) throw error;
+        } catch (error: any) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: error.message || 'Failed to send reset email.',
+                icon: '❌'
             });
         }
     };
@@ -126,17 +279,76 @@ const Settings: React.FC = () => {
 
     return (
         <div className="space-y-8 max-w-3xl mx-auto animate-fade-in">
-            <h1 className="text-4xl font-bold text-text-primary">Settings</h1>
-
-            <SettingsCard title="Data & Sync">
-                <SettingItem title="Enable Cloud Sync" description="Sync your data across devices with Supabase.">
-                    <Toggle enabled={cloudSync} setEnabled={setCloudSync} title={cloudSync ? 'Disable Cloud Sync' : 'Enable Cloud Sync'} />
-                </SettingItem>
-                {cloudSync && (
-                     <div className="mt-4 p-4 bg-accent/20 border border-accent/30 rounded-lg text-accent text-sm">
-                        Cloud sync is a feature coming soon! Your data is currently saved only on this device.
+            <div className="flex items-center justify-between">
+                <h1 className="text-4xl font-bold text-text-primary">Settings</h1>
+                {user && (
+                    <div className="text-right">
+                        <p className="text-sm text-text-muted">Signed in as</p>
+                        <p className="text-sm font-medium text-text-primary">{user.email}</p>
                     </div>
                 )}
+            </div>
+
+            <SettingsCard title="Data & Sync">
+                <SettingItem title="Manual Sync" description="Sync your data with the cloud right now.">
+                    <button
+                        onClick={handleManualSync}
+                        disabled={syncing}
+                        className="bg-accent hover:bg-accent/90 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {syncing ? 'Syncing...' : 'Sync Now'}
+                    </button>
+                </SettingItem>
+                {lastSyncTime && (
+                    <div className="text-sm text-text-muted">
+                        Last synced: {lastSyncTime}
+                    </div>
+                )}
+                <div className="border-t border-tertiary"></div>
+                <SettingItem title="Auto Sync" description="Automatically sync data in the background.">
+                    <Toggle
+                        enabled={autoSync}
+                        setEnabled={(val) => {
+                            setAutoSync(val);
+                            localStorage.setItem('autoSync', val.toString());
+                        }}
+                    />
+                </SettingItem>
+                {autoSync && (
+                    <SettingItem title="Sync Interval" description="How often to sync automatically (minutes).">
+                        <select
+                            value={syncInterval}
+                            onChange={(e) => {
+                                setSyncInterval(e.target.value);
+                                localStorage.setItem('syncInterval', e.target.value);
+                            }}
+                            className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value="1">1 minute</option>
+                            <option value="5">5 minutes</option>
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="60">1 hour</option>
+                        </select>
+                    </SettingItem>
+                )}
+                <div className="border-t border-tertiary"></div>
+                <SettingItem title="Export All Data" description="Download all your data as a JSON file.">
+                    <button
+                        onClick={handleExportData}
+                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                    >
+                        Export
+                    </button>
+                </SettingItem>
+                <SettingItem title="Clear Local Data" description="Delete all data stored on this device.">
+                    <button
+                        onClick={handleClearAllData}
+                        className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                    >
+                        Clear Data
+                    </button>
+                </SettingItem>
             </SettingsCard>
 
             <SettingsCard title="Module Integrations">
@@ -161,12 +373,60 @@ const Settings: React.FC = () => {
                 )}
              </SettingsCard>
             
+            <SettingsCard title="Appearance">
+                <SettingItem title="Theme" description="Choose your preferred color theme.">
+                    <select
+                        value={theme}
+                        onChange={(e) => {
+                            setTheme(e.target.value);
+                            localStorage.setItem('theme', e.target.value);
+                        }}
+                        className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                        <option value="dark">Dark</option>
+                        <option value="light">Light (Coming Soon)</option>
+                        <option value="auto">Auto (Coming Soon)</option>
+                    </select>
+                </SettingItem>
+                <SettingItem title="Language" description="Choose your preferred language.">
+                    <select
+                        value={language}
+                        onChange={(e) => {
+                            setLanguage(e.target.value);
+                            localStorage.setItem('language', e.target.value);
+                        }}
+                        className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                        <option value="en">English</option>
+                        <option value="ar">العربية (Coming Soon)</option>
+                        <option value="es">Español (Coming Soon)</option>
+                    </select>
+                </SettingItem>
+                <SettingItem title="Week Starts On" description="Choose the first day of the week.">
+                    <select
+                        value={weekStartsOn}
+                        onChange={(e) => {
+                            setWeekStartsOn(e.target.value);
+                            localStorage.setItem('weekStartsOn', e.target.value);
+                        }}
+                        className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                        <option value="sunday">Sunday</option>
+                        <option value="monday">Monday</option>
+                        <option value="saturday">Saturday</option>
+                    </select>
+                </SettingItem>
+            </SettingsCard>
+
              <SettingsCard title="Habit Preferences">
                 <SettingItem title="Default Reminder Time" description="Set a default notification time for new habits.">
                     <input
                         type="time"
                         value={defaultReminderTime}
-                        onChange={(e) => setDefaultReminderTime(e.target.value)}
+                        onChange={(e) => {
+                            setDefaultReminderTime(e.target.value);
+                            localStorage.setItem('defaultReminderTime', e.target.value);
+                        }}
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                 </SettingItem>
@@ -175,13 +435,6 @@ const Settings: React.FC = () => {
                 </SettingItem>
                 <SettingItem title="Enable Gamification" description="Earn XP and badges for completing habits.">
                     <Toggle enabled={gamification} setEnabled={setGamification} disabled={true} title="Gamification (coming soon)" />
-                </SettingItem>
-                <div className="border-t border-tertiary"></div>
-                <SettingItem title="Import Habit Data" description="Import habits from a CSV file.">
-                    <button disabled title="Import (coming soon)" className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg text-sm opacity-50 cursor-not-allowed">Import</button>
-                </SettingItem>
-                 <SettingItem title="Export Habit Data" description="Export all your habits and logs to a CSV file.">
-                    <button disabled title="Export (coming soon)" className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg text-sm opacity-50 cursor-not-allowed">Export</button>
                 </SettingItem>
              </SettingsCard>
             
@@ -205,22 +458,57 @@ const Settings: React.FC = () => {
             </SettingsCard>
 
             <SettingsCard title="Account">
-                <SettingItem title="Sign Out" description="Log out of your account">
+                {user && (
+                    <>
+                        <div className="p-4 bg-tertiary rounded-lg">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center text-2xl font-bold text-white">
+                                    {user.email?.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p className="font-medium text-text-primary">{user.email}</p>
+                                    <p className="text-sm text-text-muted">
+                                        Member since {new Date(user.created_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="border-t border-tertiary"></div>
+                        <SettingItem title="Change Password" description="Reset your account password">
+                            <button
+                                onClick={handleChangePassword}
+                                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                            >
+                                Reset Password
+                            </button>
+                        </SettingItem>
+                        <div className="border-t border-tertiary"></div>
+                    </>
+                )}
+                <SettingItem title="Sign Out" description="Log out of your account and clear local data">
                     <button
                         onClick={async () => {
-                            const { error } = await supabase.auth.signOut();
-                            if (error) {
-                                setAlertModal({
-                                    isOpen: true,
-                                    title: 'Error',
-                                    message: 'Failed to sign out: ' + error.message,
-                                    icon: '❌'
-                                });
-                            } else {
-                                // Clear local data on sign out
-                                await db.delete();
-                                window.location.reload();
-                            }
+                            setConfirmModal({
+                                isOpen: true,
+                                title: 'Sign Out',
+                                message: 'Are you sure you want to sign out? Your local data will be cleared.',
+                                onConfirm: async () => {
+                                    const { error } = await supabase.auth.signOut();
+                                    if (error) {
+                                        setAlertModal({
+                                            isOpen: true,
+                                            title: 'Error',
+                                            message: 'Failed to sign out: ' + error.message,
+                                            icon: '❌'
+                                        });
+                                    } else {
+                                        // Clear local data on sign out
+                                        await db.delete();
+                                        window.location.reload();
+                                    }
+                                    setConfirmModal(null);
+                                }
+                            });
                         }}
                         className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
@@ -230,7 +518,53 @@ const Settings: React.FC = () => {
             </SettingsCard>
 
             <SettingsCard title="About">
-                <p className="text-text-secondary">LifeOS is your personal dashboard for a more organized life. Built with React, TypeScript, and TailwindCSS. Data is synced securely to the cloud with Supabase and stored locally for offline access.</p>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-medium text-text-primary mb-2">LifeOS v1.0.0</h3>
+                        <p className="text-text-secondary text-sm">
+                            Your personal life operating system. Built with React, TypeScript, and TailwindCSS.
+                            Data is synced securely to the cloud with Supabase and stored locally for offline access.
+                        </p>
+                    </div>
+                    <div className="border-t border-tertiary"></div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p className="text-text-muted">Framework</p>
+                            <p className="text-text-primary font-medium">React 18 + Vite</p>
+                        </div>
+                        <div>
+                            <p className="text-text-muted">Database</p>
+                            <p className="text-text-primary font-medium">Supabase + Dexie</p>
+                        </div>
+                        <div>
+                            <p className="text-text-muted">Hosting</p>
+                            <p className="text-text-primary font-medium">Vercel</p>
+                        </div>
+                        <div>
+                            <p className="text-text-muted">License</p>
+                            <p className="text-text-primary font-medium">MIT</p>
+                        </div>
+                    </div>
+                    <div className="border-t border-tertiary"></div>
+                    <div className="flex gap-4">
+                        <a
+                            href="https://github.com/az3x5/LifeOS"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:text-accent/80 text-sm font-medium transition-colors"
+                        >
+                            📦 GitHub Repository
+                        </a>
+                        <a
+                            href="https://github.com/az3x5/LifeOS/issues"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:text-accent/80 text-sm font-medium transition-colors"
+                        >
+                            🐛 Report Issue
+                        </a>
+                    </div>
+                </div>
             </SettingsCard>
 
             {alertModal && (
@@ -240,6 +574,16 @@ const Settings: React.FC = () => {
                     message={alertModal.message}
                     icon={alertModal.icon || "⚠️"}
                     onClose={() => setAlertModal(null)}
+                />
+            )}
+
+            {confirmModal && (
+                <ConfirmModal
+                    isOpen={confirmModal.isOpen}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    onConfirm={confirmModal.onConfirm}
+                    onCancel={() => setConfirmModal(null)}
                 />
             )}
         </div>
