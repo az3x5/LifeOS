@@ -488,7 +488,7 @@ const UnifiedCalendarGrid: React.FC<{
 
         // Empty cells before first day
         for (let i = 0; i < firstDayOfWeek; i++) {
-            daysArray.push(<div key={`empty-${i}`} className="border-r border-b border-tertiary h-16"></div>);
+            daysArray.push(<div key={`empty-${i}`} className="border-r border-b border-tertiary h-20"></div>);
         }
 
         // Days of the month
@@ -516,12 +516,12 @@ const UnifiedCalendarGrid: React.FC<{
                 <button
                     key={day}
                     onClick={() => onDayClick(dateStr)}
-                    className={`border-r border-b border-tertiary h-16 p-1.5 text-left hover:bg-secondary transition-colors ${
+                    className={`border-r border-b border-tertiary h-20 p-2 text-left hover:bg-secondary transition-colors ${
                         isToday ? 'bg-accent/10' : ''
                     }`}
                 >
                     <div className="flex flex-col h-full">
-                        <span className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-accent' : 'text-text-primary'}`}>
+                        <span className={`text-xs font-semibold mb-1 ${isToday ? 'text-accent' : 'text-text-primary'}`}>
                             {day}
                         </span>
                         <div className="flex-1 overflow-hidden flex flex-wrap gap-0.5">
@@ -1108,7 +1108,7 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                         <span className="material-symbols-outlined text-accent mr-1.5 text-lg">calendar_month</span>
                         Calendar
                     </h2>
-                    <div className="h-[400px] overflow-y-auto">
+                    <div className="h-[580px] overflow-y-auto">
                         <CalendarTab
                             habits={habits}
                             habitLogs={habitLogs}
@@ -1125,7 +1125,7 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                         <span className="material-symbols-outlined text-accent mr-1.5 text-lg">analytics</span>
                         Weekday Performance
                     </h2>
-                    <div className="h-[400px]">
+                    <div className="h-[580px]">
                         {habits && habitLogs && habits.length > 0 ? (
                             <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
                         ) : (
