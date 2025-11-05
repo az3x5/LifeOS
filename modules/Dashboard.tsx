@@ -25,14 +25,14 @@ const InsightCard: React.FC<{
     insight: SmartInsight;
     onDismiss: (id: number) => void;
 }> = ({ insight, onDismiss }) => (
-    <div className="relative flex-shrink-0 w-64 h-48 p-4 rounded-2xl border border-tertiary bg-gradient-to-br from-secondary to-tertiary flex flex-col justify-between overflow-hidden">
+    <div className="relative flex-shrink-0 w-56 h-32 p-3 rounded-lg border border-tertiary bg-gradient-to-br from-secondary to-tertiary flex flex-col justify-between overflow-hidden">
         <div className="flex justify-between items-start">
-            <span className="text-4xl">{insight.icon}</span>
-            <button onClick={() => onDismiss(insight.id!)} title="Dismiss insight" className="text-text-muted hover:text-text-primary">&times;</button>
+            <span className="text-2xl">{insight.icon}</span>
+            <button onClick={() => onDismiss(insight.id!)} title="Dismiss" className="text-text-muted hover:text-text-primary text-lg leading-none">&times;</button>
         </div>
         <div>
-            <h4 className="font-bold text-text-primary">{insight.title}</h4>
-            <p className="text-sm text-text-secondary">{insight.insight}</p>
+            <h4 className="font-semibold text-sm text-text-primary">{insight.title}</h4>
+            <p className="text-xs text-text-secondary line-clamp-2">{insight.insight}</p>
         </div>
     </div>
 );
@@ -136,26 +136,29 @@ const SmartInsights: React.FC = () => {
     };
     
     return (
-        <div className="mb-8">
-             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-text-primary">Smart Insights</h2>
-                <button onClick={generateInsights} disabled={isLoading} className="flex items-center gap-2 bg-tertiary text-text-secondary text-sm font-semibold px-4 py-2 rounded-lg hover:bg-opacity-80 disabled:opacity-50 disabled:cursor-wait">
-                    <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
-                    Regenerate
+        <div className="mb-6">
+             <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-semibold text-text-primary flex items-center">
+                    <span className="material-symbols-outlined text-accent mr-2 text-xl">lightbulb</span>
+                    Smart Insights
+                </h2>
+                <button onClick={generateInsights} disabled={isLoading} className="flex items-center gap-1.5 bg-tertiary text-text-secondary text-xs font-medium px-3 py-1.5 rounded-md hover:bg-opacity-80 disabled:opacity-50 disabled:cursor-wait transition-all">
+                    <span className={`material-symbols-outlined text-sm ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
+                    Refresh
                 </button>
             </div>
-            <div className="flex overflow-x-auto space-x-4 pb-4">
+            <div className="flex overflow-x-auto space-x-3 pb-3 scrollbar-thin">
                 {isLoading && (!insights || insights.length === 0) && (
-                    <div className="flex-shrink-0 w-64 h-48 rounded-2xl border border-tertiary bg-secondary flex items-center justify-center">
-                        <p className="text-text-muted">Generating insights...</p>
+                    <div className="flex-shrink-0 w-56 h-32 rounded-lg border border-tertiary bg-secondary flex items-center justify-center">
+                        <p className="text-text-muted text-sm">Generating...</p>
                     </div>
                 )}
                 {insights?.map(insight => (
                     <InsightCard key={insight.id} insight={insight} onDismiss={handleDismiss} />
                 ))}
                 {insights?.length === 0 && !isLoading && (
-                    <div className="flex-shrink-0 w-64 h-48 rounded-2xl border border-dashed border-tertiary bg-secondary flex items-center justify-center text-center p-4">
-                        <p className="text-text-muted text-sm">No insights available. Generate new ones to get started!</p>
+                    <div className="flex-shrink-0 w-56 h-32 rounded-lg border border-dashed border-tertiary bg-secondary flex items-center justify-center text-center p-3">
+                        <p className="text-text-muted text-xs">No insights yet. Click Refresh!</p>
                     </div>
                 )}
             </div>
@@ -175,12 +178,12 @@ const DashboardCard: React.FC<{
     <div
         onClick={onClick}
         style={style}
-        className={`bg-secondary p-6 rounded-xl border border-tertiary flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:border-accent shadow-lg hover:shadow-accent/20 cursor-pointer animate-fade-in-up ${className}`}
+        className={`bg-secondary p-4 rounded-lg border border-tertiary flex flex-col justify-between transition-all duration-200 hover:border-accent hover:shadow-lg hover:shadow-accent/10 cursor-pointer animate-fade-in-up ${className}`}
     >
         <div>
-            <div className="flex items-center text-text-secondary mb-4">
-                {icon}
-                <h3 className="font-bold ml-2">{title}</h3>
+            <div className="flex items-center text-text-secondary mb-3 text-sm">
+                <span className="material-symbols-outlined text-lg mr-1.5">{icon}</span>
+                <h3 className="font-semibold">{title}</h3>
             </div>
             {children}
         </div>
@@ -224,15 +227,15 @@ const AIInsightsWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] }> = (
         const bestDay = weekdayData.reduce((best, current) => current.rate > best.rate ? current : best);
         return `Your most consistent habit is **"${bestHabit.name}"** with a longest streak of **${streaks[bestHabit.id!]?.longestStreak} days**. You're most successful on **${bestDay.name}s**, with a **${bestDay.rate.toFixed(0)}%** completion rate. Keep up the great work!`;
     }, [habits, habitLogs]);
-    return (<div className="bg-secondary p-5 rounded-xl border border-tertiary"><h3 className="font-semibold text-sm text-accent">AI-Powered Insights</h3><p className="text-text-secondary mt-1" dangerouslySetInnerHTML={{ __html: insight.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p></div>);
+    return (<div className="bg-primary p-3 rounded-lg border border-tertiary"><h3 className="font-semibold text-xs text-accent flex items-center"><span className="material-symbols-outlined text-sm mr-1">psychology</span>AI Insights</h3><p className="text-text-secondary text-xs mt-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: insight.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-primary">$1</strong>') }}></p></div>);
 };
 
 const WeekdayPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] }> = ({ habits, habitLogs }) => {
     const data = useMemo(() => calculateWeekdayData(habits, habitLogs), [habits, habitLogs]);
     return (
-        <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px]">
-            <h2 className="text-xl font-semibold mb-4">Weekday Performance</h2>
-            <ResponsiveContainer width="100%" height="90%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" /><XAxis dataKey="name" stroke="#94A3B8" fontSize={12} /><YAxis stroke="#94A3B8" fontSize={12} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} /><Bar dataKey="rate" name="Completion Rate" fill="#3B82F6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+        <div className="bg-primary p-3 rounded-lg border border-tertiary h-full">
+            <h3 className="text-sm font-semibold mb-2 text-text-primary">Weekday Performance</h3>
+            <ResponsiveContainer width="100%" height="85%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" /><XAxis dataKey="name" stroke="#94A3B8" fontSize={10} /><YAxis stroke="#94A3B8" fontSize={10} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', fontSize: '12px' }} /><Bar dataKey="rate" name="Completion" fill="#3B82F6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
         </div>
     );
 };
@@ -986,97 +989,144 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
 
 
     return (
-        <div className="animate-fade-in">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-accent to-purple bg-clip-text text-transparent mb-8">Dashboard</h1>
+        <div className="animate-fade-in max-w-[1600px] mx-auto">
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-accent to-purple bg-clip-text text-transparent">Dashboard</h1>
+                <div className="text-sm text-text-muted">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </div>
+            </div>
 
-            {/* Smart Insights Section */}
+            {/* Smart Insights Section - Compact */}
             <SmartInsights />
 
-            {/* Overview Cards Section */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-text-primary mb-4">Overview</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Overview Cards Section - Compact Grid */}
+            <div className="mb-6">
+                <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
+                    <span className="material-symbols-outlined text-accent mr-2 text-xl">dashboard</span>
+                    Quick Overview
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 
-                <DashboardCard title="Finance" icon={<FinanceIcon />} onClick={() => setActiveModule(Module.FINANCE)} style={{ animationDelay: '100ms' }}>
-                    <p className="text-3xl font-bold">{formatCurrency(financeData.balance)}</p>
-                    <div className="text-sm mt-2">
-                        <div className="w-full bg-tertiary rounded-full h-2 my-2">
-                             <div className="bg-green-500 h-2 rounded-l-full" style={{ width: `${(financeData.income / (financeData.income + financeData.expense)) * 100}%` }}></div>
-                             <div className="bg-red-500 h-2 rounded-r-full" style={{ width: `${(financeData.expense / (financeData.income + financeData.expense)) * 100}%` }}></div>
+                <DashboardCard title="Finance" icon="payments" onClick={() => setActiveModule(Module.FINANCE)} style={{ animationDelay: '50ms' }}>
+                    <p className="text-2xl font-bold text-text-primary">{formatCurrency(financeData.balance)}</p>
+                    <div className="text-xs mt-2 space-y-1">
+                        <div className="flex justify-between text-text-muted">
+                            <span className="text-success">↑ {formatCurrency(financeData.income)}</span>
+                            <span className="text-error">↓ {formatCurrency(financeData.expense)}</span>
                         </div>
-                        <div className="flex justify-between text-text-secondary"><span>Income: {formatCurrency(financeData.income)}</span><span>Expense: {formatCurrency(financeData.expense)}</span></div>
-                        <p className="mt-2 text-text-muted">Top category: <span className="font-semibold text-text-primary">{financeData.topCategory}</span></p>
                     </div>
                 </DashboardCard>
 
-                <DashboardCard title="Habits" icon={<HabitIcon />} onClick={() => setActiveModule(Module.HABITS)} style={{ animationDelay: '200ms' }}>
-                    <p className="text-3xl font-bold">{habitData.completion.toFixed(0)}% <span className="text-lg font-medium text-text-secondary">Today</span></p>
-                     <div className="w-full bg-tertiary rounded-full h-2.5 my-3">
-                        <div className="bg-accent h-2.5 rounded-full" style={{ width: `${habitData.completion}%` }}></div>
+                <DashboardCard title="Habits" icon="check_circle" onClick={() => setActiveModule(Module.HABITS)} style={{ animationDelay: '100ms' }}>
+                    <p className="text-2xl font-bold text-text-primary">{habitData.completion.toFixed(0)}%</p>
+                    <div className="w-full bg-tertiary rounded-full h-1.5 my-2">
+                        <div className="bg-accent h-1.5 rounded-full transition-all" style={{ width: `${habitData.completion}%` }}></div>
                     </div>
-                    <div className="flex items-center text-orange-400">
-                        <span className="material-symbols-outlined">local_fire_department</span>
-                        <span className="ml-1 font-semibold">{habitData.activeStreak} Day Streak</span>
-                    </div>
-                </DashboardCard>
-                
-                <DashboardCard title="Health" icon={<HealthIcon />} onClick={() => setActiveModule(Module.HEALTH)} style={{ animationDelay: '300ms' }}>
-                     <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                        <div className="font-semibold"><span className="material-symbols-outlined text-base mr-1 text-accent align-bottom">footprint</span> Steps<p className="text-lg text-text-primary">{healthData.steps?.value ?? 'N/A'}</p></div>
-                        <div className="font-semibold"><span className="material-symbols-outlined text-base mr-1 text-accent align-bottom">local_fire_department</span> Calories<p className="text-lg text-text-primary">{healthData.calories?.value ?? 'N/A'}</p></div>
-                        <div className="font-semibold"><span className="material-symbols-outlined text-base mr-1 text-accent align-bottom">bed</span> Sleep<p className="text-lg text-text-primary">{healthData.sleep?.value ?? 'N/A'} {healthData.sleep?.unit}</p></div>
-                        <div className="font-semibold"><span className="material-symbols-outlined text-base mr-1 text-accent align-bottom">sentiment_satisfied</span> Mood<p className="text-lg text-text-primary">{healthData.mood ? `${'⭐'.repeat(healthData.mood.value)}${'⚫'.repeat(5 - healthData.mood.value)}` : 'N/A'}</p></div>
+                    <div className="flex items-center text-xs text-warning">
+                        <span className="material-symbols-outlined text-sm">local_fire_department</span>
+                        <span className="ml-1">{habitData.activeStreak} days</span>
                     </div>
                 </DashboardCard>
 
-                <DashboardCard title="Islamic" icon={<IslamicIcon />} onClick={() => setActiveModule(Module.ISLAMIC)} className="xl:col-span-2" style={{ animationDelay: '400ms' }}>
-                    <p className="text-lg italic text-text-primary">"{islamicData.dailyAyah ?? '...'}"</p>
-                    <p className="text-right text-sm text-text-muted mt-2">- Daily Reflection</p>
-                    <div className="border-t border-tertiary my-3"></div>
-                    <p className="text-text-secondary">{islamicData.fastingStatus}</p>
+                <DashboardCard title="Health" icon="favorite" onClick={() => setActiveModule(Module.HEALTH)} style={{ animationDelay: '150ms' }}>
+                    <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between items-center">
+                            <span className="text-text-muted">Steps</span>
+                            <span className="font-semibold text-text-primary">{healthData.steps?.value ?? 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-text-muted">Sleep</span>
+                            <span className="font-semibold text-text-primary">{healthData.sleep?.value ?? 'N/A'} {healthData.sleep?.unit}</span>
+                        </div>
+                    </div>
                 </DashboardCard>
 
-                <DashboardCard title="Notes" icon={<NotesIcon />} onClick={() => setActiveModule(Module.NOTES)} style={{ animationDelay: '500ms' }}>
-                     <div className="space-y-2">
-                        {notes?.map(note => (
-                            <div key={note.id} className="p-2 bg-primary rounded-md">
-                                <p className="font-semibold text-text-primary truncate">{note.title}</p>
-                            </div>
+                <DashboardCard title="Islamic" icon="mosque" onClick={() => setActiveModule(Module.ISLAMIC)} style={{ animationDelay: '200ms' }}>
+                    <p className="text-xs text-text-secondary line-clamp-2 italic">"{islamicData.dailyAyah ?? 'No reflection yet'}"</p>
+                    <p className="text-xs text-text-muted mt-2">{islamicData.fastingStatus}</p>
+                </DashboardCard>
+
+                <DashboardCard title="Notes" icon="note" onClick={() => setActiveModule(Module.NOTES)} style={{ animationDelay: '250ms' }}>
+                    <div className="space-y-1">
+                        {notes?.slice(0, 2).map(note => (
+                            <p key={note.id} className="text-xs text-text-primary truncate">• {note.title}</p>
                         ))}
-                        {(!notes || notes.length === 0) && <p className="text-sm text-text-muted">No recent notes.</p>}
-                     </div>
+                        {(!notes || notes.length === 0) && <p className="text-xs text-text-muted">No notes</p>}
+                    </div>
                 </DashboardCard>
-                
-                <DashboardCard title="Settings" icon={<SettingsIcon />} onClick={() => setActiveModule(Module.SETTINGS)} style={{ animationDelay: '600ms' }}>
-                     <p className="text-text-secondary text-sm">Customize your LifeOS experience, manage data, and set preferences.</p>
+
+                <DashboardCard title="Reminders" icon="notifications" onClick={() => setActiveModule(Module.REMINDERS)} style={{ animationDelay: '300ms' }}>
+                    <p className="text-2xl font-bold text-text-primary">{reminders?.filter(r => !r.completed).length ?? 0}</p>
+                    <p className="text-xs text-text-muted mt-1">Active reminders</p>
                 </DashboardCard>
                 </div>
             </div>
 
-            {/* Calendar Section */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-text-primary mb-4">Calendar</h2>
-                <CalendarTab
-                    habits={habits}
-                    habitLogs={habitLogs}
-                    fastingLogs={fastingLogs}
-                    islamicEvents={islamicEvents}
-                    reminders={reminders}
-                />
+            {/* Calendar & Analytics in Two Columns */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                {/* Calendar Section */}
+                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
+                    <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
+                        <span className="material-symbols-outlined text-accent mr-2 text-xl">calendar_month</span>
+                        Calendar
+                    </h2>
+                    <div className="max-h-[500px] overflow-y-auto">
+                        <CalendarTab
+                            habits={habits}
+                            habitLogs={habitLogs}
+                            fastingLogs={fastingLogs}
+                            islamicEvents={islamicEvents}
+                            reminders={reminders}
+                        />
+                    </div>
+                </div>
+
+                {/* Quick Analytics */}
+                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
+                    <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
+                        <span className="material-symbols-outlined text-accent mr-2 text-xl">analytics</span>
+                        Quick Analytics
+                    </h2>
+                    <div className="max-h-[500px] overflow-y-auto space-y-4">
+                        {habits && habitLogs && habits.length > 0 && (
+                            <div className="h-[220px]">
+                                <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                            </div>
+                        )}
+                        {habits && habitLogs && habits.length > 0 && (
+                            <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Analytics Section */}
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-text-primary mb-4">Analytics</h2>
-                <AnalyticsTab
-                    habits={habits}
-                    habitLogs={habitLogs}
-                    healthMetrics={healthMetrics}
-                    healthLogs={healthLogs}
-                    transactions={transactions}
-                    categories={categories}
-                />
-            </div>
+            {/* Full Analytics Section - Collapsible */}
+            <details className="group">
+                <summary className="cursor-pointer list-none">
+                    <div className="bg-secondary p-4 rounded-lg border border-tertiary hover:border-accent transition-colors">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-text-primary flex items-center">
+                                <span className="material-symbols-outlined text-accent mr-2 text-xl">bar_chart</span>
+                                Detailed Analytics
+                            </h2>
+                            <span className="material-symbols-outlined text-text-muted group-open:rotate-180 transition-transform">
+                                expand_more
+                            </span>
+                        </div>
+                    </div>
+                </summary>
+                <div className="mt-4">
+                    <AnalyticsTab
+                        habits={habits}
+                        habitLogs={habitLogs}
+                        healthMetrics={healthMetrics}
+                        healthLogs={healthLogs}
+                        transactions={transactions}
+                        categories={categories}
+                    />
+                </div>
+            </details>
         </div>
     );
 };
