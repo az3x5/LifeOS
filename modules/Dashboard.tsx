@@ -17,8 +17,7 @@ import ConfirmModal from '../components/modals/ConfirmModal';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
-const TABS = ['Overview', 'Calendar', 'Analytics'];
-const PIE_COLORS = ['#00A99D', '#48BB78', '#F56565', '#4299E1', '#9F7AEA', '#ED8936', '#38B2AC', '#ECC94B'];
+const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#A855F7', '#06B6D4', '#EC4899', '#8B5CF6'];
 
 type CalendarView = 'all' | 'habits' | 'fasting' | 'islamic' | 'reminders';
 
@@ -233,7 +232,7 @@ const WeekdayPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[
     return (
         <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px]">
             <h2 className="text-xl font-semibold mb-4">Weekday Performance</h2>
-            <ResponsiveContainer width="100%" height="90%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="rgba(224, 242, 241, 0.1)" /><XAxis dataKey="name" stroke="#B2DFDB" fontSize={12} /><YAxis stroke="#B2DFDB" fontSize={12} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1A2E35', border: '1px solid #2D4A53' }} /><Bar dataKey="rate" name="Completion Rate" fill="#00A99D" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="90%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" /><XAxis dataKey="name" stroke="#94A3B8" fontSize={12} /><YAxis stroke="#94A3B8" fontSize={12} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} /><Bar dataKey="rate" name="Completion Rate" fill="#3B82F6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
         </div>
     );
 };
@@ -326,12 +325,12 @@ const HealthAnalyticsWidget: React.FC<{ metrics?: HealthMetric[], logs?: HealthL
             <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(224,242,241,0.1)" />
-                        <XAxis dataKey="date" stroke="#B2DFDB" fontSize={12} />
-                        <YAxis stroke="#B2DFDB" fontSize={12} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1A2E35', border: '1px solid #2D4A53' }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
+                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} />
+                        <YAxis stroke="#94A3B8" fontSize={12} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} />
                         <Legend />
-                        {metricId && <Line type="monotone" dataKey={metrics?.find(m=>m.id===Number(metricId))?.name} stroke="#00A99D" connectNulls />}
+                        {metricId && <Line type="monotone" dataKey={metrics?.find(m=>m.id===Number(metricId))?.name} stroke="#3B82F6" strokeWidth={2} connectNulls />}
                     </LineChart>
                 </ResponsiveContainer>
             </div>
@@ -386,13 +385,13 @@ const FinanceAnalyticsWidget: React.FC<{ transactions?: Transaction[], categorie
                 <h2 className="text-xl font-semibold mb-4">Cash Flow (Last 30 Days)</h2>
                 <ResponsiveContainer width="100%" height="90%">
                     <LineChart data={cashFlowData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(224, 242, 241, 0.1)" />
-                        <XAxis dataKey="date" stroke="#B2DFDB" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#B2DFDB" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: number) => `$${value}`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1A2E35', border: '1px solid #2D4A53' }} cursor={{fill: 'rgba(255,255,255,0.1)'}}/>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
+                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: number) => `$${value}`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} cursor={{fill: 'rgba(255,255,255,0.1)'}}/>
                         <Legend />
-                        <Line type="monotone" dataKey="Income" stroke="#48BB78" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="Expenses" stroke="#F56565" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="Income" stroke="#10B981" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="Expenses" stroke="#EF4444" strokeWidth={2} dot={false} />
                     </LineChart>
                 </ResponsiveContainer>
             </div>
@@ -404,7 +403,7 @@ const FinanceAnalyticsWidget: React.FC<{ transactions?: Transaction[], categorie
                         <Pie data={categoryBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} fill="#8884d8" paddingAngle={5} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                             {categoryBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1A2E35', border: '1px solid #2D4A53' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} />
                         <Legend />
                     </PieChart>
                 </ResponsiveContainer>
@@ -896,7 +895,6 @@ const AnalyticsTab: React.FC<{
 };
 
 const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ setActiveModule }) => {
-    const [activeTab, setActiveTab] = useState(TABS[0]);
 
     // --- Data Hooks ---
     const accounts = useLiveQuery(() => db.accounts.toArray());
@@ -989,24 +987,15 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
 
     return (
         <div className="animate-fade-in">
-            <h1 className="text-4xl font-bold text-text-primary mb-8">Dashboard</h1>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-accent to-purple bg-clip-text text-transparent mb-8">Dashboard</h1>
 
-            <div className="border-b border-tertiary mb-8">
-                <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
-                    {TABS.map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab)}
-                            className={`${activeTab === tab ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base`}>
-                            {tab}
-                        </button>
-                    ))}
-                </nav>
-            </div>
+            {/* Smart Insights Section */}
+            <SmartInsights />
 
-            {activeTab === 'Overview' && (
-                <>
-                    <SmartInsights />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Overview Cards Section */}
+            <div className="mb-8">
+                <h2 className="text-2xl font-bold text-text-primary mb-4">Overview</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 
                 <DashboardCard title="Finance" icon={<FinanceIcon />} onClick={() => setActiveModule(Module.FINANCE)} style={{ animationDelay: '100ms' }}>
                     <p className="text-3xl font-bold">{formatCurrency(financeData.balance)}</p>
@@ -1061,12 +1050,12 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                 <DashboardCard title="Settings" icon={<SettingsIcon />} onClick={() => setActiveModule(Module.SETTINGS)} style={{ animationDelay: '600ms' }}>
                      <p className="text-text-secondary text-sm">Customize your LifeOS experience, manage data, and set preferences.</p>
                 </DashboardCard>
+                </div>
+            </div>
 
-                    </div>
-                </>
-            )}
-
-            {activeTab === 'Calendar' && (
+            {/* Calendar Section */}
+            <div className="mb-8">
+                <h2 className="text-2xl font-bold text-text-primary mb-4">Calendar</h2>
                 <CalendarTab
                     habits={habits}
                     habitLogs={habitLogs}
@@ -1074,9 +1063,11 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                     islamicEvents={islamicEvents}
                     reminders={reminders}
                 />
-            )}
+            </div>
 
-            {activeTab === 'Analytics' && (
+            {/* Analytics Section */}
+            <div className="mb-8">
+                <h2 className="text-2xl font-bold text-text-primary mb-4">Analytics</h2>
                 <AnalyticsTab
                     habits={habits}
                     habitLogs={habitLogs}
@@ -1085,7 +1076,7 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                     transactions={transactions}
                     categories={categories}
                 />
-            )}
+            </div>
         </div>
     );
 };
