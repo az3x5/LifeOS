@@ -246,7 +246,23 @@ const HabitPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] 
         return habits.map(h => ({ name: h.name, 'Current Streak': streaks[h.id!]?.currentStreak ?? 0, 'Longest Streak': streaks[h.id!]?.longestStreak ?? 0, 'Completion Rate': calculateCompletionRate(h, habitLogs) }));
     }, [habits, habitLogs]);
     return (
-        <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px] flex flex-col"><h2 className="text-xl font-semibold mb-4">Habit Performance Breakdown</h2><div className="flex-1 overflow-y-auto"><ul className="space-y-3">{data.map(h => (<li key={h.name} className="p-3 bg-primary rounded-lg"> <p className="font-semibold text-text-primary">{h.name}</p><div className="flex justify-between items-center text-sm text-text-secondary mt-1"><span>Current: {h['Current Streak']}d</span><span>Longest: {h['Longest Streak']}d</span><span>Rate: {h['Completion Rate'].toFixed(0)}%</span></div></li>))}</ul></div></div>
+        <div className="bg-primary p-3 rounded-lg border border-tertiary h-full flex flex-col">
+            <h3 className="text-sm font-semibold mb-2 text-text-primary">Habit Performance</h3>
+            <div className="flex-1 overflow-y-auto">
+                <ul className="space-y-2">
+                    {data.map(h => (
+                        <li key={h.name} className="p-2 bg-secondary rounded-md">
+                            <p className="font-semibold text-xs text-text-primary truncate">{h.name}</p>
+                            <div className="flex justify-between items-center text-xs text-text-secondary mt-1">
+                                <span>🔥 {h['Current Streak']}d</span>
+                                <span>📈 {h['Longest Streak']}d</span>
+                                <span>✓ {h['Completion Rate'].toFixed(0)}%</span>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
     );
 };
 
@@ -273,7 +289,22 @@ const CorrelationEngineWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[]
         return { text: `On days you **'${selectedHabit?.name}'**, your average **'${selectedMetric?.name}'** was **${diff.toFixed(2)} ${selectedMetric?.unit} ${diff > 0 ? 'higher' : 'lower'}**.`, value: diff };
     }, [habitId, metricId, habits, habitLogs, healthMetrics, healthLogs]);
     return (
-        <div className="bg-secondary p-6 rounded-xl border border-tertiary"><h2 className="text-xl font-semibold mb-4">Correlation Engine</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><select value={habitId} onChange={e => setHabitId(e.target.value)} className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent"><option value="">Select a Habit</option>{habits.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select><select value={metricId} onChange={e => setMetricId(e.target.value)} className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent"><option value="">Select a Health Metric</option>{healthMetrics?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div className="mt-4 p-4 bg-primary rounded-lg min-h-[60px]"><p className="text-text-secondary" dangerouslySetInnerHTML={{ __html: correlation.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p></div></div>
+        <div className="bg-primary p-3 rounded-lg border border-tertiary">
+            <h3 className="text-sm font-semibold mb-2 text-text-primary">Correlation Engine</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <select value={habitId} onChange={e => setHabitId(e.target.value)} className="bg-secondary border border-tertiary rounded-md py-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent">
+                    <option value="">Select a Habit</option>
+                    {habits.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                </select>
+                <select value={metricId} onChange={e => setMetricId(e.target.value)} className="bg-secondary border border-tertiary rounded-md py-1.5 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent">
+                    <option value="">Select a Health Metric</option>
+                    {healthMetrics?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+            </div>
+            <div className="mt-2 p-2 bg-secondary rounded-md min-h-[50px]">
+                <p className="text-text-secondary text-xs" dangerouslySetInnerHTML={{ __html: correlation.text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-primary">$1</strong>') }}></p>
+            </div>
+        </div>
     );
 };
 
@@ -305,35 +336,30 @@ const HealthAnalyticsWidget: React.FC<{ metrics?: HealthMetric[], logs?: HealthL
     }, [filteredLogs, metricId, metrics]);
 
     return (
-        <div className="bg-secondary p-6 rounded-xl border border-tertiary">
-            <h3 className="text-xl font-semibold mb-4">Health Analytics & Trends</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mb-6">
-                <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">Metric</label>
-                    <select value={metricId} onChange={e => setMetricId(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-3 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary appearance-none">
+        <div className="bg-primary p-3 rounded-lg border border-tertiary">
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-text-primary">Health Trends</h3>
+                <div className="flex gap-2">
+                    <select value={metricId} onChange={e => setMetricId(e.target.value)} className="bg-secondary border border-tertiary rounded-md py-1 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent">
                         <option value="">Select Metric</option>
                         {metrics?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">Time Period</label>
-                    <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-3 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary appearance-none">
-                        <option value="7d">Last 7 Days</option>
-                        <option value="30d">Last 30 Days</option>
-                        <option value="90d">Last 90 Days</option>
+                    <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)} className="bg-secondary border border-tertiary rounded-md py-1 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent">
+                        <option value="7d">7d</option>
+                        <option value="30d">30d</option>
+                        <option value="90d">90d</option>
                     </select>
                 </div>
             </div>
 
-            <div className="h-[400px]">
+            <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
-                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} />
-                        <YAxis stroke="#94A3B8" fontSize={12} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} />
-                        <Legend />
-                        {metricId && <Line type="monotone" dataKey={metrics?.find(m=>m.id===Number(metricId))?.name} stroke="#3B82F6" strokeWidth={2} connectNulls />}
+                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={10} />
+                        <YAxis stroke="#94A3B8" fontSize={10} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', fontSize: '11px' }} />
+                        {metricId && <Line type="monotone" dataKey={metrics?.find(m=>m.id===Number(metricId))?.name} stroke="#3B82F6" strokeWidth={2} connectNulls dot={false} />}
                     </LineChart>
                 </ResponsiveContainer>
             </div>
@@ -384,30 +410,28 @@ const FinanceAnalyticsWidget: React.FC<{ transactions?: Transaction[], categorie
 
     return (
         <>
-            <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px]">
-                <h2 className="text-xl font-semibold mb-4">Cash Flow (Last 30 Days)</h2>
+            <div className="bg-primary p-3 rounded-lg border border-tertiary h-[280px]">
+                <h3 className="text-sm font-semibold mb-2 text-text-primary">Cash Flow (30d)</h3>
                 <ResponsiveContainer width="100%" height="90%">
                     <LineChart data={cashFlowData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
-                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value: number) => `$${value}`} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} cursor={{fill: 'rgba(255,255,255,0.1)'}}/>
-                        <Legend />
+                        <XAxis dataKey="date" stroke="#94A3B8" fontSize={9} tickLine={false} axisLine={false} hide />
+                        <YAxis stroke="#94A3B8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value: number) => `$${value}`} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', fontSize: '11px' }} cursor={{fill: 'rgba(255,255,255,0.1)'}}/>
                         <Line type="monotone" dataKey="Income" stroke="#10B981" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="Expenses" stroke="#EF4444" strokeWidth={2} dot={false} />
                     </LineChart>
                 </ResponsiveContainer>
             </div>
 
-            <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px]">
-                <h2 className="text-xl font-semibold mb-4">Expense Breakdown</h2>
+            <div className="bg-primary p-3 rounded-lg border border-tertiary h-[280px]">
+                <h3 className="text-sm font-semibold mb-2 text-text-primary">Expense Breakdown</h3>
                 <ResponsiveContainer width="100%" height="90%">
                     <PieChart>
-                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} fill="#8884d8" paddingAngle={5} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} fill="#8884d8" paddingAngle={3} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                             {categoryBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155' }} />
-                        <Legend />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', fontSize: '11px' }} />
                     </PieChart>
                 </ResponsiveContainer>
             </div>
@@ -856,42 +880,58 @@ const AnalyticsTab: React.FC<{
     transactions?: Transaction[];
     categories?: Category[];
 }> = ({ habits, habitLogs, healthMetrics, healthLogs, transactions, categories }) => {
-    if (!habits || !habitLogs) return <div className="text-center p-8 text-text-muted">Loading analytics data...</div>;
+    if (!habits || !habitLogs) return <div className="text-center p-4 text-text-muted text-sm">Loading analytics data...</div>;
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <h2 className="text-2xl font-bold">Comprehensive Analytics</h2>
-                <div className="flex items-center space-x-2">
-                    <button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export CSV</button>
-                    <button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export PDF</button>
-                </div>
-            </div>
+        <div className="space-y-4">
+            {/* AI Insights - Moved from Quick Analytics */}
+            {habits.length > 0 && (
+                <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
+            )}
 
-            <div className="space-y-8">
+            <div className="space-y-4">
+                {/* Habit Analytics */}
                 <div>
-                    <h3 className="text-xl font-semibold mb-4 text-accent">📊 Habit Analytics</h3>
-                    <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
-                        <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
-                        <HabitPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                    <h3 className="text-sm font-semibold mb-2 text-accent flex items-center">
+                        <span className="material-symbols-outlined text-base mr-1">bar_chart</span>
+                        Habit Analytics
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="h-[280px]">
+                            <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                        </div>
+                        <div className="h-[280px]">
+                            <HabitPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                        </div>
                     </div>
-                    <div className="mt-6">
+                    <div className="mt-3">
                         <CorrelationEngineWidget habits={habits} habitLogs={habitLogs} healthMetrics={healthMetrics} healthLogs={healthLogs} />
                     </div>
                 </div>
 
-                <div>
-                    <h3 className="text-xl font-semibold mb-4 text-accent">💪 Health Analytics</h3>
-                    <HealthAnalyticsWidget metrics={healthMetrics} logs={healthLogs} />
-                </div>
-
-                <div>
-                    <h3 className="text-xl font-semibold mb-4 text-accent">💰 Finance Analytics</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <FinanceAnalyticsWidget transactions={transactions} categories={categories} />
+                {/* Health Analytics */}
+                {healthMetrics && healthLogs && (
+                    <div>
+                        <h3 className="text-sm font-semibold mb-2 text-accent flex items-center">
+                            <span className="material-symbols-outlined text-base mr-1">favorite</span>
+                            Health Analytics
+                        </h3>
+                        <HealthAnalyticsWidget metrics={healthMetrics} logs={healthLogs} />
                     </div>
-                </div>
+                )}
+
+                {/* Finance Analytics */}
+                {transactions && categories && (
+                    <div>
+                        <h3 className="text-sm font-semibold mb-2 text-accent flex items-center">
+                            <span className="material-symbols-outlined text-base mr-1">payments</span>
+                            Finance Analytics
+                        </h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <FinanceAnalyticsWidget transactions={transactions} categories={categories} />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1064,14 +1104,14 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
             </div>
 
             {/* Calendar & Analytics in Two Columns */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-6">
                 {/* Calendar Section */}
-                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
-                    <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
-                        <span className="material-symbols-outlined text-accent mr-2 text-xl">calendar_month</span>
+                <div className="bg-secondary p-3 rounded-lg border border-tertiary">
+                    <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center">
+                        <span className="material-symbols-outlined text-accent mr-1.5 text-lg">calendar_month</span>
                         Calendar
                     </h2>
-                    <div className="max-h-[500px] overflow-y-auto">
+                    <div className="h-[400px] overflow-y-auto">
                         <CalendarTab
                             habits={habits}
                             habitLogs={habitLogs}
@@ -1083,19 +1123,18 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                 </div>
 
                 {/* Quick Analytics */}
-                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
-                    <h2 className="text-lg font-semibold text-text-primary mb-3 flex items-center">
-                        <span className="material-symbols-outlined text-accent mr-2 text-xl">analytics</span>
-                        Quick Analytics
+                <div className="bg-secondary p-3 rounded-lg border border-tertiary">
+                    <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center">
+                        <span className="material-symbols-outlined text-accent mr-1.5 text-lg">analytics</span>
+                        Weekday Performance
                     </h2>
-                    <div className="max-h-[500px] overflow-y-auto space-y-4">
-                        {habits && habitLogs && habits.length > 0 && (
-                            <div className="h-[220px]">
-                                <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                    <div className="h-[400px]">
+                        {habits && habitLogs && habits.length > 0 ? (
+                            <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-text-muted text-sm">
+                                No habit data available
                             </div>
-                        )}
-                        {habits && habitLogs && habits.length > 0 && (
-                            <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
                         )}
                     </div>
                 </div>
