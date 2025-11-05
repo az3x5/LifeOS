@@ -29,6 +29,9 @@ import LockScreen from './components/LockScreen';
 // Import security service
 import { isLockEnabled, shouldLock, updateLastActive } from './services/securityService';
 
+// Import theme service
+import { initializeTheme } from './services/themeService';
+
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -47,6 +50,11 @@ const App: React.FC = () => {
 
     // State for Cloud Sync
     const [isSyncing, setIsSyncing] = useState(true);
+
+    // Initialize theme on mount
+    useEffect(() => {
+        initializeTheme();
+    }, []);
 
     // Check authentication status on mount
     useEffect(() => {

@@ -18,6 +18,7 @@ import {
     setLockTimeout,
     getLockTimeout
 } from '../services/securityService';
+import { getThemeMode, setThemeMode, type ThemeMode } from '../services/themeService';
 
 const Settings: React.FC = () => {
     const [user, setUser] = useState<any>(null);
@@ -32,7 +33,7 @@ const Settings: React.FC = () => {
     const [biometricAvailable, setBiometricAvailable] = useState(false);
     const [lockTimeout, setLockTimeoutState] = useState(5);
     const [reminders, setReminders] = useState(Notification.permission === 'granted');
-    const [theme, setTheme] = useState('dark');
+    const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
     const [language, setLanguage] = useState('en');
 
     // State for Habit Preferences
@@ -57,7 +58,7 @@ const Settings: React.FC = () => {
         });
 
         // Load settings from localStorage
-        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const savedThemeMode = getThemeMode();
         const savedLanguage = localStorage.getItem('language') || 'en';
         const savedWeekStart = localStorage.getItem('weekStartsOn') || 'sunday';
         const savedReminderTime = localStorage.getItem('defaultReminderTime') || '09:00';
@@ -65,7 +66,7 @@ const Settings: React.FC = () => {
         const savedSyncInterval = localStorage.getItem('syncInterval') || '5';
         const savedLastSync = localStorage.getItem('lastSyncTime');
 
-        setTheme(savedTheme);
+        setThemeModeState(savedThemeMode);
         setLanguage(savedLanguage);
         setWeekStartsOn(savedWeekStart);
         setDefaultReminderTime(savedReminderTime);
@@ -502,19 +503,27 @@ const Settings: React.FC = () => {
              </SettingsCard>
             
             <SettingsCard title="Appearance">
-                <SettingItem title="Theme" description="Choose your preferred color theme.">
-                    <select
-                        value={theme}
-                        onChange={(e) => {
-                            setTheme(e.target.value);
-                            localStorage.setItem('theme', e.target.value);
+                <SettingItem title="Dark Mode" description="Switch between light and dark theme.">
+                    <button
+                        onClick={() => {
+                            const newMode: ThemeMode = themeMode === 'dark' ? 'light' : 'dark';
+                            setThemeModeState(newMode);
+                            setThemeMode(newMode);
                         }}
-                        className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                        className="relative inline-flex items-center h-10 w-20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-secondary"
+                        style={{
+                            backgroundColor: themeMode === 'dark' ? '#3B82F6' : '#CBD5E1'
+                        }}
                     >
-                        <option value="dark">Dark</option>
-                        <option value="light">Light (Coming Soon)</option>
-                        <option value="auto">Auto (Coming Soon)</option>
-                    </select>
+                        <span
+                            className="inline-block h-8 w-8 transform rounded-full bg-white shadow-lg transition-transform flex items-center justify-center"
+                            style={{
+                                transform: themeMode === 'dark' ? 'translateX(2.5rem)' : 'translateX(0.25rem)'
+                            }}
+                        >
+                            {themeMode === 'dark' ? '🌙' : '☀️'}
+                        </span>
+                    </button>
                 </SettingItem>
                 <SettingItem title="Language" description="Choose your preferred language.">
                     <select

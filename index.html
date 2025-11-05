@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#00A99D" />
+    <meta name="theme-color" content="#3B82F6" />
     <meta name="description" content="Your personal life operating system for managing habits, finances, health, and more" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192x192.png" />
@@ -16,21 +16,39 @@
 
     <title>LifeOS - Personal Life Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Initial Tailwind config - will be updated by theme service
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
             colors: {
-              'primary': '#1A2E35', // Dark Teal Background
-              'secondary': '#223A42', // Lighter Card Background
-              'tertiary': '#2D4A53', // Borders, Dividers
-              'accent': '#00A99D', // Vibrant Teal for buttons, highlights
-              'accent-hover': '#008F85',
-              'text-primary': '#E0F2F1', // Off-white for body text
-              'text-secondary': '#B2DFDB', // Lighter text for subtitles
-              'text-muted': '#80CBC4', // Muted text for placeholders,
-            }
+              // Default dark theme - will be overridden by CSS variables
+              'primary': 'var(--color-primary, #0F172A)',
+              'secondary': 'var(--color-secondary, #1E293B)',
+              'tertiary': 'var(--color-tertiary, #334155)',
+              'accent': 'var(--color-accent, #3B82F6)',
+              'accent-hover': 'var(--color-accent-hover, #2563EB)',
+              'accent-light': 'var(--color-accent-light, #60A5FA)',
+              'success': 'var(--color-success, #10B981)',
+              'warning': 'var(--color-warning, #F59E0B)',
+              'error': 'var(--color-error, #EF4444)',
+              'info': 'var(--color-info, #06B6D4)',
+              'purple': 'var(--color-purple, #A855F7)',
+              'text-primary': 'var(--color-text-primary, #F1F5F9)',
+              'text-secondary': 'var(--color-text-secondary, #CBD5E1)',
+              'text-muted': 'var(--color-text-muted, #94A3B8)',
+              'gradient-start': 'var(--color-gradient-start, #3B82F6)',
+              'gradient-end': 'var(--color-gradient-end, #8B5CF6)',
+            },
+            backgroundImage: {
+              'gradient-primary': 'linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end))',
+            },
           }
         }
       }
@@ -76,8 +94,8 @@
       .tooltip .tooltiptext {
         visibility: hidden;
         width: 140px;
-        background-color: #1A2E35;
-        color: #fff;
+        background-color: var(--color-secondary);
+        color: var(--color-text-primary);
         text-align: center;
         border-radius: 6px;
         padding: 5px 0;
@@ -88,12 +106,29 @@
         margin-left: -70px;
         opacity: 0;
         transition: opacity 0.3s;
-        border: 1px solid #2D4A53;
+        border: 1px solid var(--color-tertiary);
         font-size: 0.75rem;
       }
       .tooltip:hover .tooltiptext {
         visibility: visible;
         opacity: 1;
+      }
+
+      /* Smooth transitions for theme switching */
+      * {
+        transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      }
+
+      /* Gradient backgrounds */
+      .bg-gradient-primary {
+        background: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end));
+      }
+
+      /* Glass morphism effect */
+      .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
       
       @keyframes spin {

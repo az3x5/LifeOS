@@ -76,10 +76,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule
             <header className="hidden md:flex flex-col w-64 bg-secondary p-4 space-y-4 border-r border-tertiary">
                 <div className="flex items-center justify-between p-2">
                     <div className="flex items-center space-x-3">
-                         <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center">
+                         <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center shadow-lg">
                             <span className="text-xl font-bold text-white">L</span>
                         </div>
-                        <h1 className="text-2xl font-bold text-text-primary">LifeOS</h1>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-purple bg-clip-text text-transparent">LifeOS</h1>
                     </div>
                     <SyncStatus isSyncing={isSyncing} />
                 </div>
