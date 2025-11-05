@@ -10,6 +10,20 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
+      build: {
+        chunkSizeWarningLimit: 1500, // Increase limit to 1500 kB (default is 500 kB)
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Split vendor chunks for better caching
+              'react-vendor': ['react', 'react-dom'],
+              'supabase-vendor': ['@supabase/supabase-js', '@supabase/auth-js', '@supabase/postgrest-js', '@supabase/realtime-js'],
+              'chart-vendor': ['recharts'],
+              'db-vendor': ['dexie', 'dexie-react-hooks'],
+            }
+          }
+        }
+      },
       plugins: [
         react(),
         VitePWA({
