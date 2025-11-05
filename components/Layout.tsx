@@ -34,12 +34,12 @@ interface LayoutProps {
 
 const navItems = [
     { module: Module.DASHBOARD, icon: DashboardIcon, label: 'Dashboard' },
-    { module: Module.FINANCE, icon: FinanceIcon, label: 'Finance' },
-    { module: Module.HABITS, icon: HabitIcon, label: 'Habits' },
-    { module: Module.HEALTH, icon: HealthIcon, label: 'Health' },
-    { module: Module.ISLAMIC, icon: IslamicIcon, label: 'Islamic' },
     { module: Module.NOTES, icon: NotesIcon, label: 'Notes' },
     { module: Module.REMINDERS, icon: RemindersIcon, label: 'Reminders' },
+    { module: Module.HABITS, icon: HabitIcon, label: 'Habits' },
+    { module: Module.HEALTH, icon: HealthIcon, label: 'Health' },
+    { module: Module.FINANCE, icon: FinanceIcon, label: 'Finance' },
+    { module: Module.ISLAMIC, icon: IslamicIcon, label: 'Islamic' },
     { module: Module.SETTINGS, icon: SettingsIcon, label: 'Settings' },
 ];
 
