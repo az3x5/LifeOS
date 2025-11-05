@@ -23,6 +23,21 @@ import QuickMarkHabitModal from './components/modals/QuickMarkHabitModal';
 import QuickAddHealthLogModal from './components/modals/QuickAddHealthLogModal';
 import QuickAddNoteModal from './components/modals/QuickAddNoteModal';
 import QuickLogPrayerModal from './components/modals/QuickLogPrayerModal';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+
+// Register PWA Service Worker
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+    onNeedRefresh() {
+        if (confirm('New version available! Reload to update?')) {
+            updateSW(true);
+        }
+    },
+    onOfflineReady() {
+        console.log('App ready to work offline');
+    },
+});
 
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
@@ -236,6 +251,9 @@ const App: React.FC = () => {
             {isAddHealthLogOpen && <QuickAddHealthLogModal closeModal={() => setAddHealthLogOpen(false)} />}
             {isAddNoteOpen && <QuickAddNoteModal closeModal={() => setAddNoteOpen(false)} setActiveModule={setActiveModule} />}
             {isLogPrayerOpen && <QuickLogPrayerModal closeModal={() => setLogPrayerOpen(false)} />}
+
+            {/* PWA Install Prompt */}
+            <PWAInstallPrompt />
         </>
     );
 };

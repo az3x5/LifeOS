@@ -15,6 +15,7 @@ A comprehensive personal dashboard application for managing your life with habit
 - 🔐 **Authentication** - Secure login with Supabase Auth
 - ☁️ **Cloud Sync** - Automatic data synchronization across devices
 - 📱 **Offline Support** - Works offline with IndexedDB
+- 🚀 **Progressive Web App (PWA)** - Install on any device, works offline
 
 ## 🚀 Quick Start
 
@@ -128,16 +129,31 @@ Each table includes:
 
 ## 🔧 Configuration
 
+### Progressive Web App (PWA)
+
+LifeOS is a fully-featured PWA! Users can:
+- 📱 **Install on any device** - Desktop, mobile, or tablet
+- 📴 **Work offline** - Access data without internet
+- ⚡ **Fast loading** - Cached resources load instantly
+
+**Setup PWA Icons:**
+1. Open `http://localhost:3000/generate-icons.html` in your browser
+2. Click "Download All Icons" to generate PNG icons
+3. Save all icons to the `public/` folder
+4. Build and deploy
+
+For detailed PWA setup instructions, see [PWA-SETUP.md](./PWA-SETUP.md)
+
 ### Supabase Authentication
 
 The app supports:
 - ✅ Email/Password authentication (enabled by default)
-- ✅ Google OAuth (requires Google Cloud Console setup)
+- ⚠️ Google OAuth (disabled, requires setup)
 
 To enable Google OAuth:
 1. Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com)
 2. Add credentials to Supabase Auth settings
-3. The Google sign-in button will work automatically
+3. Uncomment the Google sign-in button in `modules/Auth.tsx`
 
 ### Environment Variables
 
