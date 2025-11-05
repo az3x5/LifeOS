@@ -39,8 +39,11 @@ async function syncTable<T extends Record<string, any>>(
             return { ...item, user_id: userId };
         });
 
+        // Use upsert with proper conflict resolution
+        // Supabase will use the primary key (id, user_id) for conflict detection
         const { error } = await supabase.from(tableName).upsert(dataToSync, {
-            onConflict: 'id',
+            onConflict: 'id,user_id',
+            ignoreDuplicates: false, // Update existing records
         });
 
         if (error) {
@@ -57,7 +60,7 @@ async function syncTable<T extends Record<string, any>>(
 }
 
 /**
- * Pull data from Supabase for a specific table
+ * Pull data from Supabase for a specific table with smart merge
  */
 async function pullTable<T>(
     tableName: string,
@@ -80,10 +83,17 @@ async function pullTable<T>(
         }
 
         if (data && data.length > 0) {
-            // Clear local table and insert remote data
-            await localTable.clear();
-            await localTable.bulkAdd(data);
-            console.log(`${data.length} ${tableName} pulled from Supabase.`);
+            // Smart merge: Use upsert instead of clear + add
+            // This preserves local data and only updates/adds remote changes
+            const remoteData = data.map(item => {
+                // Remove user_id before storing locally
+                const { user_id, ...localItem } = item;
+                return localItem;
+            });
+
+            // Use bulkPut to update existing records and add new ones
+            await localTable.bulkPut(remoteData);
+            console.log(`${data.length} ${tableName} merged from Supabase.`);
         }
 
         return true;
@@ -264,10 +274,72 @@ export async function pullAllData(): Promise<boolean> {
 }
 
 /**
- * Main sync function - pulls data on login, pushes on changes
- * For initial implementation, we'll do a simple push
+ * Main sync function - two-way sync (pull then push)
+ * This ensures data is merged from cloud first, then local changes are pushed
  */
 export async function syncAllData(): Promise<boolean> {
-    return pushAllData();
+    const isOnline = navigator.onLine;
+    if (!isOnline) {
+        console.log("Offline mode: Skipping sync.");
+        return false;
+    }
+
+    const userId = await getUserId();
+    if (!userId) {
+        console.error("No authenticated user. Cannot sync.");
+        return false;
+    }
+
+    console.log("Starting two-way sync...");
+
+    // Step 1: Pull remote changes first (merge into local)
+    console.log("Step 1: Pulling remote changes...");
+    const pullSuccess = await pullAllData();
+
+    // Step 2: Push local changes to remote
+    console.log("Step 2: Pushing local changes...");
+    const pushSuccess = await pushAllData();
+
+    const syncSuccess = pullSuccess && pushSuccess;
+
+    if (syncSuccess) {
+        console.log("Two-way sync completed successfully.");
+    } else {
+        console.warn("Sync completed with some errors.");
+    }
+
+    return syncSuccess;
 }
 
+/**
+ * Debounced auto-sync - triggers sync after data changes
+ * Waits 5 seconds after last change before syncing
+ */
+let autoSyncTimeout: NodeJS.Timeout | null = null;
+
+export function triggerAutoSync(): void {
+    // Clear existing timeout
+    if (autoSyncTimeout) {
+        clearTimeout(autoSyncTimeout);
+    }
+
+    // Set new timeout for 5 seconds
+    autoSyncTimeout = setTimeout(async () => {
+        console.log("Auto-sync triggered...");
+        await syncAllData();
+    }, 5000); // 5 second debounce
+}
+
+/**
+ * Force immediate sync (for manual sync button)
+ */
+export async function forceSyncNow(): Promise<boolean> {
+    // Cancel any pending auto-sync
+    if (autoSyncTimeout) {
+        clearTimeout(autoSyncTimeout);
+        autoSyncTimeout = null;
+    }
+
+    console.log("Force sync triggered...");
+    return await syncAllData();
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { syncAllData } from '../services/syncService';
+import { forceSyncNow } from '../services/syncService';
 import AlertModal from '../components/modals/AlertModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import PinSetupModal from '../components/modals/PinSetupModal';
@@ -88,14 +88,14 @@ const Settings: React.FC = () => {
     const handleManualSync = async () => {
         setSyncing(true);
         try {
-            await syncAllData();
+            await forceSyncNow();
             const now = new Date().toLocaleString();
             setLastSyncTime(now);
             localStorage.setItem('lastSyncTime', now);
             setAlertModal({
                 isOpen: true,
                 title: 'Sync Complete',
-                message: 'Your data has been successfully synced with the cloud!',
+                message: 'Your data has been successfully synced with the cloud (two-way sync)!',
                 icon: '✅'
             });
         } catch (error: any) {

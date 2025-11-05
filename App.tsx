@@ -13,7 +13,7 @@ import Settings from './modules/Settings';
 import Auth from './modules/Auth';
 import { db } from './services/db';
 import { runNotificationChecks } from './services/notificationService';
-import { syncAllData, pullAllData } from './services/syncService';
+import { syncAllData } from './services/syncService';
 import { supabase } from './services/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -61,17 +61,17 @@ const App: React.FC = () => {
                     setIsLocked(true);
                 }
 
-                // If user is logged in, sync data in background (non-blocking)
+                // If user is logged in, sync data in background (two-way sync)
                 if (session?.user) {
-                    console.log('User authenticated, syncing data in background...');
+                    console.log('User authenticated, starting two-way sync in background...');
                     setIsSyncing(true);
-                    pullAllData()
+                    syncAllData()
                         .then(() => {
-                            console.log('Background sync completed');
+                            console.log('Two-way sync completed');
                             setIsSyncing(false);
                         })
                         .catch(error => {
-                            console.warn('Background sync failed:', error);
+                            console.warn('Two-way sync failed:', error);
                             setIsSyncing(false);
                         });
                 }
