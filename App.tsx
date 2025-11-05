@@ -25,20 +25,6 @@ import QuickAddNoteModal from './components/modals/QuickAddNoteModal';
 import QuickLogPrayerModal from './components/modals/QuickLogPrayerModal';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 
-// Register PWA Service Worker
-import { registerSW } from 'virtual:pwa-register';
-
-const updateSW = registerSW({
-    onNeedRefresh() {
-        if (confirm('New version available! Reload to update?')) {
-            updateSW(true);
-        }
-    },
-    onOfflineReady() {
-        console.log('App ready to work offline');
-    },
-});
-
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -67,7 +53,18 @@ const App: React.FC = () => {
                 // If user is logged in, pull data from Supabase
                 if (session?.user) {
                     console.log('User authenticated, pulling data from Supabase...');
-                    await pullAllData();
+                    try {
+                        // Add timeout to prevent hanging
+                        await Promise.race([
+                            pullAllData(),
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('Sync timeout')), 10000)
+                            )
+                        ]);
+                    } catch (syncError) {
+                        console.warn('Initial sync failed or timed out:', syncError);
+                        // Continue anyway - user can sync manually later
+                    }
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
@@ -76,7 +73,13 @@ const App: React.FC = () => {
             }
         };
 
-        checkAuth();
+        // Add safety timeout to ensure loading screen doesn't hang forever
+        const safetyTimeout = setTimeout(() => {
+            console.warn('Auth check taking too long, forcing load');
+            setAuthLoading(false);
+        }, 15000);
+
+        checkAuth().finally(() => clearTimeout(safetyTimeout));
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -94,6 +97,30 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
+    }, []);
+
+    // Register PWA Service Worker
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            // Dynamically import PWA register to avoid blocking
+            import('virtual:pwa-register').then(({ registerSW }) => {
+                const updateSW = registerSW({
+                    onNeedRefresh() {
+                        if (confirm('New version available! Reload to update?')) {
+                            updateSW(true);
+                        }
+                    },
+                    onOfflineReady() {
+                        console.log('App ready to work offline');
+                    },
+                    onRegisterError(error) {
+                        console.error('SW registration error:', error);
+                    }
+                });
+            }).catch(err => {
+                console.log('PWA not available:', err);
+            });
+        }
     }, []);
 
     useEffect(() => {
