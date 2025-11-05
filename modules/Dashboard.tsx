@@ -451,15 +451,15 @@ const VIEWS = [
 
 const CalendarHeader: React.FC<{ currentDate: Date; changeMonth: (offset: number) => void }> = ({ currentDate, changeMonth }) => {
     return (
-        <div className="flex justify-between items-center mb-4">
-            <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-tertiary text-text-primary">
-                <span className="material-symbols-outlined">chevron_left</span>
+        <div className="flex justify-between items-center mb-2">
+            <button onClick={() => changeMonth(-1)} className="p-1 rounded-md hover:bg-secondary text-text-primary">
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
             </button>
-            <h2 className="text-xl font-bold text-text-primary">
+            <h3 className="text-sm font-semibold text-text-primary">
                 {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </h2>
-            <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-tertiary text-text-primary">
-                <span className="material-symbols-outlined">chevron_right</span>
+            </h3>
+            <button onClick={() => changeMonth(1)} className="p-1 rounded-md hover:bg-secondary text-text-primary">
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
             </button>
         </div>
     );
@@ -488,7 +488,7 @@ const UnifiedCalendarGrid: React.FC<{
 
         // Empty cells before first day
         for (let i = 0; i < firstDayOfWeek; i++) {
-            daysArray.push(<div key={`empty-${i}`} className="border-r border-b border-tertiary h-24"></div>);
+            daysArray.push(<div key={`empty-${i}`} className="border-r border-b border-tertiary h-16"></div>);
         }
 
         // Days of the month
@@ -516,46 +516,46 @@ const UnifiedCalendarGrid: React.FC<{
                 <button
                     key={day}
                     onClick={() => onDayClick(dateStr)}
-                    className={`border-r border-b border-tertiary h-24 p-2 text-left hover:bg-tertiary transition-colors ${
+                    className={`border-r border-b border-tertiary h-16 p-1.5 text-left hover:bg-secondary transition-colors ${
                         isToday ? 'bg-accent/10' : ''
                     }`}
                 >
                     <div className="flex flex-col h-full">
-                        <span className={`text-sm font-semibold mb-1 ${isToday ? 'text-accent' : 'text-text-primary'}`}>
+                        <span className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-accent' : 'text-text-primary'}`}>
                             {day}
                         </span>
-                        <div className="flex-1 overflow-hidden space-y-0.5">
+                        <div className="flex-1 overflow-hidden flex flex-wrap gap-0.5">
                             {showHabits && dayHabitLogs.length > 0 && (
-                                <div className="text-xs bg-green-500/30 text-green-200 px-1 rounded truncate">
-                                    ✓ {dayHabitLogs.length} habit{dayHabitLogs.length > 1 ? 's' : ''}
+                                <div className="text-[10px] bg-green-500/30 text-green-200 px-1 py-0.5 rounded truncate">
+                                    ✓{dayHabitLogs.length}
                                 </div>
                             )}
                             {showFasting && dayFastingLog && (
-                                <div className={`text-xs px-1 rounded truncate ${
+                                <div className={`text-[10px] px-1 py-0.5 rounded truncate ${
                                     dayFastingLog.status === 'completed' ? 'bg-blue-500/30 text-blue-200' :
                                     dayFastingLog.status === 'missed' ? 'bg-red-500/30 text-red-200' :
                                     'bg-yellow-500/30 text-yellow-200'
                                 }`}>
-                                    🌙 {dayFastingLog.type}
+                                    🌙
                                 </div>
                             )}
                             {showIslamic && majorEvents.length > 0 && (
-                                <div className="text-xs bg-purple-500/30 text-purple-200 px-1 rounded truncate">
-                                    🕌 {majorEvents[0].name}
+                                <div className="text-[10px] bg-purple-500/30 text-purple-200 px-1 py-0.5 rounded truncate">
+                                    🕌
                                 </div>
                             )}
                             {showIslamic && dayIslamicEvent && (
-                                <div className="text-xs bg-blue-500/30 text-blue-200 px-1 rounded truncate">
-                                    📝 Note
+                                <div className="text-[10px] bg-blue-500/30 text-blue-200 px-1 py-0.5 rounded truncate">
+                                    📝
                                 </div>
                             )}
                             {showReminders && dayReminders.length > 0 && (
-                                <div className={`text-xs px-1 rounded truncate ${
+                                <div className={`text-[10px] px-1 py-0.5 rounded truncate ${
                                     dayReminders.some(r => r.status === 'overdue') ? 'bg-red-500/30 text-red-200' :
                                     dayReminders.some(r => r.priority === 'high') ? 'bg-orange-500/30 text-orange-200' :
                                     'bg-cyan-500/30 text-cyan-200'
                                 }`}>
-                                    🔔 {dayReminders.length} reminder{dayReminders.length > 1 ? 's' : ''}
+                                    🔔{dayReminders.length}
                                 </div>
                             )}
                         </div>
@@ -569,9 +569,9 @@ const UnifiedCalendarGrid: React.FC<{
 
     return (
         <div className="border-t border-l border-tertiary">
-            <div className="grid grid-cols-7 text-center text-xs font-semibold text-text-secondary">
+            <div className="grid grid-cols-7 text-center text-[10px] font-semibold text-text-secondary">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="py-2 border-r border-b border-tertiary">
+                    <div key={day} className="py-1 border-r border-b border-tertiary">
                         {day}
                     </div>
                 ))}
@@ -809,28 +809,25 @@ const CalendarTab: React.FC<{
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <h2 className="text-2xl font-bold">Unified Calendar</h2>
-                <div className="flex gap-2 flex-wrap">
-                    {VIEWS.map(view => (
-                        <button
-                            key={view.id}
-                            onClick={() => setActiveView(view.id)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                activeView === view.id
-                                    ? 'bg-accent text-white'
-                                    : 'bg-secondary text-text-secondary hover:bg-tertiary'
-                            }`}
-                        >
-                            <span className="mr-2">{view.icon}</span>
-                            {view.label}
-                        </button>
-                    ))}
-                </div>
+        <div className="space-y-3">
+            <div className="flex gap-1.5 flex-wrap">
+                {VIEWS.map(view => (
+                    <button
+                        key={view.id}
+                        onClick={() => setActiveView(view.id)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                            activeView === view.id
+                                ? 'bg-accent text-white'
+                                : 'bg-tertiary text-text-secondary hover:bg-opacity-80'
+                        }`}
+                    >
+                        <span className="mr-1">{view.icon}</span>
+                        {view.label}
+                    </button>
+                ))}
             </div>
 
-            <div className="bg-secondary p-6 rounded-xl border border-tertiary">
+            <div className="bg-primary p-3 rounded-lg border border-tertiary">
                 <CalendarHeader currentDate={currentDate} changeMonth={changeMonth} />
                 <UnifiedCalendarGrid
                     currentDate={currentDate}
@@ -884,6 +881,9 @@ const AnalyticsTab: React.FC<{
 
     return (
         <div className="space-y-4">
+            {/* Smart Insights - Moved from main dashboard */}
+            <SmartInsights />
+
             {/* AI Insights - Moved from Quick Analytics */}
             {habits.length > 0 && (
                 <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
@@ -1036,9 +1036,6 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
             </div>
-
-            {/* Smart Insights Section - Compact */}
-            <SmartInsights />
 
             {/* Overview Cards Section - Compact Grid */}
             <div className="mb-6">
