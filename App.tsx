@@ -49,26 +49,24 @@ const App: React.FC = () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 setUser(session?.user || null);
+                setAuthLoading(false);
 
-                // If user is logged in, pull data from Supabase
+                // If user is logged in, sync data in background (non-blocking)
                 if (session?.user) {
-                    console.log('User authenticated, pulling data from Supabase...');
-                    try {
-                        // Add timeout to prevent hanging
-                        await Promise.race([
-                            pullAllData(),
-                            new Promise((_, reject) =>
-                                setTimeout(() => reject(new Error('Sync timeout')), 10000)
-                            )
-                        ]);
-                    } catch (syncError) {
-                        console.warn('Initial sync failed or timed out:', syncError);
-                        // Continue anyway - user can sync manually later
-                    }
+                    console.log('User authenticated, syncing data in background...');
+                    setIsSyncing(true);
+                    pullAllData()
+                        .then(() => {
+                            console.log('Background sync completed');
+                            setIsSyncing(false);
+                        })
+                        .catch(error => {
+                            console.warn('Background sync failed:', error);
+                            setIsSyncing(false);
+                        });
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
-            } finally {
                 setAuthLoading(false);
             }
         };
@@ -77,7 +75,7 @@ const App: React.FC = () => {
         const safetyTimeout = setTimeout(() => {
             console.warn('Auth check taking too long, forcing load');
             setAuthLoading(false);
-        }, 15000);
+        }, 3000); // Reduced to 3 seconds
 
         checkAuth().finally(() => clearTimeout(safetyTimeout));
 
@@ -86,10 +84,14 @@ const App: React.FC = () => {
             setUser(session?.user || null);
 
             if (event === 'SIGNED_IN' && session?.user) {
-                console.log('User signed in, pulling data from Supabase...');
-                await pullAllData();
+                console.log('User signed in, syncing data in background...');
+                setIsSyncing(true);
+                pullAllData()
+                    .then(() => setIsSyncing(false))
+                    .catch(() => setIsSyncing(false));
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
+                setIsSyncing(false);
                 // Optionally clear local data
             }
         });
@@ -99,29 +101,33 @@ const App: React.FC = () => {
         };
     }, []);
 
-    // Register PWA Service Worker
+    // Register PWA Service Worker (delayed to improve startup time)
     useEffect(() => {
-        if ('serviceWorker' in navigator) {
-            // Dynamically import PWA register to avoid blocking
-            import('virtual:pwa-register').then(({ registerSW }) => {
-                const updateSW = registerSW({
-                    onNeedRefresh() {
-                        if (confirm('New version available! Reload to update?')) {
-                            updateSW(true);
+        if ('serviceWorker' in navigator && !authLoading) {
+            // Delay PWA registration by 2 seconds to let app load first
+            const timer = setTimeout(() => {
+                import('virtual:pwa-register').then(({ registerSW }) => {
+                    const updateSW = registerSW({
+                        onNeedRefresh() {
+                            if (confirm('New version available! Reload to update?')) {
+                                updateSW(true);
+                            }
+                        },
+                        onOfflineReady() {
+                            console.log('App ready to work offline');
+                        },
+                        onRegisterError(error) {
+                            console.error('SW registration error:', error);
                         }
-                    },
-                    onOfflineReady() {
-                        console.log('App ready to work offline');
-                    },
-                    onRegisterError(error) {
-                        console.error('SW registration error:', error);
-                    }
+                    });
+                }).catch(err => {
+                    console.log('PWA not available:', err);
                 });
-            }).catch(err => {
-                console.log('PWA not available:', err);
-            });
+            }, 2000);
+
+            return () => clearTimeout(timer);
         }
-    }, []);
+    }, [authLoading]);
 
     useEffect(() => {
         const checkReminders = async () => {
