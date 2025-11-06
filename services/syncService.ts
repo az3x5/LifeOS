@@ -270,7 +270,7 @@ async function syncHealthMetrics() {
             user_id: userId,
             name: item.name,
             unit: item.unit,
-            type: item.type,
+            type: item.type || 'measurement', // Default type if not set
         };
         if (item.targetValue !== undefined && item.targetValue !== null) data.target_value = item.targetValue;
         if (item.targetOperator !== undefined && item.targetOperator !== null) data.target_operator = item.targetOperator;

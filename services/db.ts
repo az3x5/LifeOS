@@ -359,11 +359,11 @@ export class LifeOSDexie extends Dexie {
 
             // Seed some default health metrics
             await this.healthMetrics.bulkAdd([
-                { name: 'Sleep', unit: 'hrs', reminderEnabled: false, reminderTime: '22:00' },
-                { name: 'Steps', unit: 'steps', reminderEnabled: false, reminderTime: '20:00' },
-                { name: 'Calories', unit: 'kcal', reminderEnabled: false, reminderTime: '21:00' },
-                { name: 'Weight', unit: 'kg', reminderEnabled: false, reminderTime: '08:00' },
-                { name: 'Mood', unit: '1-5', reminderEnabled: false, reminderTime: '12:00' },
+                { name: 'Sleep', unit: 'hrs', type: 'duration', color: '#4A90E2', icon: 'bedtime' },
+                { name: 'Steps', unit: 'steps', type: 'count', color: '#7ED321', icon: 'directions_walk' },
+                { name: 'Calories', unit: 'kcal', type: 'count', color: '#F5A623', icon: 'local_dining' },
+                { name: 'Weight', unit: 'kg', type: 'measurement', color: '#BD10E0', icon: 'scale' },
+                { name: 'Mood', unit: '1-5', type: 'rating', color: '#FF6B6B', icon: 'mood' },
             ]);
             
             // Seed learning materials for new users
