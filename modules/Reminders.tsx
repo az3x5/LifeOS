@@ -6,37 +6,27 @@ import { Reminder } from '../types';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
-const TABS = ['All', 'Pending', 'Completed', 'Overdue'];
-
-const PRIORITY_COLORS = {
-    low: 'bg-blue-500/30 text-blue-200',
-    medium: 'bg-yellow-500/30 text-yellow-200',
-    high: 'bg-red-500/30 text-red-200',
+// Category icons and colors
+const CATEGORY_ICONS: Record<string, { icon: string; color: string }> = {
+    personal: { icon: '📍', color: 'bg-teal-500/20 text-teal-400' },
+    work: { icon: '💼', color: 'bg-blue-500/20 text-blue-400' },
+    health: { icon: '❤️', color: 'bg-red-500/20 text-red-400' },
+    finance: { icon: '💰', color: 'bg-yellow-500/20 text-yellow-400' },
+    shopping: { icon: '🛒', color: 'bg-purple-500/20 text-purple-400' },
+    other: { icon: '📌', color: 'bg-gray-500/20 text-gray-400' },
 };
 
-const PRIORITY_ICONS = {
+const PRIORITY_ICONS: Record<string, string> = {
     low: '🔵',
     medium: '🟡',
     high: '🔴',
 };
 
-const CATEGORY_ICONS = {
-    personal: '👤',
-    work: '💼',
-    health: '❤️',
-    finance: '💰',
-    other: '📌',
-};
-
 const Reminders: React.FC = () => {
-    const [activeTab, setActiveTab] = useState(TABS[0]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterCategory, setFilterCategory] = useState<string>('all');
-    const [filterPriority, setFilterPriority] = useState<string>('all');
 
     const reminders = useLiveQuery(() => db.reminders.toArray());
 
@@ -51,61 +41,22 @@ const Reminders: React.FC = () => {
         });
     }, [reminders]);
 
-    const filteredReminders = useMemo(() => {
-        if (!reminders) return [];
-        
-        let filtered = reminders;
-
-        // Filter by tab
-        if (activeTab === 'Pending') {
-            filtered = filtered.filter(r => r.status === 'pending');
-        } else if (activeTab === 'Completed') {
-            filtered = filtered.filter(r => r.status === 'completed');
-        } else if (activeTab === 'Overdue') {
-            filtered = filtered.filter(r => r.status === 'overdue');
-        }
-
-        // Filter by search
-        if (searchQuery) {
-            filtered = filtered.filter(r => 
-                r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                r.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Filter by category
-        if (filterCategory !== 'all') {
-            filtered = filtered.filter(r => r.category === filterCategory);
-        }
-
-        // Filter by priority
-        if (filterPriority !== 'all') {
-            filtered = filtered.filter(r => r.priority === filterPriority);
-        }
-
-        // Sort by due date
-        return filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    }, [reminders, activeTab, searchQuery, filterCategory, filterPriority]);
-
+    // Calculate stats
     const stats = useMemo(() => {
-        if (!reminders) return { total: 0, pending: 0, completed: 0, overdue: 0 };
+        if (!reminders) return { today: 0, scheduled: 0, important: 0, place: 0, noAlert: 0, completed: 0 };
         return {
-            total: reminders.length,
-            pending: reminders.filter(r => r.status === 'pending').length,
+            today: reminders.filter(r => {
+                const today = new Date();
+                const dueDate = new Date(r.dueDate);
+                return dueDate.toDateString() === today.toDateString() && r.status !== 'completed';
+            }).length,
+            scheduled: reminders.filter(r => r.status === 'pending' && new Date(r.dueDate) > new Date()).length,
+            important: reminders.filter(r => r.priority === 'high' && r.status !== 'completed').length,
+            place: reminders.filter(r => r.category === 'personal' && r.status !== 'completed').length,
+            noAlert: reminders.filter(r => !r.notificationEnabled && r.status !== 'completed').length,
             completed: reminders.filter(r => r.status === 'completed').length,
-            overdue: reminders.filter(r => r.status === 'overdue').length,
         };
     }, [reminders]);
-
-    const handleAddReminder = () => {
-        setEditingReminder(null);
-        setShowAddModal(true);
-    };
-
-    const handleEditReminder = (reminder: Reminder) => {
-        setEditingReminder(reminder);
-        setShowAddModal(true);
-    };
 
     const handleDeleteReminder = (reminder: Reminder) => {
         setConfirmModal({
@@ -142,116 +93,92 @@ const Reminders: React.FC = () => {
     };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <div>
-                    <h1 className="text-3xl font-bold text-text-primary">Reminders</h1>
-                    <p className="text-text-secondary mt-1">Manage your tasks and reminders</p>
-                </div>
-                <button
-                    onClick={handleAddReminder}
-                    className="bg-accent hover:bg-accent/80 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                    <span className="material-symbols-outlined">add</span>
-                    Add Reminder
+            <div className="flex justify-between items-center px-6 pt-6">
+                <h1 className="text-3xl font-bold text-text-primary">Reminder</h1>
+                <button className="p-2 hover:bg-tertiary rounded-lg transition-colors">
+                    <span className="material-symbols-outlined">more_vert</span>
                 </button>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Total</p>
-                    <p className="text-2xl font-bold text-text-primary">{stats.total}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Pending</p>
-                    <p className="text-2xl font-bold text-blue-400">{stats.pending}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Overdue</p>
-                    <p className="text-2xl font-bold text-red-400">{stats.overdue}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Completed</p>
-                    <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
-                </div>
-            </div>
-
-            {/* Filters and Search */}
-            <div className="bg-secondary p-4 rounded-xl border border-tertiary space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                        <input
-                            type="text"
-                            placeholder="Search reminders..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                        />
+            {/* Stats Grid - 3x2 */}
+            <div className="px-6">
+                <div className="grid grid-cols-3 gap-4">
+                    {/* Today */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">📅</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.today}</p>
+                        <p className="text-xs text-text-secondary mt-1">Today</p>
                     </div>
-                    <select
-                        value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                    >
-                        <option value="all">All Categories</option>
-                        <option value="personal">Personal</option>
-                        <option value="work">Work</option>
-                        <option value="health">Health</option>
-                        <option value="finance">Finance</option>
-                        <option value="other">Other</option>
-                    </select>
-                    <select
-                        value={filterPriority}
-                        onChange={(e) => setFilterPriority(e.target.value)}
-                        className="bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                    >
-                        <option value="all">All Priorities</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
+                    {/* Scheduled */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">🕐</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.scheduled}</p>
+                        <p className="text-xs text-text-secondary mt-1">Scheduled</p>
+                    </div>
+                    {/* Important */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">⭐</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.important}</p>
+                        <p className="text-xs text-text-secondary mt-1">Important</p>
+                    </div>
+                    {/* Place */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">📍</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.place}</p>
+                        <p className="text-xs text-text-secondary mt-1">Place</p>
+                    </div>
+                    {/* No Alert */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">🔕</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.noAlert}</p>
+                        <p className="text-xs text-text-secondary mt-1">No alert</p>
+                    </div>
+                    {/* Completed */}
+                    <div className="bg-secondary p-4 rounded-2xl border border-tertiary text-center">
+                        <div className="text-3xl mb-2">✅</div>
+                        <p className="text-2xl font-bold text-text-primary">{stats.completed}</p>
+                        <p className="text-xs text-text-secondary mt-1">Completed</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 border-b border-tertiary">
-                {TABS.map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 font-medium transition-colors ${
-                            activeTab === tab
-                                ? 'text-accent border-b-2 border-accent'
-                                : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {/* Reminders List */}
-            <div className="space-y-3">
-                {filteredReminders.length === 0 ? (
-                    <div className="bg-secondary p-12 rounded-xl border border-tertiary text-center">
-                        <span className="material-symbols-outlined text-6xl text-text-muted mb-4">notifications_off</span>
-                        <p className="text-text-muted text-lg">No reminders found</p>
-                        <p className="text-text-secondary text-sm mt-2">Create your first reminder to get started</p>
-                    </div>
-                ) : (
-                    filteredReminders.map(reminder => (
-                        <ReminderCard
+            {/* Try these out section */}
+            <div className="px-6">
+                <h2 className="text-lg font-bold text-text-primary mb-3">Try these out</h2>
+                <div className="space-y-2">
+                    {reminders && reminders.slice(0, 5).map(reminder => (
+                        <ReminderItem
                             key={reminder.id}
                             reminder={reminder}
-                            onEdit={handleEditReminder}
-                            onDelete={handleDeleteReminder}
-                            onComplete={handleCompleteReminder}
-                            onUncomplete={handleUncompleteReminder}
+                            onEdit={() => {
+                                setEditingReminder(reminder);
+                                setShowAddModal(true);
+                            }}
+                            onDelete={() => handleDeleteReminder(reminder)}
+                            onComplete={() => handleCompleteReminder(reminder)}
+                            onUncomplete={() => handleUncompleteReminder(reminder)}
                         />
-                    ))
-                )}
+                    ))}
+                </div>
+            </div>
+
+            {/* Add Reminder Button */}
+            <div className="px-6 pb-6 flex gap-2">
+                <button
+                    onClick={() => {
+                        setEditingReminder(null);
+                        setShowAddModal(true);
+                    }}
+                    className="flex-1 bg-secondary hover:bg-tertiary border border-tertiary rounded-full py-3 px-4 text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-2"
+                >
+                    <span className="material-symbols-outlined">add</span>
+                    <span>Add reminder</span>
+                </button>
+                <button className="bg-secondary hover:bg-tertiary border border-tertiary rounded-full p-3 text-text-secondary hover:text-text-primary transition-colors">
+                    <span className="material-symbols-outlined">mic</span>
+                </button>
             </div>
 
             {/* Add/Edit Modal */}
@@ -301,33 +228,27 @@ const Reminders: React.FC = () => {
     );
 };
 
-// --- REMINDER CARD COMPONENT ---
+// --- REMINDER ITEM COMPONENT (New Design) ---
 
-const ReminderCard: React.FC<{
+const ReminderItem: React.FC<{
     reminder: Reminder;
-    onEdit: (reminder: Reminder) => void;
-    onDelete: (reminder: Reminder) => void;
-    onComplete: (reminder: Reminder) => void;
-    onUncomplete: (reminder: Reminder) => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    onComplete: () => void;
+    onUncomplete: () => void;
 }> = ({ reminder, onEdit, onDelete, onComplete, onUncomplete }) => {
     const isCompleted = reminder.status === 'completed';
-    const isOverdue = reminder.status === 'overdue';
-
-    const dueDate = new Date(reminder.dueDate);
-    const formattedDate = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const formattedTime = reminder.dueTime || '';
+    const categoryInfo = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.other;
 
     return (
-        <div className={`bg-secondary p-4 rounded-xl border transition-all ${
-            isCompleted ? 'border-green-500/30 opacity-75' :
-            isOverdue ? 'border-red-500/50' :
-            'border-tertiary hover:border-accent/50'
+        <div className={`bg-secondary p-4 rounded-2xl border border-tertiary transition-all ${
+            isCompleted ? 'opacity-60' : 'hover:border-accent/50'
         }`}>
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3">
                 {/* Checkbox */}
                 <button
-                    onClick={() => isCompleted ? onUncomplete(reminder) : onComplete(reminder)}
-                    className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    onClick={() => isCompleted ? onUncomplete() : onComplete()}
+                    className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                         isCompleted
                             ? 'bg-green-500 border-green-500'
                             : 'border-text-muted hover:border-accent'
@@ -338,68 +259,26 @@ const ReminderCard: React.FC<{
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                            <h3 className={`text-lg font-semibold ${
-                                isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
-                            }`}>
-                                {reminder.title}
-                            </h3>
-                            {reminder.description && (
-                                <p className="text-text-secondary text-sm mt-1">{reminder.description}</p>
-                            )}
-                        </div>
+                    <h3 className={`font-semibold ${
+                        isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
+                    }`}>
+                        {reminder.title}
+                    </h3>
+                    {reminder.description && (
+                        <p className="text-text-secondary text-sm mt-0.5">{reminder.description}</p>
+                    )}
+                </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => onEdit(reminder)}
-                                className="text-text-muted hover:text-accent transition-colors"
-                                title="Edit"
-                            >
-                                <span className="material-symbols-outlined text-xl">edit</span>
-                            </button>
-                            <button
-                                onClick={() => onDelete(reminder)}
-                                className="text-text-muted hover:text-red-400 transition-colors"
-                                title="Delete"
-                            >
-                                <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Meta Info */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${PRIORITY_COLORS[reminder.priority]}`}>
-                            {PRIORITY_ICONS[reminder.priority]} {reminder.priority.toUpperCase()}
-                        </span>
-                        <span className="px-2 py-1 rounded text-xs font-medium bg-tertiary text-text-secondary">
-                            {CATEGORY_ICONS[reminder.category]} {reminder.category}
-                        </span>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            isOverdue ? 'bg-red-500/30 text-red-200' : 'bg-tertiary text-text-secondary'
-                        }`}>
-                            📅 {formattedDate} {formattedTime && `at ${formattedTime}`}
-                        </span>
-                        {reminder.recurring && reminder.recurring !== 'none' && (
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-500/30 text-purple-200">
-                                🔄 {reminder.recurring}
-                            </span>
-                        )}
-                        {reminder.tags && reminder.tags.length > 0 && (
-                            reminder.tags.map(tag => (
-                                <span key={tag} className="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-                                    #{tag}
-                                </span>
-                            ))
-                        )}
-                    </div>
+                {/* Category Icon */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg ${categoryInfo.color}`}>
+                    {categoryInfo.icon}
                 </div>
             </div>
         </div>
     );
 };
+
+
 
 // --- REMINDER MODAL COMPONENT ---
 
