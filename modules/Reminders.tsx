@@ -19,10 +19,8 @@ const CATEGORY_ICONS: Record<string, { icon: string; color: string }> = {
 type ViewType = 'myDay' | 'important' | 'planned' | 'all' | 'completed';
 
 const Reminders: React.FC = () => {
-    const [currentView, setCurrentView] = useState<ViewType>('myDay');
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-    const [quickAddTitle, setQuickAddTitle] = useState('');
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
 
@@ -39,36 +37,32 @@ const Reminders: React.FC = () => {
         });
     }, [reminders]);
 
-    // Filter reminders based on current view
-    const filteredReminders = useMemo(() => {
+    // Calculate stats
+    const stats = useMemo(() => {
+        if (!reminders) return { today: 0, scheduled: 0, important: 0, place: 0, noAlert: 0, completed: 0 };
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return {
+            today: reminders.filter(r => {
+                const dueDate = new Date(r.dueDate);
+                dueDate.setHours(0, 0, 0, 0);
+                return dueDate.getTime() === today.getTime() && r.status !== 'completed';
+            }).length,
+            scheduled: reminders.filter(r => new Date(r.dueDate) > new Date() && r.status !== 'completed').length,
+            important: reminders.filter(r => r.priority === 'high' && r.status !== 'completed').length,
+            place: reminders.filter(r => r.category === 'shopping' && r.status !== 'completed').length,
+            noAlert: reminders.filter(r => !r.dueDate && r.status !== 'completed').length,
+            completed: reminders.filter(r => r.status === 'completed').length,
+        };
+    }, [reminders]);
+
+    // Get all active reminders for "Try these out" section
+    const allReminders = useMemo(() => {
         if (!reminders) return [];
-
-        let filtered = reminders;
-
-        switch (currentView) {
-            case 'myDay':
-                const today = new Date();
-                filtered = reminders.filter(r => {
-                    const dueDate = new Date(r.dueDate);
-                    return dueDate.toDateString() === today.toDateString() && r.status !== 'completed';
-                });
-                break;
-            case 'important':
-                filtered = reminders.filter(r => r.priority === 'high' && r.status !== 'completed');
-                break;
-            case 'planned':
-                filtered = reminders.filter(r => r.status === 'pending' && new Date(r.dueDate) > new Date());
-                break;
-            case 'completed':
-                filtered = reminders.filter(r => r.status === 'completed');
-                break;
-            case 'all':
-            default:
-                filtered = reminders.filter(r => r.status !== 'completed');
-        }
-
-        return filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    }, [reminders, currentView]);
+        return reminders.filter(r => r.status !== 'completed').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    }, [reminders]);
 
     const handleDeleteReminder = (reminder: Reminder) => {
         setConfirmModal({
@@ -105,110 +99,111 @@ const Reminders: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-primary">
-            {/* Sidebar - Hidden on mobile */}
-            <div className="hidden md:flex md:w-64 flex-col bg-secondary border-r border-tertiary">
-                {/* Logo */}
-                <div className="p-4 border-b border-tertiary">
-                    <h1 className="text-xl font-bold text-text-primary">Reminders</h1>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 p-4 space-y-2">
-                    {[
-                        { id: 'myDay', label: 'My Day', icon: 'today' },
-                        { id: 'important', label: 'Important', icon: 'star' },
-                        { id: 'planned', label: 'Planned', icon: 'calendar_today' },
-                        { id: 'all', label: 'All', icon: 'list' },
-                        { id: 'completed', label: 'Completed', icon: 'done_all' },
-                    ].map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setCurrentView(item.id as ViewType)}
-                            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                                currentView === item.id
-                                    ? 'bg-accent/20 text-accent'
-                                    : 'text-text-secondary hover:bg-tertiary hover:text-text-primary'
-                            }`}
-                        >
-                            <span className="material-symbols-outlined text-xl">{item.icon}</span>
-                            <span className="font-medium">{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
+        <div className="flex flex-col h-screen bg-primary overflow-hidden">
+            {/* Header */}
+            <div className="bg-secondary border-b border-tertiary px-4 md:px-6 py-4 flex justify-between items-center flex-shrink-0">
+                <h1 className="text-2xl font-bold text-text-primary">Reminder</h1>
+                <button className="p-2 hover:bg-tertiary rounded-lg transition-colors">
+                    <span className="material-symbols-outlined">more_vert</span>
+                </button>
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
-                <div className="bg-secondary border-b border-tertiary px-6 py-4 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-text-primary">
-                        {currentView === 'myDay' && 'My Day'}
-                        {currentView === 'important' && 'Important'}
-                        {currentView === 'planned' && 'Planned'}
-                        {currentView === 'all' && 'All'}
-                        {currentView === 'completed' && 'Completed'}
-                    </h2>
-                    <button className="p-2 hover:bg-tertiary rounded-lg transition-colors">
-                        <span className="material-symbols-outlined">more_vert</span>
-                    </button>
-                </div>
-
-                {/* Quick Add Input */}
-                <div className="bg-secondary border-b border-tertiary px-6 py-4">
-                    <div className="flex gap-3">
-                        <button className="flex-shrink-0 w-6 h-6 rounded-full border-2 border-text-muted hover:border-accent transition-colors"></button>
-                        <input
-                            type="text"
-                            placeholder="Add a reminder"
-                            value={quickAddTitle}
-                            onChange={(e) => setQuickAddTitle(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter' && quickAddTitle.trim()) {
-                                    setEditingReminder(null);
-                                    setShowAddModal(true);
-                                }
-                            }}
-                            className="flex-1 bg-transparent text-text-primary placeholder-text-muted focus:outline-none"
-                        />
-                        <button className="text-text-muted hover:text-accent transition-colors">
-                            <span className="material-symbols-outlined">mic</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Reminders List */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
-                    {filteredReminders.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <span className="material-symbols-outlined text-6xl text-text-muted mb-4">inbox</span>
-                            <p className="text-text-muted text-lg">No reminders</p>
-                            <p className="text-text-secondary text-sm mt-2">
-                                {currentView === 'myDay' && "You're all set for today!"}
-                                {currentView === 'important' && "No important reminders"}
-                                {currentView === 'planned' && "No planned reminders"}
-                                {currentView === 'all' && "Create your first reminder"}
-                                {currentView === 'completed' && "No completed reminders"}
-                            </p>
+            <div className="flex-1 overflow-y-auto">
+                <div className="px-4 md:px-6 py-6 space-y-6">
+                    {/* Stats Grid - 3x2 */}
+                    <div className="grid grid-cols-3 gap-3 md:gap-4">
+                        {/* Today */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">📅</div>
+                            <p className="text-text-secondary text-xs md:text-sm">Today</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.today}</p>
                         </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {filteredReminders.map(reminder => (
-                                <ReminderItemMicrosoft
-                                    key={reminder.id}
-                                    reminder={reminder}
-                                    onEdit={() => {
-                                        setEditingReminder(reminder);
-                                        setShowAddModal(true);
-                                    }}
-                                    onDelete={() => handleDeleteReminder(reminder)}
-                                    onComplete={() => handleCompleteReminder(reminder)}
-                                    onUncomplete={() => handleUncompleteReminder(reminder)}
-                                />
-                            ))}
+
+                        {/* Scheduled */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">🕐</div>
+                            <p className="text-text-secondary text-xs md:text-sm">Scheduled</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.scheduled}</p>
+                        </div>
+
+                        {/* Important */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">⭐</div>
+                            <p className="text-text-secondary text-xs md:text-sm">Important</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.important}</p>
+                        </div>
+
+                        {/* Place */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">📍</div>
+                            <p className="text-text-secondary text-xs md:text-sm">Place</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.place}</p>
+                        </div>
+
+                        {/* No Alert */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">🔕</div>
+                            <p className="text-text-secondary text-xs md:text-sm">No alert</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.noAlert}</p>
+                        </div>
+
+                        {/* Completed */}
+                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
+                            <div className="text-3xl mb-2">✅</div>
+                            <p className="text-text-secondary text-xs md:text-sm">Completed</p>
+                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.completed}</p>
+                        </div>
+                    </div>
+
+                    {/* Try these out section */}
+                    {allReminders.length > 0 && (
+                        <div>
+                            <h2 className="text-lg font-semibold text-text-primary mb-4">Try these out</h2>
+                            <div className="space-y-3">
+                                {allReminders.map(reminder => (
+                                    <ReminderCard
+                                        key={reminder.id}
+                                        reminder={reminder}
+                                        onEdit={() => {
+                                            setEditingReminder(reminder);
+                                            setShowAddModal(true);
+                                        }}
+                                        onDelete={() => handleDeleteReminder(reminder)}
+                                        onComplete={() => handleCompleteReminder(reminder)}
+                                        onUncomplete={() => handleUncompleteReminder(reminder)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Empty state */}
+                    {allReminders.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <span className="text-5xl mb-4">📝</span>
+                            <p className="text-text-muted text-lg">No reminders yet</p>
+                            <p className="text-text-secondary text-sm mt-2">Create your first reminder to get started</p>
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Bottom Add Button */}
+            <div className="bg-secondary border-t border-tertiary px-4 md:px-6 py-4 flex-shrink-0">
+                <button
+                    onClick={() => {
+                        setEditingReminder(null);
+                        setShowAddModal(true);
+                    }}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-primary border border-tertiary rounded-lg hover:border-accent/50 transition-colors text-text-secondary hover:text-text-primary"
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">+</span>
+                        <span>Add reminder</span>
+                    </div>
+                    <span className="material-symbols-outlined">mic</span>
+                </button>
             </div>
 
             {/* Add/Edit Modal */}
@@ -258,9 +253,9 @@ const Reminders: React.FC = () => {
     );
 };
 
-// --- REMINDER ITEM COMPONENT (Microsoft Style) ---
+// --- REMINDER CARD COMPONENT ---
 
-const ReminderItemMicrosoft: React.FC<{
+const ReminderCard: React.FC<{
     reminder: Reminder;
     onEdit: () => void;
     onDelete: () => void;
@@ -269,73 +264,71 @@ const ReminderItemMicrosoft: React.FC<{
 }> = ({ reminder, onEdit, onDelete, onComplete, onUncomplete }) => {
     const isCompleted = reminder.status === 'completed';
     const categoryInfo = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.other;
-    const dueDate = new Date(reminder.dueDate);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const getDueDateLabel = () => {
-        if (dueDate.toDateString() === today.toDateString()) return 'Today';
-        if (dueDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-        return dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
+    // Check if reminder has sub-items (for list-type reminders)
+    const hasSubItems = reminder.description && reminder.description.includes('\n');
+    const subItems = hasSubItems ? reminder.description?.split('\n').filter(item => item.trim()) : [];
 
     return (
-        <div className={`group flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-tertiary hover:bg-tertiary/30 transition-all ${
+        <div className={`bg-secondary border border-tertiary rounded-lg p-4 hover:border-accent/50 transition-all group ${
             isCompleted ? 'opacity-60' : ''
         }`}>
-            {/* Checkbox */}
-            <button
-                onClick={() => isCompleted ? onUncomplete() : onComplete()}
-                className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isCompleted
-                        ? 'bg-green-500 border-green-500'
-                        : 'border-text-muted hover:border-accent'
-                }`}
-            >
-                {isCompleted && <span className="material-symbols-outlined text-white text-sm">check</span>}
-            </button>
+            <div className="flex items-start gap-3">
+                {/* Checkbox */}
+                <button
+                    onClick={() => isCompleted ? onUncomplete() : onComplete()}
+                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 ${
+                        isCompleted
+                            ? 'bg-accent border-accent'
+                            : 'border-text-muted hover:border-accent'
+                    }`}
+                >
+                    {isCompleted && <span className="material-symbols-outlined text-white text-sm">check</span>}
+                </button>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-                <h3 className={`font-medium ${
-                    isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
-                }`}>
-                    {reminder.title}
-                </h3>
-                {reminder.description && (
-                    <p className="text-text-secondary text-xs mt-0.5 truncate">{reminder.description}</p>
-                )}
-            </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    <h3 className={`font-semibold text-sm md:text-base ${
+                        isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
+                    }`}>
+                        {reminder.title}
+                    </h3>
+                    {reminder.description && !hasSubItems && (
+                        <p className="text-text-secondary text-xs md:text-sm mt-1">{reminder.description}</p>
+                    )}
 
-            {/* Meta Info */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-                {reminder.priority === 'high' && (
-                    <span className="text-red-400" title="High priority">
-                        <span className="material-symbols-outlined text-lg">flag</span>
-                    </span>
-                )}
-                <span className="text-xs text-text-secondary">{getDueDateLabel()}</span>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${categoryInfo.color}`}>
+                    {/* Sub-items for list reminders */}
+                    {hasSubItems && subItems && (
+                        <div className="mt-2 space-y-1">
+                            {subItems.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-xs md:text-sm text-text-secondary">
+                                    <span className="w-4 h-4 rounded-full border border-text-muted flex-shrink-0"></span>
+                                    <span>{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Category Icon */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg ${categoryInfo.color}`}>
                     {categoryInfo.icon}
                 </div>
             </div>
 
             {/* Actions (visible on hover) */}
-            <div className="hidden group-hover:flex gap-1 flex-shrink-0">
+            <div className="hidden group-hover:flex gap-2 mt-3 pt-3 border-t border-tertiary/50">
                 <button
                     onClick={onEdit}
-                    className="p-1 text-text-muted hover:text-accent transition-colors"
-                    title="Edit"
+                    className="flex-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-accent bg-primary hover:bg-primary/80 rounded transition-colors"
                 >
-                    <span className="material-symbols-outlined text-lg">edit</span>
+                    Edit
                 </button>
                 <button
                     onClick={onDelete}
-                    className="p-1 text-text-muted hover:text-red-400 transition-colors"
-                    title="Delete"
+                    className="flex-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-red-400 bg-primary hover:bg-primary/80 rounded transition-colors"
                 >
-                    <span className="material-symbols-outlined text-lg">delete</span>
+                    Delete
                 </button>
             </div>
         </div>
