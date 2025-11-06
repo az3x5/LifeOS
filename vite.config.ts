@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => {
       build: {
         chunkSizeWarningLimit: 1500, // Increase limit to 1500 kB (default is 500 kB)
         rollupOptions: {
+          input: {
+            main: path.resolve(__dirname, 'index.html'),
+            test: path.resolve(__dirname, 'test-env.html'),
+          },
           output: {
             manualChunks: {
               // Split vendor chunks for better caching
