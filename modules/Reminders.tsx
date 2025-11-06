@@ -101,8 +101,8 @@ const Reminders: React.FC = () => {
     return (
         <div className="flex flex-col h-screen bg-primary overflow-hidden">
             {/* Header */}
-            <div className="bg-secondary border-b border-tertiary px-4 md:px-6 py-4 flex justify-between items-center flex-shrink-0">
-                <h1 className="text-2xl font-bold text-text-primary">Reminder</h1>
+            <div className="bg-secondary border-b border-tertiary px-4 md:px-8 py-4 flex justify-between items-center flex-shrink-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-text-primary">Reminders</h1>
                 <button className="p-2 hover:bg-tertiary rounded-lg transition-colors">
                     <span className="material-symbols-outlined">more_vert</span>
                 </button>
@@ -110,57 +110,57 @@ const Reminders: React.FC = () => {
 
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto">
-                <div className="px-4 md:px-6 py-6 space-y-6">
-                    {/* Stats Grid - 3x2 */}
-                    <div className="grid grid-cols-3 gap-3 md:gap-4">
+                <div className="px-4 md:px-8 py-6 md:py-8 max-w-7xl mx-auto w-full space-y-8">
+                    {/* Stats Grid - 3x2 with better spacing */}
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
                         {/* Today */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">📅</div>
-                            <p className="text-text-secondary text-xs md:text-sm">Today</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.today}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">📅</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">Today</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.today}</p>
                         </div>
 
                         {/* Scheduled */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">🕐</div>
-                            <p className="text-text-secondary text-xs md:text-sm">Scheduled</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.scheduled}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">🕐</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">Scheduled</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.scheduled}</p>
                         </div>
 
                         {/* Important */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">⭐</div>
-                            <p className="text-text-secondary text-xs md:text-sm">Important</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.important}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">⭐</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">Important</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.important}</p>
                         </div>
 
                         {/* Place */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">📍</div>
-                            <p className="text-text-secondary text-xs md:text-sm">Place</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.place}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">📍</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">Place</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.place}</p>
                         </div>
 
                         {/* No Alert */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">🔕</div>
-                            <p className="text-text-secondary text-xs md:text-sm">No alert</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.noAlert}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">🔕</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">No alert</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.noAlert}</p>
                         </div>
 
                         {/* Completed */}
-                        <div className="bg-secondary border border-tertiary rounded-lg p-4 text-center hover:border-accent/50 transition-colors cursor-pointer">
-                            <div className="text-3xl mb-2">✅</div>
-                            <p className="text-text-secondary text-xs md:text-sm">Completed</p>
-                            <p className="text-xl md:text-2xl font-bold text-text-primary">{stats.completed}</p>
+                        <div className="bg-secondary border border-tertiary rounded-xl p-4 md:p-6 text-center hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="text-4xl md:text-5xl mb-3 group-hover:scale-110 transition-transform">✅</div>
+                            <p className="text-text-secondary text-xs md:text-sm font-medium">Completed</p>
+                            <p className="text-2xl md:text-3xl font-bold text-text-primary mt-2">{stats.completed}</p>
                         </div>
                     </div>
 
                     {/* Try these out section */}
                     {allReminders.length > 0 && (
                         <div>
-                            <h2 className="text-lg font-semibold text-text-primary mb-4">Try these out</h2>
-                            <div className="space-y-3">
+                            <h2 className="text-xl md:text-2xl font-semibold text-text-primary mb-6">Try these out</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                                 {allReminders.map(reminder => (
                                     <ReminderCard
                                         key={reminder.id}
@@ -180,30 +180,32 @@ const Reminders: React.FC = () => {
 
                     {/* Empty state */}
                     {allReminders.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <span className="text-5xl mb-4">📝</span>
-                            <p className="text-text-muted text-lg">No reminders yet</p>
-                            <p className="text-text-secondary text-sm mt-2">Create your first reminder to get started</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <span className="text-6xl md:text-7xl mb-6">📝</span>
+                            <p className="text-text-muted text-xl md:text-2xl font-medium">No reminders yet</p>
+                            <p className="text-text-secondary text-sm md:text-base mt-3">Create your first reminder to get started</p>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Bottom Add Button */}
-            <div className="bg-secondary border-t border-tertiary px-4 md:px-6 py-4 flex-shrink-0">
-                <button
-                    onClick={() => {
-                        setEditingReminder(null);
-                        setShowAddModal(true);
-                    }}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-primary border border-tertiary rounded-lg hover:border-accent/50 transition-colors text-text-secondary hover:text-text-primary"
-                >
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl">+</span>
-                        <span>Add reminder</span>
-                    </div>
-                    <span className="material-symbols-outlined">mic</span>
-                </button>
+            <div className="bg-secondary border-t border-tertiary px-4 md:px-8 py-4 flex-shrink-0">
+                <div className="max-w-7xl mx-auto">
+                    <button
+                        onClick={() => {
+                            setEditingReminder(null);
+                            setShowAddModal(true);
+                        }}
+                        className="w-full flex items-center justify-between gap-3 px-6 py-4 bg-primary border border-tertiary rounded-xl hover:border-accent/50 hover:bg-primary/80 transition-all text-text-secondary hover:text-text-primary font-medium"
+                    >
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">+</span>
+                            <span className="text-base md:text-lg">Add reminder</span>
+                        </div>
+                        <span className="material-symbols-outlined">mic</span>
+                    </button>
+                </div>
             </div>
 
             {/* Add/Edit Modal */}
@@ -270,64 +272,81 @@ const ReminderCard: React.FC<{
     const subItems = hasSubItems ? reminder.description?.split('\n').filter(item => item.trim()) : [];
 
     return (
-        <div className={`bg-secondary border border-tertiary rounded-lg p-4 hover:border-accent/50 transition-all group ${
-            isCompleted ? 'opacity-60' : ''
+        <div className={`bg-secondary border border-tertiary rounded-xl p-5 md:p-6 hover:border-accent/50 hover:shadow-lg transition-all group ${
+            isCompleted ? 'opacity-70' : ''
         }`}>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-4">
                 {/* Checkbox */}
                 <button
                     onClick={() => isCompleted ? onUncomplete() : onComplete()}
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors mt-0.5 ${
+                    className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all mt-1 ${
                         isCompleted
-                            ? 'bg-accent border-accent'
-                            : 'border-text-muted hover:border-accent'
+                            ? 'bg-accent border-accent shadow-md'
+                            : 'border-text-muted hover:border-accent hover:shadow-md'
                     }`}
                 >
-                    {isCompleted && <span className="material-symbols-outlined text-white text-sm">check</span>}
+                    {isCompleted && <span className="material-symbols-outlined text-white text-lg">check</span>}
                 </button>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <h3 className={`font-semibold text-sm md:text-base ${
+                    <h3 className={`font-semibold text-base md:text-lg leading-tight ${
                         isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
                     }`}>
                         {reminder.title}
                     </h3>
                     {reminder.description && !hasSubItems && (
-                        <p className="text-text-secondary text-xs md:text-sm mt-1">{reminder.description}</p>
+                        <p className="text-text-secondary text-sm md:text-base mt-2 leading-relaxed">{reminder.description}</p>
                     )}
 
                     {/* Sub-items for list reminders */}
                     {hasSubItems && subItems && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-3 space-y-2">
                             {subItems.map((item, idx) => (
-                                <div key={idx} className="flex items-center gap-2 text-xs md:text-sm text-text-secondary">
-                                    <span className="w-4 h-4 rounded-full border border-text-muted flex-shrink-0"></span>
+                                <div key={idx} className="flex items-center gap-3 text-sm md:text-base text-text-secondary">
+                                    <span className="w-5 h-5 rounded-full border-2 border-text-muted flex-shrink-0 flex items-center justify-center">
+                                        {isCompleted && <span className="w-2 h-2 bg-text-muted rounded-full"></span>}
+                                    </span>
                                     <span>{item}</span>
                                 </div>
                             ))}
                         </div>
                     )}
+
+                    {/* Meta Info */}
+                    <div className="flex items-center gap-3 mt-4 pt-4 border-t border-tertiary/30">
+                        {reminder.priority === 'high' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-medium">
+                                <span className="material-symbols-outlined text-sm">flag</span>
+                                High Priority
+                            </span>
+                        )}
+                        <span className="text-xs md:text-sm text-text-secondary">
+                            {new Date(reminder.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Category Icon */}
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg ${categoryInfo.color}`}>
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl ${categoryInfo.color}`}>
                     {categoryInfo.icon}
                 </div>
             </div>
 
             {/* Actions (visible on hover) */}
-            <div className="hidden group-hover:flex gap-2 mt-3 pt-3 border-t border-tertiary/50">
+            <div className="hidden group-hover:flex gap-2 mt-4 pt-4 border-t border-tertiary/30">
                 <button
                     onClick={onEdit}
-                    className="flex-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-accent bg-primary hover:bg-primary/80 rounded transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-text-secondary hover:text-accent bg-primary hover:bg-primary/80 rounded-lg transition-all"
                 >
+                    <span className="material-symbols-outlined text-base inline mr-1">edit</span>
                     Edit
                 </button>
                 <button
                     onClick={onDelete}
-                    className="flex-1 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-red-400 bg-primary hover:bg-primary/80 rounded transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-text-secondary hover:text-red-400 bg-primary hover:bg-primary/80 rounded-lg transition-all"
                 >
+                    <span className="material-symbols-outlined text-base inline mr-1">delete</span>
                     Delete
                 </button>
             </div>
