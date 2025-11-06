@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
           input: {
             main: path.resolve(__dirname, 'index.html'),
             test: path.resolve(__dirname, 'test-env.html'),
+            debug: path.resolve(__dirname, 'debug-sync.html'),
           },
           output: {
             manualChunks: {
