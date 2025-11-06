@@ -26,7 +26,7 @@ export function useSupabaseQuery<T>(
                 setIsLoading(false);
 
                 // Subscribe to real-time changes
-                unsubscribe = subscribeToTable<T>(tableName, (updatedData) => {
+                unsubscribe = await subscribeToTable<T>(tableName, (updatedData) => {
                     if (isMounted) {
                         setData(updatedData);
                     }

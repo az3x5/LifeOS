@@ -177,27 +177,40 @@ export async function deleteFromSupabase(
 /**
  * Subscribe to real-time changes for a table
  */
-export function subscribeToTable<T>(
+export async function subscribeToTable<T>(
     tableName: string,
     callback: (data: T[]) => void
-): (() => void) | null {
+): Promise<(() => void) | null> {
     try {
+        // Get current user from session
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            console.warn('No user ID available for subscription');
+            return null;
+        }
+
         const subscription = supabase
-            .channel(`${tableName}_changes`)
+            .channel(`${tableName}_changes_${Date.now()}`)
             .on(
                 'postgres_changes',
                 {
                     event: '*',
                     schema: 'public',
                     table: tableName,
+                    filter: `user_id=eq.${userId}`,
                 },
-                async () => {
+                async (payload) => {
+                    console.log(`Real-time update for ${tableName}:`, payload);
                     // Refetch data when changes occur
                     const data = await fetchFromSupabase<T>(tableName);
                     callback(data);
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`Subscription status for ${tableName}:`, status);
+            });
 
         return () => {
             supabase.removeChannel(subscription);
