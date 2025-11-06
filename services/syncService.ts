@@ -299,17 +299,61 @@ async function syncHealthLogs() {
 
 async function syncFolders() {
     const localData = await db.folders.toArray();
-    return syncTable('folders', localData, (item, userId) => {
-        const data: any = {
+
+    if (localData.length === 0) return true;
+
+    const userId = await getUserId();
+    if (!userId) {
+        console.error('No authenticated user for sync');
+        return false;
+    }
+
+    try {
+        // Separate new folders (no id) from existing folders (with id)
+        const newFolders = localData.filter(f => !f.id).map(item => ({
+            user_id: userId,
+            name: item.name,
+            parent_id: item.parentId || null,
+            created_at: item.createdAt,
+            updated_at: item.updatedAt,
+        }));
+
+        const existingFolders = localData.filter(f => f.id).map(item => ({
             id: item.id,
             user_id: userId,
             name: item.name,
-        };
-        if (item.parentId !== undefined && item.parentId !== null) data.parent_id = item.parentId;
-        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
-        if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
-        return data;
-    });
+            parent_id: item.parentId || null,
+            created_at: item.createdAt,
+            updated_at: item.updatedAt,
+        }));
+
+        // Insert new folders (let Supabase generate IDs)
+        if (newFolders.length > 0) {
+            const { error: insertError } = await supabase.from('folders').insert(newFolders);
+            if (insertError) {
+                console.error('Supabase insert error (folders):', insertError);
+                throw insertError;
+            }
+        }
+
+        // Update existing folders
+        if (existingFolders.length > 0) {
+            const { error: updateError } = await supabase.from('folders').upsert(existingFolders, {
+                onConflict: 'id',
+                ignoreDuplicates: false,
+            });
+            if (updateError) {
+                console.error('Supabase update error (folders):', updateError);
+                throw updateError;
+            }
+        }
+
+        console.log(`${localData.length} folders synced to Supabase.`);
+        return true;
+    } catch (error) {
+        console.error('Failed to sync folders:', error);
+        return false;
+    }
 }
 
 async function syncNotes() {
