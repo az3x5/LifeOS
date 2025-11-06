@@ -13,30 +13,34 @@ export enum Module {
 // Finance types
 export interface Account {
     id?: number;
+    userId?: string;
     name: string;
     type: 'Bank' | 'Cash' | 'Crypto' | 'Investment' | 'Other Asset';
-    balance: number;
-    currency: string;
-    createdAt: Date;
-    includeInNetWorth: boolean;
+    balance?: number;
+    currency?: string;
+    createdAt?: Date;
 }
 
 export interface Transaction {
     id?: number;
-    accountId: number;
-    description: string;
-    amount: number;
+    userId?: string;
+    accountId?: number;
+    categoryId?: number;
     type: 'income' | 'expense';
-    categoryId: number;
+    amount: number;
+    description?: string;
     date: Date;
-    currency: string;
+    createdAt?: Date;
 }
 
 export interface Category {
     id?: number;
+    userId?: string;
     name: string;
     type: 'income' | 'expense';
+    color?: string;
     icon?: string;
+    createdAt?: Date;
 }
 
 export interface Budget {
@@ -58,23 +62,27 @@ export interface SavingsGoal {
 // Habit Tracker types
 export interface Habit {
     id?: number;
+    userId?: string;
     name: string;
+    description?: string;
+    category?: string;
     frequency: 'daily' | 'custom';
-    daysOfWeek?: number[]; // 0 for Sunday, 6 for Saturday
-    createdAt: Date;
-    xp: number;
-    isFrozen: boolean;
-    frozenFrom?: string;
-    frozenTo?: string;
-    reminderEnabled?: boolean;
+    targetDays?: number[];
+    color?: string;
+    icon?: string;
     reminderTime?: string;
-    origin?: 'user' | 'system-islamic';
+    isActive?: boolean;
+    createdAt?: Date;
 }
 
 export interface HabitLog {
     id?: number;
+    userId?: string;
     habitId: number;
-    date: string; // YYY-MM-DD
+    date: Date;
+    completed?: boolean;
+    notes?: string;
+    createdAt?: Date;
 }
 
 export interface Routine {
@@ -105,19 +113,25 @@ export interface UserBadge {
 // Health Tracker types
 export interface HealthMetric {
     id?: number;
+    userId?: string;
     name: string;
     unit: string;
-    reminderEnabled?: boolean;
-    reminderTime?: string;
+    type: string;
+    targetValue?: number;
+    targetOperator?: string;
+    color?: string;
+    icon?: string;
+    createdAt?: Date;
 }
 
 export interface HealthLog {
     id?: number;
+    userId?: string;
     metricId: number;
     value: number;
     date: Date;
     notes?: string;
-    tags?: string[];
+    createdAt?: Date;
 }
 
 export interface HealthGoal {
@@ -132,13 +146,13 @@ export interface HealthGoal {
 // Notes types
 export interface Note {
     id?: number;
+    userId?: string;
     title: string;
-    content: string;
-    createdAt: Date;
-    updatedAt: Date;
-    folderId?: number;
-    status: 'active' | 'trash';
-    pinned: boolean;
+    content?: string;
+    tags?: string[];
+    status?: 'active' | 'trash';
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export interface Folder {
@@ -153,9 +167,12 @@ export interface Folder {
 // Islamic Knowledge types
 export interface FastingLog {
     id?: number;
-    date: string; // YYYY-MM-DD
-    type: 'ramadan' | 'shawwal' | 'arafah' | 'ashura' | 'monday_thursday' | 'voluntary' | 'qada';
+    userId?: string;
+    date: Date;
+    type: string;
     status: 'completed' | 'missed' | 'pending';
+    notes?: string;
+    createdAt?: Date;
 }
 
 export interface PrayerLog {
@@ -186,17 +203,24 @@ export interface Bookmark {
 
 export interface IslamicEvent {
     id?: number;
-    gregorianDate: string; // YYYY-MM-DD (Primary Key)
-    notes: string;
+    userId?: string;
+    gregorianDate: Date;
+    hijriDate?: string;
+    notes?: string;
+    createdAt?: Date;
 }
 
 export interface DailyReflection {
-    date: string; // YYYY-MM-DD (Primary Key)
-    content: {
-        ayah: string;
-        reference: string;
-        explanation: string;
-    };
+    date: Date;
+    userId?: string;
+    gratitude?: string;
+    wins?: string;
+    challenges?: string;
+    tomorrowGoals?: string;
+    mood?: string;
+    energyLevel?: number;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 // General types
@@ -227,18 +251,19 @@ export interface AppNotification {
 // Reminders types
 export interface Reminder {
     id?: number;
+    userId?: string;
     title: string;
     description?: string;
     dueDate: Date;
-    dueTime?: string; // HH:MM format
+    dueTime?: string;
     priority: 'low' | 'medium' | 'high';
-    category: 'personal' | 'work' | 'health' | 'finance' | 'other';
+    category: string;
     status: 'pending' | 'completed' | 'overdue';
-    recurring?: 'none' | 'daily' | 'weekly' | 'monthly';
-    recurringDays?: number[]; // For weekly: 0-6 (Sun-Sat)
-    notificationEnabled: boolean;
-    notificationTime?: number; // Minutes before due time
+    recurring?: string;
+    recurringDays?: number[];
+    notificationEnabled?: boolean;
+    notificationTime?: number;
     tags?: string[];
-    createdAt: Date;
+    createdAt?: Date;
     completedAt?: Date;
 }
