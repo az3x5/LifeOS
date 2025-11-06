@@ -51,15 +51,25 @@ const ActivityTimeline: React.FC = () => {
             activities.push({ id: `h-${l.id}`, type: 'habit', timestamp: date, data: { ...l, name: habitMap.get(l.habitId) || 'Unknown Habit' } });
         });
         // FIX: Provided a default object for health metric data to prevent a crash when spreading a potentially undefined value from `metricMap`.
-        healthLogs?.forEach(l => activities.push({ id: `m-${l.id}`, type: 'health', timestamp: l.date, data: { ...l, ...(metricMap.get(l.metricId) || { name: 'Unknown Metric', unit: '' }) } }));
-        notes?.forEach(n => activities.push({ id: `n-${n.id}`, type: 'note', timestamp: n.createdAt, data: n }));
+        healthLogs?.forEach(l => {
+            const timestamp = typeof l.date === 'string' ? new Date(l.date) : l.date;
+            activities.push({ id: `m-${l.id}`, type: 'health', timestamp, data: { ...l, ...(metricMap.get(l.metricId) || { name: 'Unknown Metric', unit: '' }) } });
+        });
+        notes?.forEach(n => {
+            const timestamp = n.createdAt ? (typeof n.createdAt === 'string' ? new Date(n.createdAt) : n.createdAt) : new Date();
+            activities.push({ id: `n-${n.id}`, type: 'note', timestamp, data: n });
+        });
         fastingLogs?.forEach(f => {
             const date = new Date(f.date);
             date.setHours(12,0,0,0);
             activities.push({ id: `f-${f.id}`, type: 'islamic', timestamp: date, data: f });
         });
-        
-        return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+        return activities.sort((a, b) => {
+            const aTime = a.timestamp ? (typeof a.timestamp === 'string' ? new Date(a.timestamp).getTime() : a.timestamp.getTime()) : 0;
+            const bTime = b.timestamp ? (typeof b.timestamp === 'string' ? new Date(b.timestamp).getTime() : b.timestamp.getTime()) : 0;
+            return bTime - aTime;
+        });
     }, [transactions, habitLogs, healthLogs, notes, fastingLogs, habitMap, metricMap]);
 
     const filteredActivities = useMemo(() => {

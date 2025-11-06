@@ -951,7 +951,11 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
     // Instead, we fetch the active notes and perform a client-side sort.
     const notes = useLiveQuery(async () => {
         const activeNotes = await db.notes.where({ status: 'active' }).toArray();
-        return activeNotes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 3);
+        return activeNotes.sort((a, b) => {
+            const aTime = a.updatedAt ? (typeof a.updatedAt === 'string' ? new Date(a.updatedAt).getTime() : a.updatedAt.getTime()) : 0;
+            const bTime = b.updatedAt ? (typeof b.updatedAt === 'string' ? new Date(b.updatedAt).getTime() : b.updatedAt.getTime()) : 0;
+            return bTime - aTime;
+        }).slice(0, 3);
     }, []);
     const fastingLogs = useLiveQuery(() => db.fastingLogs.toArray());
     const islamicEvents = useLiveQuery(() => db.islamicEvents.toArray());
