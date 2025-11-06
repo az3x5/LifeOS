@@ -2,6 +2,8 @@
 
 A comprehensive personal dashboard application for managing your life with habits, health tracking, finance management, Islamic knowledge, notes, reminders, and more. Built with React, TypeScript, and Supabase.
 
+> 🔧 **Environment Variables:** Configured for Vercel deployment
+
 ## ✨ Features
 
 - 📊 **Dashboard** - Overview, Calendar, and Analytics in one place
