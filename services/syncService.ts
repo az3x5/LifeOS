@@ -327,6 +327,8 @@ async function syncFolders() {
             user_id: userId,
             name: item.name,
             parent_id: item.parentId || null,
+            created_at: item.createdAt || new Date(),
+            updated_at: item.updatedAt || new Date(),
         }));
 
         const existingFolders = localData.filter(f => f.id).map(item => ({
@@ -334,6 +336,8 @@ async function syncFolders() {
             user_id: userId,
             name: item.name,
             parent_id: item.parentId || null,
+            created_at: item.createdAt,
+            updated_at: item.updatedAt,
         }));
 
         // Insert new folders (let Supabase generate IDs)
@@ -353,6 +357,7 @@ async function syncFolders() {
                     .update({
                         name: folder.name,
                         parent_id: folder.parent_id,
+                        updated_at: folder.updated_at,
                     })
                     .eq('id', folder.id)
                     .eq('user_id', userId);
@@ -384,6 +389,7 @@ async function syncNotes() {
         if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
         if (item.status !== undefined && item.status !== null) data.status = item.status;
         if (item.folderId !== undefined && item.folderId !== null) data.folder_id = item.folderId;
+        if (item.pinned !== undefined && item.pinned !== null) data.pinned = item.pinned;
         if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
         if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
         return data;
@@ -460,6 +466,7 @@ async function syncReminders() {
         if (item.notificationTime !== undefined && item.notificationTime !== null) data.notification_time = item.notificationTime;
         if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
         if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
         if (item.completedAt !== undefined && item.completedAt !== null) data.completed_at = item.completedAt;
         return data;
     });

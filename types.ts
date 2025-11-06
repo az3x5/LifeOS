@@ -152,6 +152,7 @@ export interface Note {
     tags?: string[];
     status?: 'active' | 'trash';
     folderId?: number | null;  // null = root/no folder
+    pinned?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
