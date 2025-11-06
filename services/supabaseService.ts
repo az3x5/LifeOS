@@ -87,6 +87,34 @@ export async function fetchFromSupabase<T>(
     }
 }
 
+// Store callbacks for manual refetch triggers
+const refetchCallbacks: Map<string, Set<() => void>> = new Map();
+
+/**
+ * Register a refetch callback for a table
+ */
+export function registerRefetchCallback(tableName: string, callback: () => void): () => void {
+    if (!refetchCallbacks.has(tableName)) {
+        refetchCallbacks.set(tableName, new Set());
+    }
+    refetchCallbacks.get(tableName)!.add(callback);
+
+    // Return unsubscribe function
+    return () => {
+        refetchCallbacks.get(tableName)?.delete(callback);
+    };
+}
+
+/**
+ * Trigger all refetch callbacks for a table
+ */
+export function triggerRefetch(tableName: string): void {
+    const callbacks = refetchCallbacks.get(tableName);
+    if (callbacks) {
+        callbacks.forEach(callback => callback());
+    }
+}
+
 /**
  * Generic insert function for any table
  */
@@ -111,6 +139,9 @@ export async function insertToSupabase<T>(
             console.error(`Error inserting into ${tableName}:`, error);
             return null;
         }
+
+        // Trigger refetch callbacks to update UI immediately
+        triggerRefetch(tableName);
 
         return convertToCamelCase(result) as T;
     } catch (error) {
@@ -142,6 +173,9 @@ export async function updateInSupabase<T>(
             return null;
         }
 
+        // Trigger refetch callbacks to update UI immediately
+        triggerRefetch(tableName);
+
         return convertToCamelCase(result) as T;
     } catch (error) {
         console.error(`Failed to update ${tableName}:`, error);
@@ -166,6 +200,9 @@ export async function deleteFromSupabase(
             console.error(`Error deleting from ${tableName}:`, error);
             return false;
         }
+
+        // Trigger refetch callbacks to update UI immediately
+        triggerRefetch(tableName);
 
         return true;
     } catch (error) {

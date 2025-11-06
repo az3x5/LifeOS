@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchFromSupabase, subscribeToTable } from '../services/supabaseService';
+import { fetchFromSupabase, subscribeToTable, registerRefetchCallback } from '../services/supabaseService';
 import { supabase } from '../services/supabase';
 
 /**
@@ -17,6 +17,7 @@ export function useSupabaseQuery<T>(
     useEffect(() => {
         let isMounted = true;
         let unsubscribe: (() => void) | null = null;
+        let unregisterRefetch: (() => void) | null = null;
 
         const fetchData = async () => {
             setIsLoading(true);
@@ -31,6 +32,14 @@ export function useSupabaseQuery<T>(
                         setData(updatedData);
                     }
                 });
+
+                // Register callback for manual refetch triggers (for create/update/delete operations)
+                unregisterRefetch = registerRefetchCallback(tableName, async () => {
+                    if (isMounted) {
+                        const updatedResult = await fetchFromSupabase<T>(tableName, filters);
+                        setData(updatedResult);
+                    }
+                });
             }
         };
 
@@ -40,6 +49,9 @@ export function useSupabaseQuery<T>(
             isMounted = false;
             if (unsubscribe) {
                 unsubscribe();
+            }
+            if (unregisterRefetch) {
+                unregisterRefetch();
             }
         };
     }, [tableName, JSON.stringify(filters), ...dependencies]);
