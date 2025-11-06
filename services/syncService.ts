@@ -177,79 +177,173 @@ async function pullTable<T>(
 // Individual sync functions for each table
 async function syncAccounts() {
     const localData = await db.accounts.toArray();
-    return syncTable('accounts', localData);
+    return syncTable('accounts', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        name: item.name,
+        type: item.type,
+        balance: item.balance,
+        currency: item.currency,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncCategories() {
     const localData = await db.categories.toArray();
-    return syncTable('categories', localData);
+    return syncTable('categories', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        name: item.name,
+        type: item.type,
+        color: item.color,
+        icon: item.icon,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncTransactions() {
     const localData = await db.transactions.toArray();
-    return syncTable('transactions', localData);
+    return syncTable('transactions', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        account_id: item.accountId,
+        category_id: item.categoryId,
+        type: item.type,
+        amount: item.amount,
+        description: item.description,
+        date: item.date,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncHabits() {
     const localData = await db.habits.toArray();
     return syncTable('habits', localData, (item, userId) => ({
-        ...item,
+        id: item.id,
         user_id: userId,
+        name: item.name,
+        description: item.description,
+        category: item.category,
+        frequency: item.frequency,
         target_days: item.targetDays ? JSON.stringify(item.targetDays) : null,
+        color: item.color,
+        icon: item.icon,
+        reminder_time: item.reminderTime,
+        is_active: item.isActive,
+        created_at: item.createdAt,
     }));
 }
 
 async function syncHabitLogs() {
     const localData = await db.habitLogs.toArray();
-    return syncTable('habit_logs', localData);
+    return syncTable('habit_logs', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        habit_id: item.habitId,
+        date: item.date,
+        completed: item.completed,
+        notes: item.notes,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncHealthMetrics() {
     const localData = await db.healthMetrics.toArray();
-    return syncTable('health_metrics', localData);
+    return syncTable('health_metrics', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        name: item.name,
+        unit: item.unit,
+        type: item.type,
+        target_value: item.targetValue,
+        target_operator: item.targetOperator,
+        color: item.color,
+        icon: item.icon,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncHealthLogs() {
     const localData = await db.healthLogs.toArray();
-    return syncTable('health_logs', localData);
+    return syncTable('health_logs', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        metric_id: item.metricId,
+        value: item.value,
+        date: item.date,
+        notes: item.notes,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncNotes() {
     const localData = await db.notes.toArray();
     return syncTable('notes', localData, (item, userId) => ({
-        ...item,
+        id: item.id,
         user_id: userId,
+        title: item.title,
+        content: item.content,
         tags: item.tags ? JSON.stringify(item.tags) : null,
+        status: item.status,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt,
     }));
 }
 
 async function syncFastingLogs() {
     const localData = await db.fastingLogs.toArray();
-    return syncTable('fasting_logs', localData);
+    return syncTable('fasting_logs', localData, (item, userId) => ({
+        id: item.id,
+        user_id: userId,
+        date: item.date,
+        type: item.type,
+        status: item.status,
+        notes: item.notes,
+        created_at: item.createdAt,
+    }));
 }
 
 async function syncIslamicEvents() {
     const localData = await db.islamicEvents.toArray();
     return syncTable('islamic_events', localData, (item, userId) => ({
-        ...item,
+        id: item.id,
         user_id: userId,
         gregorian_date: item.gregorianDate,
         hijri_date: item.hijriDate,
+        notes: item.notes,
+        created_at: item.createdAt,
     }));
 }
 
 async function syncDailyReflections() {
     const localData = await db.dailyReflections.toArray();
-    return syncTable('daily_reflections', localData);
+    return syncTable('daily_reflections', localData, (item, userId) => ({
+        date: item.date,
+        user_id: userId,
+        gratitude: item.gratitude,
+        wins: item.wins,
+        challenges: item.challenges,
+        tomorrow_goals: item.tomorrowGoals,
+        mood: item.mood,
+        energy_level: item.energyLevel,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt,
+    }));
 }
 
 async function syncReminders() {
     const localData = await db.reminders.toArray();
     return syncTable('reminders', localData, (item, userId) => ({
-        ...item,
+        id: item.id,
         user_id: userId,
+        title: item.title,
+        description: item.description,
         due_date: item.dueDate,
         due_time: item.dueTime,
+        priority: item.priority,
+        category: item.category,
+        status: item.status,
+        recurring: item.recurring,
         recurring_days: item.recurringDays ? JSON.stringify(item.recurringDays) : null,
         notification_enabled: item.notificationEnabled,
         notification_time: item.notificationTime,
