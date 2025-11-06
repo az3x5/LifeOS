@@ -12,7 +12,6 @@ import Reminders from './modules/Reminders';
 import Settings from './modules/Settings';
 import Auth from './modules/Auth';
 import { runNotificationChecks } from './services/notificationService';
-import { syncAllData } from './services/syncService';
 import { supabase } from './services/supabase';
 import { habitsService, habitLogsService, healthMetricsService, healthLogsService } from './services/dataService';
 import type { User } from '@supabase/supabase-js';
@@ -48,9 +47,6 @@ const App: React.FC = () => {
     // State for Notification Center
     const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-    // State for Cloud Sync
-    const [isSyncing, setIsSyncing] = useState(true);
-
     // Initialize theme on mount
     useEffect(() => {
         initializeTheme();
@@ -69,19 +65,9 @@ const App: React.FC = () => {
                     setIsLocked(true);
                 }
 
-                // If user is logged in, sync data in background (two-way sync)
+                // If user is logged in, Supabase Realtime will handle data sync automatically
                 if (session?.user) {
-                    console.log('User authenticated, starting two-way sync in background...');
-                    setIsSyncing(true);
-                    syncAllData()
-                        .then(() => {
-                            console.log('Two-way sync completed');
-                            setIsSyncing(false);
-                        })
-                        .catch(error => {
-                            console.warn('Two-way sync failed:', error);
-                            setIsSyncing(false);
-                        });
+                    console.log('User authenticated, Supabase Realtime subscriptions active');
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
@@ -102,20 +88,9 @@ const App: React.FC = () => {
             setUser(session?.user || null);
 
             if (event === 'SIGNED_IN' && session?.user) {
-                console.log('User signed in, performing two-way sync...');
-                setIsSyncing(true);
-                syncAllData()
-                    .then(() => {
-                        console.log('Sign-in sync completed successfully');
-                        setIsSyncing(false);
-                    })
-                    .catch((error) => {
-                        console.error('Sign-in sync failed:', error);
-                        setIsSyncing(false);
-                    });
+                console.log('User signed in, Supabase Realtime subscriptions active');
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
-                setIsSyncing(false);
                 // Optionally clear local data
             }
         });
@@ -260,19 +235,8 @@ const App: React.FC = () => {
         return () => clearInterval(intervalId);
     }, []);
 
-    // Effect for Cloud Sync
-    useEffect(() => {
-        const runSync = async () => {
-            setIsSyncing(true);
-            await syncAllData();
-            setIsSyncing(false);
-        };
-        runSync();
-    
-        // Optionally, sync periodically
-        const syncInterval = setInterval(runSync, 5 * 60 * 1000); // Sync every 5 minutes
-        return () => clearInterval(syncInterval);
-    }, []);
+    // Note: Cloud sync is now handled automatically by Supabase Realtime subscriptions
+    // No manual sync needed - data updates are pushed/pulled automatically
 
     const renderModule = () => {
         switch (activeModule) {
@@ -337,7 +301,6 @@ const App: React.FC = () => {
                 quickActionHandlers={quickActionHandlers}
                 isNotificationCenterOpen={isNotificationCenterOpen}
                 setIsNotificationCenterOpen={setIsNotificationCenterOpen}
-                isSyncing={isSyncing}
             >
                 {renderModule()}
             </Layout>

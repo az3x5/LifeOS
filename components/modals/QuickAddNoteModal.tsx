@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { db } from '../../services/db';
-import { triggerAutoSync } from '../../services/syncService';
-import { Module } from '../../types';
+import { Module, Note } from '../../types';
+import { notesService } from '../../services/dataService';
 
 interface QuickAddNoteModalProps {
     closeModal: () => void;
@@ -18,15 +17,14 @@ const QuickAddNoteModal: React.FC<QuickAddNoteModalProps> = ({ closeModal, setAc
             alert('Please enter a title for the note.');
             return;
         }
-        await db.notes.add({
+        await notesService.create({
             title: title.trim(),
             content: content.trim(),
             createdAt: new Date(),
             updatedAt: new Date(),
             status: 'active',
             pinned: false,
-        });
-        triggerAutoSync();
+        } as Note);
         closeModal();
         setActiveModule(Module.NOTES);
     };

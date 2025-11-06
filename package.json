@@ -11,8 +11,6 @@
   "dependencies": {
     "@google/genai": "^1.28.0",
     "@supabase/supabase-js": "latest",
-    "dexie": "^4.2.1",
-    "dexie-react-hooks": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.3.0"

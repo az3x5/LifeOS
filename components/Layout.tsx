@@ -20,21 +20,10 @@ interface LayoutProps {
     };
     isNotificationCenterOpen: boolean;
     setIsNotificationCenterOpen: (isOpen: boolean) => void;
-    isSyncing: boolean;
 }
 
 
-
-const SyncStatus: React.FC<{ isSyncing: boolean }> = ({ isSyncing }) => (
-    <div className="tooltip">
-        <span className={`material-symbols-outlined text-lg ${isSyncing ? 'text-accent animate-spin' : 'text-green-400'}`}>
-            {isSyncing ? 'sync' : 'cloud_done'}
-        </span>
-        <span className="tooltiptext">{isSyncing ? "Syncing with cloud..." : "Data is synced"}</span>
-    </div>
-);
-
-const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule, quickActionHandlers, isNotificationCenterOpen, setIsNotificationCenterOpen, isSyncing }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule, quickActionHandlers, isNotificationCenterOpen, setIsNotificationCenterOpen }) => {
     const isNotesModule = activeModule === Module.NOTES;
     const allNotifications = useSupabaseQuery<AppNotification>('notifications');
     const unreadCount = useMemo(() => (allNotifications ?? []).filter(n => n.status === 'unread').length, [allNotifications]);
@@ -54,7 +43,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule
                             )}
                         </button>
                     </div>
-                    <SyncStatus isSyncing={isSyncing} />
                 </div>
             </div>
 

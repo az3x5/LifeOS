@@ -1,5 +1,5 @@
-import { db } from './db';
-import { Module } from '../types';
+import { Module, AppNotification } from '../types';
+import { notificationsService, habitsService, habitLogsService, budgetsService, transactionsService, categoriesService } from './dataService';
 
 // Helper to prevent creating duplicate notifications
 async function createNotification(notification: {
@@ -8,13 +8,14 @@ async function createNotification(notification: {
     message: string;
     relatedId?: number;
 }) {
-    const existing = await db.notifications.get({ key: notification.key });
+    const allNotifications = await notificationsService.getAll();
+    const existing = allNotifications.find(n => n.key === notification.key);
     if (!existing) {
-        await db.notifications.add({
+        await notificationsService.create({
             ...notification,
             timestamp: new Date(),
             status: 'unread',
-        });
+        } as AppNotification);
     }
 }
 
@@ -26,14 +27,15 @@ async function checkHabitNotifications() {
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     const yesterdayDay = yesterday.getDay();
 
-    const habits = await db.habits.toArray();
+    const habits = await habitsService.getAll();
     if (!habits) return;
-    
+
     const scheduledHabits = habits.filter(h =>
         h.frequency === 'daily' || (h.frequency === 'custom' && h.daysOfWeek?.includes(yesterdayDay))
     );
 
-    const logsForYesterday = await db.habitLogs.where({ date: yesterdayStr }).toArray();
+    const allLogs = await habitLogsService.getAll();
+    const logsForYesterday = allLogs.filter(log => log.date === yesterdayStr);
     const completedHabitIds = new Set(logsForYesterday.map(log => log.habitId));
 
     for (const habit of scheduledHabits) {
@@ -49,7 +51,8 @@ async function checkHabitNotifications() {
 }
 
 async function checkFinanceNotifications() {
-    const budgets = await db.budgets.where({ period: 'monthly' }).toArray();
+    const allBudgets = await budgetsService.getAll();
+    const budgets = allBudgets.filter(b => b.period === 'monthly');
     if (!budgets || budgets.length === 0) return;
 
     const now = new Date();
@@ -57,17 +60,18 @@ async function checkFinanceNotifications() {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const monthStr = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
-    const transactions = await db.transactions
-        .where('date').between(startOfMonth, endOfMonth, true, true)
-        .and(t => t.type === 'expense')
-        .toArray();
+    const allTransactions = await transactionsService.getAll();
+    const transactions = allTransactions.filter(t => {
+        const tDate = typeof t.date === 'string' ? new Date(t.date) : t.date;
+        return tDate >= startOfMonth && tDate <= endOfMonth && t.type === 'expense';
+    });
 
     const expensesByCategory: { [key: number]: number } = {};
     for (const t of transactions) {
         expensesByCategory[t.categoryId] = (expensesByCategory[t.categoryId] || 0) + t.amount;
     }
 
-    const categories = await db.categories.toArray();
+    const categories = await categoriesService.getAll();
     const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
     for (const budget of budgets) {

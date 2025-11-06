@@ -15,9 +15,6 @@ export default defineConfig(({ mode }) => {
         rollupOptions: {
           input: {
             main: path.resolve(__dirname, 'index.html'),
-            test: path.resolve(__dirname, 'test-env.html'),
-            debug: path.resolve(__dirname, 'debug-sync.html'),
-            quicktest: path.resolve(__dirname, 'quick-sync-test.html'),
           },
           output: {
             manualChunks: {
@@ -25,7 +22,6 @@ export default defineConfig(({ mode }) => {
               'react-vendor': ['react', 'react-dom'],
               'supabase-vendor': ['@supabase/supabase-js', '@supabase/auth-js', '@supabase/postgrest-js', '@supabase/realtime-js'],
               'chart-vendor': ['recharts'],
-              'db-vendor': ['dexie', 'dexie-react-hooks'],
             }
           }
         }
