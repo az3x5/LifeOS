@@ -133,8 +133,12 @@ async function pullTable<T>(
 
             for (const remoteItem of data) {
                 // Remove Supabase-specific fields and convert to camelCase
-                const { user_id, created_at, ...remoteData } = remoteItem;
+                const { user_id, created_at, updated_at, ...remoteData } = remoteItem;
                 const localItem = convertToCamelCase(remoteData);
+
+                // Convert timestamp strings to Date objects
+                if (created_at) localItem.createdAt = new Date(created_at);
+                if (updated_at) localItem.updatedAt = new Date(updated_at);
 
                 const localRecord = localDataMap.get(remoteItem.id);
 
@@ -144,7 +148,7 @@ async function pullTable<T>(
                     continue;
                 }
 
-                // Compare timestamps if available (use created_at since updated_at doesn't exist)
+                // Compare timestamps if available (use created_at for conflict resolution)
                 if (created_at && localRecord.createdAt) {
                     const remoteTime = new Date(created_at).getTime();
                     const localTime = new Date(localRecord.createdAt).getTime();

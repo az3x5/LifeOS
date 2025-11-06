@@ -151,7 +151,7 @@ export interface Note {
     content?: string;
     tags?: string[];
     status?: 'active' | 'trash';
-    folderId?: number;
+    folderId?: number | null;  // null = root/no folder
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -160,16 +160,9 @@ export interface Folder {
     id?: number;
     userId?: string;
     name: string;
-    parentId?: number;
+    parentId?: number | null;  // null = root folder
     createdAt?: Date;
     updatedAt?: Date;
-}
-
-export interface Folder {
-    id?: number;
-    name: string;
-    parentId: number | null;
-    createdAt: Date;
     icon?: string;
     color?: string;
 }
