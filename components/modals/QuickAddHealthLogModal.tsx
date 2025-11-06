@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../services/db';
+import { triggerAutoSync } from '../../services/syncService';
 
 interface QuickAddHealthLogModalProps {
     closeModal: () => void;
@@ -24,6 +25,7 @@ const QuickAddHealthLogModal: React.FC<QuickAddHealthLogModalProps> = ({ closeMo
             value: parseFloat(value),
             date: new Date(),
         });
+        triggerAutoSync();
         closeModal();
     };
 

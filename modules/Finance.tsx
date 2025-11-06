@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Dexie from 'dexie';
 import { db } from '../services/db';
+import { triggerAutoSync } from '../services/syncService';
 import { Account, Transaction, Category, Budget, SavingsGoal } from '../types';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ConfirmModal from '../components/modals/ConfirmModal';
@@ -557,6 +558,7 @@ const AddTransactionModal: React.FC<{ closeModal: () => void; categories?: Categ
             }
         });
 
+        triggerAutoSync();
         closeModal();
     };
 
@@ -721,7 +723,8 @@ const AddFundsToGoalModal: React.FC<{ goal: SavingsGoal; accounts?: Account[]; c
                 g.currentAmount += transactionData.amount;
             });
         });
-        
+
+        triggerAutoSync();
         closeModal();
     };
 

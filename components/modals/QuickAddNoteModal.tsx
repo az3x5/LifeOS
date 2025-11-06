@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../../services/db';
+import { triggerAutoSync } from '../../services/syncService';
 import { Module } from '../../types';
 
 interface QuickAddNoteModalProps {
@@ -25,6 +26,7 @@ const QuickAddNoteModal: React.FC<QuickAddNoteModalProps> = ({ closeModal, setAc
             status: 'active',
             pinned: false,
         });
+        triggerAutoSync();
         closeModal();
         setActiveModule(Module.NOTES);
     };

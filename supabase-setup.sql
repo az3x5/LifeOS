@@ -110,6 +110,16 @@ CREATE TABLE IF NOT EXISTS notes (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Folders table
+CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    parent_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Fasting logs table
 CREATE TABLE IF NOT EXISTS fasting_logs (
     id TEXT PRIMARY KEY,
@@ -178,6 +188,7 @@ ALTER TABLE habit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE health_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fasting_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE islamic_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_reflections ENABLE ROW LEVEL SECURITY;
@@ -234,6 +245,12 @@ CREATE POLICY "Users can view their own notes" ON notes FOR SELECT USING (auth.u
 CREATE POLICY "Users can insert their own notes" ON notes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own notes" ON notes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own notes" ON notes FOR DELETE USING (auth.uid() = user_id);
+
+-- Folders policies
+CREATE POLICY "Users can view their own folders" ON folders FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own folders" ON folders FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own folders" ON folders FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own folders" ON folders FOR DELETE USING (auth.uid() = user_id);
 
 -- Fasting logs policies
 CREATE POLICY "Users can view their own fasting_logs" ON fasting_logs FOR SELECT USING (auth.uid() = user_id);

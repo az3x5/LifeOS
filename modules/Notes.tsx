@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
+import { triggerAutoSync } from '../services/syncService';
 import { Note, Folder } from '../types';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
@@ -84,6 +85,7 @@ const Notes: React.FC = () => {
             status: 'active',
             pinned: noteFilter === 'pinned',
         });
+        triggerAutoSync();
         setNoteFilter('all');
         handleSelectNote(newId);
     };
@@ -186,6 +188,7 @@ const Sidebar: React.FC<{
         setRenamingNoteId(null);
         if (newName.trim() && newName.trim() !== note.title) {
             await db.notes.update(note.id!, { title: newName.trim(), updatedAt: new Date() });
+            triggerAutoSync();
         }
     };
     
@@ -195,6 +198,7 @@ const Sidebar: React.FC<{
             parentId,
             createdAt: new Date(),
         });
+        triggerAutoSync();
         if (parentId) {
             setExpandedFolders(prev => new Set(prev).add(parentId));
         }
@@ -308,6 +312,7 @@ const FolderTree: React.FC<{
         setRenamingFolderId(null);
         if(newName.trim() && newName.trim() !== folder.name) {
             await db.folders.update(folder.id!, { name: newName.trim() });
+            triggerAutoSync();
         }
     }
     
@@ -330,6 +335,7 @@ const FolderTree: React.FC<{
             icon: '📁',
             onConfirm: async () => {
                 await db.folders.delete(folder.id!);
+                triggerAutoSync();
                 props.setConfirmModal(null);
             }
         });
@@ -456,6 +462,7 @@ const EditorPanel: React.FC<{
         if (newTitle.trim() === initialNote.title && newContent === initialNote.content) return;
         const updatedNote = { ...initialNote, title: newTitle.trim() || 'Untitled Note', content: newContent, updatedAt: new Date() };
         await db.notes.update(initialNote.id!, updatedNote);
+        triggerAutoSync();
     }, [initialNote]);
 
     useEffect(() => {
@@ -501,7 +508,10 @@ const EditorPanel: React.FC<{
         }, 0);
     };
 
-    const handleTogglePin = async () => await db.notes.update(initialNote.id!, { pinned: !initialNote.pinned });
+    const handleTogglePin = async () => {
+        await db.notes.update(initialNote.id!, { pinned: !initialNote.pinned });
+        triggerAutoSync();
+    };
     const handleTrash = async () => {
         setConfirmModal({
             isOpen: true,
@@ -510,11 +520,15 @@ const EditorPanel: React.FC<{
             icon: '🗑️',
             onConfirm: async () => {
                 await db.notes.update(initialNote.id!, { status: 'trash' as const });
+                triggerAutoSync();
                 setConfirmModal(null);
             }
         });
     };
-    const handleRestore = async () => await db.notes.update(initialNote.id!, { status: 'active' as const });
+    const handleRestore = async () => {
+        await db.notes.update(initialNote.id!, { status: 'active' as const });
+        triggerAutoSync();
+    };
     const handleDeleteForever = async () => {
         setConfirmModal({
             isOpen: true,
@@ -523,6 +537,7 @@ const EditorPanel: React.FC<{
             icon: '⚠️',
             onConfirm: async () => {
                 await db.notes.delete(initialNote.id!);
+                triggerAutoSync();
                 setConfirmModal(null);
             }
         });

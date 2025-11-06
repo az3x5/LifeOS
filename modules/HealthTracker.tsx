@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
+import { triggerAutoSync } from '../services/syncService';
 import { HealthMetric, HealthLog, HealthGoal } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import ConfirmModal from '../components/modals/ConfirmModal';
@@ -88,7 +89,8 @@ const HealthTracker: React.FC = () => {
         const logToDelete = await db.healthLogs.get(logId);
         if (!logToDelete) return;
         await db.healthLogs.delete(logId);
-        const undoFunc = async () => { await db.healthLogs.add(logToDelete); };
+        triggerAutoSync();
+        const undoFunc = async () => { await db.healthLogs.add(logToDelete); triggerAutoSync(); };
         setUndoAction({ onUndo: undoFunc });
         undoTimeoutRef.current = window.setTimeout(() => setUndoAction(null), 6000);
     };
@@ -101,6 +103,7 @@ const HealthTracker: React.FC = () => {
             icon: '🎯',
             onConfirm: async () => {
                 await db.healthGoals.delete(goalId);
+                triggerAutoSync();
                 setConfirmModal(null);
             }
         });
@@ -470,6 +473,7 @@ const SettingsTab: React.FC<{ metrics?: HealthMetric[], onAddMetric: () => void,
             icon: '📊',
             onConfirm: async () => {
                 await db.healthMetrics.delete(metricId);
+                triggerAutoSync();
                 setConfirmModal(null);
             }
         });
@@ -632,6 +636,7 @@ const AddLogModal: React.FC<{closeModal: () => void; metrics?: HealthMetric[]; l
         if (!metricId || !value) return;
         const logData = { metricId: parseInt(metricId), value: parseFloat(value), date: new Date(date), notes: notes, tags: tags.split(',').map(t=>t.trim()).filter(Boolean) as string[] };
         if(logToEdit) { await db.healthLogs.update(logToEdit.id!, logData); } else { await db.healthLogs.add(logData); }
+        triggerAutoSync();
         closeModal();
     };
 
@@ -655,16 +660,17 @@ const AddMetricModal: React.FC<{closeModal: () => void, metricToEdit?: HealthMet
     const [name, setName] = useState(metricToEdit?.name ?? ''); 
     const [unit, setUnit] = useState(metricToEdit?.unit ?? '');
     
-    const handleSubmit = async (e: React.FormEvent) => { 
-        e.preventDefault(); 
-        if (!name || !unit) return; 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name || !unit) return;
         const metricData = { name, unit, reminderEnabled: metricToEdit?.reminderEnabled ?? false, reminderTime: metricToEdit?.reminderTime ?? '09:00' };
         if (metricToEdit) {
             await db.healthMetrics.update(metricToEdit.id!, metricData);
         } else {
-            await db.healthMetrics.add(metricData); 
+            await db.healthMetrics.add(metricData);
         }
-        closeModal(); 
+        triggerAutoSync();
+        closeModal();
     };
 
     return (<div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary"><h2 className="text-3xl font-bold mb-6">{metricToEdit ? 'Edit' : 'New'} Health Metric</h2><form onSubmit={handleSubmit} className="space-y-5"><FormInput label="Metric Name" value={name} onChange={(e:any) => setName(e.target.value)} placeholder="e.g., Blood Pressure" /><FormInput label="Unit" value={unit} onChange={(e:any) => setUnit(e.target.value)} placeholder="e.g., mmHg" /><div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={closeModal} className="bg-tertiary hover:bg-opacity-80 text-text-secondary py-2 px-6 rounded-lg">Cancel</button><button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg">Save Metric</button></div></form></div></div>);
@@ -674,16 +680,17 @@ const AddGoalModal: React.FC<{closeModal: () => void, metrics?: HealthMetric[], 
     const [target, setTarget] = useState(goalToEdit?.target.toString() ?? '');
     const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>(goalToEdit?.period ?? 'daily');
     
-    const handleSubmit = async (e: React.FormEvent) => { 
-        e.preventDefault(); 
-        if (!metricId || !target) return; 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!metricId || !target) return;
         const goalData = { metricId: Number(metricId), target: Number(target), period, startDate: goalToEdit?.startDate ?? new Date() };
         if (goalToEdit) {
             await db.healthGoals.update(goalToEdit.id!, goalData);
         } else {
-            await db.healthGoals.add(goalData); 
+            await db.healthGoals.add(goalData);
         }
-        closeModal(); 
+        triggerAutoSync();
+        closeModal();
     };
     return (<div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary"><h2 className="text-3xl font-bold mb-6">{goalToEdit ? 'Edit' : 'New'} Health Goal</h2><form onSubmit={handleSubmit} className="space-y-5"><FormSelect label="Metric" value={metricId} onChange={e => setMetricId(e.target.value)}><option>Select Metric</option>{metrics?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</FormSelect><FormInput label="Target" type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder={`e.g., 7 (${metrics?.find(m=>m.id===Number(metricId))?.unit})`} /><div className="flex space-x-2 bg-primary p-1 rounded-lg"><button type="button" onClick={() => setPeriod('daily')} className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${period === 'daily' ? 'bg-accent shadow-md' : 'hover:bg-tertiary'}`}>Daily</button><button type="button" onClick={() => setPeriod('weekly')} className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${period === 'weekly' ? 'bg-accent shadow-md' : 'hover:bg-tertiary'}`}>Weekly</button><button type="button" onClick={() => setPeriod('monthly')} className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${period === 'monthly' ? 'bg-accent shadow-md' : 'hover:bg-tertiary'}`}>Monthly</button></div><div className="flex justify-end space-x-4 pt-4"><button type="button" onClick={closeModal} className="bg-tertiary text-text-secondary py-2 px-6 rounded-lg">Cancel</button><button type="submit" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg">Set Goal</button></div></form></div></div>);
 }
@@ -692,14 +699,16 @@ const SetHealthReminderModal: React.FC<{ metric: HealthMetric, closeModal: () =>
     const [enabled, setEnabled] = useState(metric.reminderEnabled ?? false); 
     const [time, setTime] = useState(metric.reminderTime ?? '09:00');
     
-    const handleSave = async () => { 
-        await db.healthMetrics.update(metric.id!, { reminderEnabled: enabled, reminderTime: time }); 
-        closeModal(); 
+    const handleSave = async () => {
+        await db.healthMetrics.update(metric.id!, { reminderEnabled: enabled, reminderTime: time });
+        triggerAutoSync();
+        closeModal();
     };
-    
-    const handleRemove = async () => { 
-        await db.healthMetrics.update(metric.id!, { reminderEnabled: false }); 
-        closeModal(); 
+
+    const handleRemove = async () => {
+        await db.healthMetrics.update(metric.id!, { reminderEnabled: false });
+        triggerAutoSync();
+        closeModal();
     }
 
     return (

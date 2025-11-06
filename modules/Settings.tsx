@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { forceSyncNow } from '../services/syncService';
 import AlertModal from '../components/modals/AlertModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import PinSetupModal from '../components/modals/PinSetupModal';
@@ -22,11 +21,6 @@ import { getThemeMode, setThemeMode, type ThemeMode } from '../services/themeSer
 
 const Settings: React.FC = () => {
     const [user, setUser] = useState<any>(null);
-    const [cloudSync, setCloudSync] = useState(false);
-    const [autoSync, setAutoSync] = useState(true);
-    const [syncInterval, setSyncInterval] = useState('5');
-    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-    const [syncing, setSyncing] = useState(false);
 
     const [pinLock, setPinLock] = useState(false);
     const [biometricLock, setBiometricLock] = useState(false);
@@ -62,17 +56,11 @@ const Settings: React.FC = () => {
         const savedLanguage = localStorage.getItem('language') || 'en';
         const savedWeekStart = localStorage.getItem('weekStartsOn') || 'sunday';
         const savedReminderTime = localStorage.getItem('defaultReminderTime') || '09:00';
-        const savedAutoSync = localStorage.getItem('autoSync') !== 'false';
-        const savedSyncInterval = localStorage.getItem('syncInterval') || '5';
-        const savedLastSync = localStorage.getItem('lastSyncTime');
 
         setThemeModeState(savedThemeMode);
         setLanguage(savedLanguage);
         setWeekStartsOn(savedWeekStart);
         setDefaultReminderTime(savedReminderTime);
-        setAutoSync(savedAutoSync);
-        setSyncInterval(savedSyncInterval);
-        setLastSyncTime(savedLastSync);
 
         // Load security settings
         const loadSecuritySettings = async () => {
@@ -85,31 +73,6 @@ const Settings: React.FC = () => {
         };
         loadSecuritySettings();
     }, []);
-
-    const handleManualSync = async () => {
-        setSyncing(true);
-        try {
-            await forceSyncNow();
-            const now = new Date().toLocaleString();
-            setLastSyncTime(now);
-            localStorage.setItem('lastSyncTime', now);
-            setAlertModal({
-                isOpen: true,
-                title: 'Sync Complete',
-                message: 'Your data has been successfully synced with the cloud (two-way sync)!',
-                icon: '✅'
-            });
-        } catch (error: any) {
-            setAlertModal({
-                isOpen: true,
-                title: 'Sync Failed',
-                message: error.message || 'Failed to sync data. Please try again.',
-                icon: '❌'
-            });
-        } finally {
-            setSyncing(false);
-        }
-    };
 
     const handleToggleReminders = async () => {
         if (Notification.permission === 'granted') {
@@ -418,50 +381,7 @@ const Settings: React.FC = () => {
                 )}
             </div>
 
-            <SettingsCard title="Data & Sync">
-                <SettingItem title="Manual Sync" description="Sync your data with the cloud right now.">
-                    <button
-                        onClick={handleManualSync}
-                        disabled={syncing}
-                        className="bg-accent hover:bg-accent/90 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {syncing ? 'Syncing...' : 'Sync Now'}
-                    </button>
-                </SettingItem>
-                {lastSyncTime && (
-                    <div className="text-sm text-text-muted">
-                        Last synced: {lastSyncTime}
-                    </div>
-                )}
-                <div className="border-t border-tertiary"></div>
-                <SettingItem title="Auto Sync" description="Automatically sync data in the background.">
-                    <Toggle
-                        enabled={autoSync}
-                        setEnabled={(val) => {
-                            setAutoSync(val);
-                            localStorage.setItem('autoSync', val.toString());
-                        }}
-                    />
-                </SettingItem>
-                {autoSync && (
-                    <SettingItem title="Sync Interval" description="How often to sync automatically (minutes).">
-                        <select
-                            value={syncInterval}
-                            onChange={(e) => {
-                                setSyncInterval(e.target.value);
-                                localStorage.setItem('syncInterval', e.target.value);
-                            }}
-                            className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        >
-                            <option value="1">1 minute</option>
-                            <option value="5">5 minutes</option>
-                            <option value="15">15 minutes</option>
-                            <option value="30">30 minutes</option>
-                            <option value="60">1 hour</option>
-                        </select>
-                    </SettingItem>
-                )}
-                <div className="border-t border-tertiary"></div>
+            <SettingsCard title="Data Management">
                 <SettingItem title="Export All Data" description="Download all your data as a JSON file.">
                     <button
                         onClick={handleExportData}

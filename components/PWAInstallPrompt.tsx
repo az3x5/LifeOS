@@ -79,20 +79,7 @@ const PWAInstallPrompt: React.FC = () => {
         return null;
     }
 
-    // Show install button in settings or as a banner
-    if (!showPrompt && deferredPrompt) {
-        return (
-            <button
-                onClick={handleShowPrompt}
-                className="fixed bottom-20 right-4 bg-accent hover:bg-accent-hover text-white p-3 rounded-full shadow-lg z-50 transition-all duration-300 hover:scale-110"
-                title="Install LifeOS"
-            >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-            </button>
-        );
-    }
+    // Don't show install button - removed per user request
 
     if (!showPrompt) {
         return null;

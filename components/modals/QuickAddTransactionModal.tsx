@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Dexie from 'dexie';
 import { db } from '../../services/db';
+import { triggerAutoSync } from '../../services/syncService';
 import { Category, Account } from '../../types';
 
 interface QuickAddTransactionModalProps {
@@ -57,6 +58,7 @@ const QuickAddTransactionModal: React.FC<QuickAddTransactionModalProps> = ({ clo
             });
         });
 
+        triggerAutoSync();
         closeModal();
     };
 

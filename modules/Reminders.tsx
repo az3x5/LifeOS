@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
+import { triggerAutoSync } from '../services/syncService';
 import { Reminder } from '../types';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
@@ -114,6 +115,7 @@ const Reminders: React.FC = () => {
             icon: '🗑️',
             onConfirm: async () => {
                 await db.reminders.delete(reminder.id!);
+                triggerAutoSync();
                 setConfirmModal(null);
             }
         });
@@ -124,17 +126,19 @@ const Reminders: React.FC = () => {
             status: 'completed',
             completedAt: new Date()
         });
+        triggerAutoSync();
     };
 
     const handleUncompleteReminder = async (reminder: Reminder) => {
         const now = new Date();
         const dueDate = new Date(reminder.dueDate);
         const status = dueDate < now ? 'overdue' : 'pending';
-        
+
         await db.reminders.update(reminder.id!, {
             status,
             completedAt: undefined
         });
+        triggerAutoSync();
     };
 
     return (
@@ -448,6 +452,7 @@ const ReminderModal: React.FC<{
             } as Reminder);
         }
 
+        triggerAutoSync();
         onSave();
     };
 
