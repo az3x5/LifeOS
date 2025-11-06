@@ -388,7 +388,7 @@ async function syncNotes() {
         if (item.content !== undefined && item.content !== null) data.content = item.content;
         if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
         if (item.status !== undefined && item.status !== null) data.status = item.status;
-        if (item.folderId !== undefined && item.folderId !== null) data.folder_id = item.folderId;
+        if (item.folderId !== undefined) data.folder_id = item.folderId;
         if (item.pinned !== undefined && item.pinned !== null) data.pinned = item.pinned;
         if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
         if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
