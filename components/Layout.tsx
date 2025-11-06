@@ -25,6 +25,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule, quickActionHandlers, isNotificationCenterOpen, setIsNotificationCenterOpen }) => {
     const isNotesModule = activeModule === Module.NOTES;
+    const isRemindersModule = activeModule === Module.REMINDERS;
     const allNotifications = useSupabaseQuery<AppNotification>('notifications');
     const unreadCount = useMemo(() => (allNotifications ?? []).filter(n => n.status === 'unread').length, [allNotifications]);
 
@@ -67,7 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule
                 </div>
 
                 {/* Main Content */}
-                <div className={`flex-1 overflow-y-auto ${isNotesModule ? '' : 'px-6 md:px-10 py-6 md:py-10'} pb-20 md:pb-10`}>
+                <div className={`flex-1 overflow-y-auto ${isNotesModule || isRemindersModule ? '' : 'px-6 md:px-10 py-6 md:py-10'} pb-20 md:pb-10`}>
                     {children}
                 </div>
             </main>
