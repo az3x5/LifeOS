@@ -356,7 +356,7 @@ const ReminderCard: React.FC<{
 
 
 
-// --- REMINDER MODAL COMPONENT ---
+// --- REMINDER MODAL COMPONENT (Bottom Sheet Style) ---
 
 const ReminderModal: React.FC<{
     reminder: Reminder | null;
@@ -370,12 +370,15 @@ const ReminderModal: React.FC<{
     );
     const [dueTime, setDueTime] = useState(reminder?.dueTime || '');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(reminder?.priority || 'medium');
-    const [category, setCategory] = useState<'personal' | 'work' | 'health' | 'finance' | 'other'>(reminder?.category || 'personal');
+    const [category, setCategory] = useState<'personal' | 'work' | 'health' | 'finance' | 'shopping' | 'other'>(reminder?.category || 'personal');
     const [recurring, setRecurring] = useState<'none' | 'daily' | 'weekly' | 'monthly'>(reminder?.recurring || 'none');
     const [recurringDays, setRecurringDays] = useState<number[]>(reminder?.recurringDays || []);
     const [notificationEnabled, setNotificationEnabled] = useState(reminder?.notificationEnabled || false);
     const [notificationTime, setNotificationTime] = useState(reminder?.notificationTime || 15);
-    const [tags, setTags] = useState(reminder?.tags?.join(', ') || '');
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+    const [showRecurringPicker, setShowRecurringPicker] = useState(false);
 
     const handleSave = async () => {
         if (!title.trim()) {
@@ -395,7 +398,6 @@ const ReminderModal: React.FC<{
             recurringDays: recurring === 'weekly' ? recurringDays : undefined,
             notificationEnabled,
             notificationTime: notificationEnabled ? notificationTime : undefined,
-            tags: tags ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
         };
 
         if (reminder?.id) {
@@ -417,11 +419,28 @@ const ReminderModal: React.FC<{
         );
     };
 
+    const getDueDateLabel = () => {
+        const date = new Date(dueDate);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        if (date.toDateString() === today.toDateString()) return 'Today';
+        if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-secondary border border-tertiary rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-text-primary">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+            <div className="bg-secondary border-t md:border border-tertiary rounded-t-2xl md:rounded-2xl w-full md:max-w-2xl md:w-full max-h-[90vh] overflow-y-auto flex flex-col">
+                {/* Handle Bar (Mobile) */}
+                <div className="md:hidden flex justify-center pt-3 pb-2">
+                    <div className="w-12 h-1 bg-tertiary rounded-full"></div>
+                </div>
+
+                {/* Header */}
+                <div className="flex justify-between items-center px-4 md:px-6 py-4 border-b border-tertiary sticky top-0 bg-secondary">
+                    <h2 className="text-xl md:text-2xl font-bold text-text-primary">
                         {reminder ? 'Edit Reminder' : 'New Reminder'}
                     </h2>
                     <button onClick={onClose} className="text-text-muted hover:text-text-primary text-2xl">
@@ -429,182 +448,223 @@ const ReminderModal: React.FC<{
                     </button>
                 </div>
 
-                <div className="space-y-4">
-                    {/* Title */}
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
+                    {/* Title Input */}
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Title *
-                        </label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Enter reminder title"
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                            placeholder="Add reminder"
+                            className="w-full bg-transparent text-2xl md:text-3xl font-semibold text-text-primary placeholder-text-muted focus:outline-none"
+                            autoFocus
                         />
                     </div>
 
-                    {/* Description */}
+                    {/* Description/List Input */}
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Description
-                        </label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Enter description (optional)"
+                            placeholder="Add description or list items (one per line)"
                             rows={3}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent resize-none"
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-3 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent resize-none"
                         />
                     </div>
 
-                    {/* Date and Time */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Due Date *
-                            </label>
+                    {/* Quick Action Buttons */}
+                    <div className="flex flex-wrap gap-2 py-2">
+                        {/* Checkbox (List) */}
+                        <button className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors">
+                            <span className="material-symbols-outlined text-lg">done</span>
+                        </button>
+
+                        {/* Date */}
+                        <button
+                            onClick={() => setShowDatePicker(!showDatePicker)}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-lg">calendar_today</span>
+                        </button>
+
+                        {/* Location */}
+                        <button className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors">
+                            <span className="material-symbols-outlined text-lg">location_on</span>
+                        </button>
+
+                        {/* Photo */}
+                        <button className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors">
+                            <span className="material-symbols-outlined text-lg">photo_camera</span>
+                        </button>
+
+                        {/* Repeat */}
+                        <button
+                            onClick={() => setShowRecurringPicker(!showRecurringPicker)}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-lg">repeat</span>
+                        </button>
+
+                        {/* Category */}
+                        <button
+                            onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-primary border border-tertiary hover:border-accent transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-lg">label</span>
+                        </button>
+                    </div>
+
+                    {/* Date Picker */}
+                    {showDatePicker && (
+                        <div className="bg-primary border border-tertiary rounded-lg p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined">calendar_today</span>
+                                <span className="text-sm font-medium text-text-secondary">Set Date</span>
+                            </div>
                             <input
                                 type="date"
                                 value={dueDate}
                                 onChange={(e) => setDueDate(e.target.value)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
+                                className="w-full bg-secondary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Due Time
-                            </label>
+                            <div className="flex items-center gap-2 pt-2">
+                                <span className="material-symbols-outlined">schedule</span>
+                                <span className="text-sm font-medium text-text-secondary">Set Time</span>
+                            </div>
                             <input
                                 type="time"
                                 value={dueTime}
                                 onChange={(e) => setDueTime(e.target.value)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
+                                className="w-full bg-secondary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
                             />
                         </div>
-                    </div>
+                    )}
 
-                    {/* Priority and Category */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Priority
-                            </label>
+                    {/* Recurring Picker */}
+                    {showRecurringPicker && (
+                        <div className="bg-primary border border-tertiary rounded-lg p-4 space-y-3">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="material-symbols-outlined">repeat</span>
+                                <span className="text-sm font-medium text-text-secondary">Repeat</span>
+                            </div>
                             <select
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value as any)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
+                                value={recurring}
+                                onChange={(e) => setRecurring(e.target.value as any)}
+                                className="w-full bg-secondary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
                             >
-                                <option value="low">🔵 Low</option>
-                                <option value="medium">🟡 Medium</option>
-                                <option value="high">🔴 High</option>
+                                <option value="none">Don't repeat</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
                             </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Category
-                            </label>
-                            <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value as any)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                            >
-                                <option value="personal">👤 Personal</option>
-                                <option value="work">💼 Work</option>
-                                <option value="health">❤️ Health</option>
-                                <option value="finance">💰 Finance</option>
-                                <option value="other">📌 Other</option>
-                            </select>
-                        </div>
-                    </div>
 
-                    {/* Recurring */}
-                    <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Recurring
-                        </label>
-                        <select
-                            value={recurring}
-                            onChange={(e) => setRecurring(e.target.value as any)}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                        >
-                            <option value="none">None</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
+                            {recurring === 'weekly' && (
+                                <div className="pt-2">
+                                    <p className="text-xs font-medium text-text-secondary mb-2">Repeat on</p>
+                                    <div className="flex gap-2">
+                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => toggleRecurringDay(idx)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                    recurringDays.includes(idx)
+                                                        ? 'bg-accent text-white'
+                                                        : 'bg-secondary text-text-secondary hover:bg-tertiary'
+                                                }`}
+                                            >
+                                                {day}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                    {/* Recurring Days (for weekly) */}
-                    {recurring === 'weekly' && (
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Repeat on
-                            </label>
-                            <div className="flex gap-2">
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                    {/* Category Picker */}
+                    {showCategoryPicker && (
+                        <div className="bg-primary border border-tertiary rounded-lg p-4 space-y-3">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="material-symbols-outlined">label</span>
+                                <span className="text-sm font-medium text-text-secondary">Category</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { value: 'personal', label: '👤 Personal', icon: '📍' },
+                                    { value: 'work', label: '💼 Work', icon: '💼' },
+                                    { value: 'health', label: '❤️ Health', icon: '❤️' },
+                                    { value: 'finance', label: '💰 Finance', icon: '💰' },
+                                    { value: 'shopping', label: '🛒 Shopping', icon: '🛒' },
+                                    { value: 'other', label: '📌 Other', icon: '📌' },
+                                ].map(cat => (
                                     <button
-                                        key={idx}
-                                        onClick={() => toggleRecurringDay(idx)}
-                                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                            recurringDays.includes(idx)
+                                        key={cat.value}
+                                        onClick={() => {
+                                            setCategory(cat.value as any);
+                                            setShowCategoryPicker(false);
+                                        }}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                            category === cat.value
                                                 ? 'bg-accent text-white'
-                                                : 'bg-primary text-text-secondary hover:bg-tertiary'
+                                                : 'bg-secondary text-text-secondary hover:bg-tertiary'
                                         }`}
                                     >
-                                        {day}
+                                        {cat.label}
                                     </button>
                                 ))}
                             </div>
                         </div>
                     )}
 
+                    {/* Priority */}
+                    <div className="bg-primary border border-tertiary rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="material-symbols-outlined">flag</span>
+                            <span className="text-sm font-medium text-text-secondary">Priority</span>
+                        </div>
+                        <div className="flex gap-2">
+                            {[
+                                { value: 'low', label: 'Low', color: 'bg-blue-500/20 text-blue-400' },
+                                { value: 'medium', label: 'Medium', color: 'bg-yellow-500/20 text-yellow-400' },
+                                { value: 'high', label: 'High', color: 'bg-red-500/20 text-red-400' },
+                            ].map(p => (
+                                <button
+                                    key={p.value}
+                                    onClick={() => setPriority(p.value as any)}
+                                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                        priority === p.value
+                                            ? `${p.color} border border-current`
+                                            : 'bg-secondary text-text-secondary hover:bg-tertiary'
+                                    }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Notification */}
-                    <div>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="bg-primary border border-tertiary rounded-lg p-4">
+                        <label className="flex items-center gap-3 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={notificationEnabled}
                                 onChange={(e) => setNotificationEnabled(e.target.checked)}
                                 className="w-5 h-5 rounded border-tertiary text-accent focus:ring-accent"
                             />
-                            <span className="text-sm font-medium text-text-secondary">
-                                Enable notification
-                            </span>
-                        </label>
-                        {notificationEnabled && (
-                            <div className="mt-2">
-                                <label className="block text-sm font-medium text-text-secondary mb-2">
-                                    Notify me (minutes before)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={notificationTime}
-                                    onChange={(e) => setNotificationTime(parseInt(e.target.value) || 0)}
-                                    min="0"
-                                    className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                                />
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined">notifications</span>
+                                <span className="text-sm font-medium text-text-secondary">
+                                    {notificationEnabled ? `Notify ${notificationTime} min before` : 'Add notification'}
+                                </span>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Tags */}
-                    <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Tags (comma-separated)
                         </label>
-                        <input
-                            type="text"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            placeholder="work, urgent, meeting"
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                        />
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 mt-6">
+                {/* Footer Actions */}
+                <div className="border-t border-tertiary px-4 md:px-6 py-4 bg-secondary sticky bottom-0 flex gap-3">
                     <button
                         onClick={handleSave}
                         className="flex-1 bg-accent hover:bg-accent/80 text-white px-6 py-3 rounded-lg font-medium transition-colors"
