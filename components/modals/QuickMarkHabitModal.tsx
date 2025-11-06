@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../services/db';
-import { Habit } from '../../types';
+import { useSupabaseQuery } from '../../hooks/useSupabaseQuery';
+import { Habit, HabitLog } from '../../types';
+import { habitLogsService } from '../../services/dataService';
 
 interface QuickMarkHabitModalProps {
     closeModal: () => void;
@@ -13,8 +13,11 @@ const QuickMarkHabitModal: React.FC<QuickMarkHabitModalProps> = ({ closeModal })
     const todayStr = useMemo(() => getTodayDateString(), []);
     const todayDay = useMemo(() => new Date().getDay(), []);
     
-    const habits = useLiveQuery(() => db.habits.toArray(), []);
-    const habitLogs = useLiveQuery(() => db.habitLogs.where({ date: todayStr }).toArray(), []);
+    const allHabits = useSupabaseQuery<Habit>('habits');
+    const allHabitLogs = useSupabaseQuery<HabitLog>('habit_logs');
+
+    const habits = useMemo(() => allHabits ?? [], [allHabits]);
+    const habitLogs = useMemo(() => (allHabitLogs ?? []).filter(l => l.date === todayStr), [allHabitLogs, todayStr]);
 
     const [selectedHabitIds, setSelectedHabitIds] = useState<Set<number>>(new Set());
 
@@ -46,13 +49,15 @@ const QuickMarkHabitModal: React.FC<QuickMarkHabitModalProps> = ({ closeModal })
             closeModal();
             return;
         }
-        
+
         const logsToAdd = Array.from(selectedHabitIds).map(habitId => ({
             habitId,
             date: todayStr
         }));
-        
-        await db.habitLogs.bulkAdd(logsToAdd);
+
+        for (const log of logsToAdd) {
+            await habitLogsService.create(log as HabitLog);
+        }
         closeModal();
     };
 
