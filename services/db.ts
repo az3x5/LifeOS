@@ -385,6 +385,44 @@ export class LifeOSDexie extends Dexie {
             });
         });
 
+        // Version 13: Clear notes and folders tables for fresh sync
+        (this as Dexie).version(13).stores({
+            // Repeat previous schema - no schema changes, just migration
+            accounts: '++id, name, type',
+            transactions: '++id, accountId, categoryId, date, type',
+            categories: '++id, name, type',
+            budgets: '++id, categoryId, period',
+            savingsGoals: '++id, name',
+            habits: '++id, name, frequency, reminderEnabled, reminderTime, origin',
+            habitLogs: '++id, &[habitId+date], date',
+            routines: '++id, name',
+            userProfile: 'id',
+            badges: 'id',
+            userBadges: '++id, badgeId',
+            healthMetrics: '++id, name, reminderEnabled, reminderTime',
+            healthLogs: '++id, metricId, date',
+            healthGoals: '++id, metricId',
+            notes: '++id, title, updatedAt, folderId, status, pinned, createdAt',
+            folders: '++id, name, parentId',
+            fastingLogs: '++id, date, type, status',
+            prayerLogs: '++id, &[date+prayer]',
+            learningMaterials: 'id, category, title',
+            learningLogs: '++id, &date',
+            bookmarks: '++id, materialId, createdAt',
+            islamicEvents: '&gregorianDate',
+            dailyReflections: '&date',
+            settings: '&key',
+            smartInsights: '++id, generatedAt, status',
+            notifications: '++id, &key, timestamp, status, module',
+            reminders: '++id, dueDate, status, priority, category',
+        }).upgrade(tx => {
+            // Clear notes and folders tables for fresh sync from Supabase
+            return Promise.all([
+                tx.table('notes').clear(),
+                tx.table('folders').clear(),
+            ]);
+        });
+
 
         // --- Seed Data ---
         // FIX: Cast 'this' to Dexie to resolve incorrect type inference.
