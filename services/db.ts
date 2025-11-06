@@ -323,6 +323,68 @@ export class LifeOSDexie extends Dexie {
             reminders: '++id, dueDate, status, priority, category', // New in v11
         });
 
+        // Version 12: Migrate health metrics to add required 'type' field
+        (this as Dexie).version(12).stores({
+            // Repeat previous schema - no schema changes, just migration
+            accounts: '++id, name, type',
+            transactions: '++id, accountId, categoryId, date, type',
+            categories: '++id, name, type',
+            budgets: '++id, categoryId, period',
+            savingsGoals: '++id, name',
+            habits: '++id, name, frequency, reminderEnabled, reminderTime, origin',
+            habitLogs: '++id, &[habitId+date], date',
+            routines: '++id, name',
+            userProfile: 'id',
+            badges: 'id',
+            userBadges: '++id, badgeId',
+            healthMetrics: '++id, name, reminderEnabled, reminderTime',
+            healthLogs: '++id, metricId, date',
+            healthGoals: '++id, metricId',
+            notes: '++id, title, updatedAt, folderId, status, pinned, createdAt',
+            folders: '++id, name, parentId',
+            fastingLogs: '++id, date, type, status',
+            prayerLogs: '++id, &[date+prayer]',
+            learningMaterials: 'id, category, title',
+            learningLogs: '++id, &date',
+            bookmarks: '++id, materialId, createdAt',
+            islamicEvents: '&gregorianDate',
+            dailyReflections: '&date',
+            settings: '&key',
+            smartInsights: '++id, generatedAt, status',
+            notifications: '++id, &key, timestamp, status, module',
+            reminders: '++id, dueDate, status, priority, category',
+        }).upgrade(tx => {
+            // Migrate existing health metrics to add required 'type' field
+            return tx.table('healthMetrics').toCollection().modify(metric => {
+                // Set type based on metric name or default to 'measurement'
+                if (!metric.type) {
+                    if (metric.name === 'Sleep') metric.type = 'duration';
+                    else if (metric.name === 'Steps') metric.type = 'count';
+                    else if (metric.name === 'Calories') metric.type = 'count';
+                    else if (metric.name === 'Weight') metric.type = 'measurement';
+                    else if (metric.name === 'Mood') metric.type = 'rating';
+                    else metric.type = 'measurement';
+                }
+                // Add color and icon if missing
+                if (!metric.color) {
+                    if (metric.name === 'Sleep') metric.color = '#4A90E2';
+                    else if (metric.name === 'Steps') metric.color = '#7ED321';
+                    else if (metric.name === 'Calories') metric.color = '#F5A623';
+                    else if (metric.name === 'Weight') metric.color = '#BD10E0';
+                    else if (metric.name === 'Mood') metric.color = '#FF6B6B';
+                    else metric.color = '#999999';
+                }
+                if (!metric.icon) {
+                    if (metric.name === 'Sleep') metric.icon = 'bedtime';
+                    else if (metric.name === 'Steps') metric.icon = 'directions_walk';
+                    else if (metric.name === 'Calories') metric.icon = 'local_dining';
+                    else if (metric.name === 'Weight') metric.icon = 'scale';
+                    else if (metric.name === 'Mood') metric.icon = 'mood';
+                    else metric.icon = 'health_and_safety';
+                }
+            });
+        });
+
 
         // --- Seed Data ---
         // FIX: Cast 'this' to Dexie to resolve incorrect type inference.
