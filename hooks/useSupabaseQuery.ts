@@ -48,7 +48,7 @@ export function useSupabaseQuery<T>(
 }
 
 /**
- * Hook to fetch a single item by ID
+ * Hook to fetch a single item by ID with real-time updates
  */
 export function useSupabaseItem<T>(
     tableName: string,
@@ -64,6 +64,7 @@ export function useSupabaseItem<T>(
         }
 
         let isMounted = true;
+        let unsubscribe: (() => void) | null = null;
 
         const fetchItem = async () => {
             try {
@@ -81,6 +82,17 @@ export function useSupabaseItem<T>(
                 if (isMounted) {
                     setData(result as T);
                 }
+
+                // Subscribe to real-time changes for this specific item
+                unsubscribe = await subscribeToTable<T>(tableName, (updatedData) => {
+                    if (isMounted && updatedData.length > 0) {
+                        // Find the item with matching ID
+                        const updatedItem = updatedData.find((item: any) => item.id === id);
+                        if (updatedItem) {
+                            setData(updatedItem as T);
+                        }
+                    }
+                });
             } catch (error) {
                 console.error(`Failed to fetch item from ${tableName}:`, error);
             }
@@ -90,6 +102,9 @@ export function useSupabaseItem<T>(
 
         return () => {
             isMounted = false;
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
     }, [tableName, id, ...dependencies]);
 
@@ -97,7 +112,7 @@ export function useSupabaseItem<T>(
 }
 
 /**
- * Hook to fetch items with custom query
+ * Hook to fetch items with custom query and real-time updates
  */
 export function useSupabaseCustomQuery<T>(
     tableName: string,
@@ -108,6 +123,7 @@ export function useSupabaseCustomQuery<T>(
 
     useEffect(() => {
         let isMounted = true;
+        let unsubscribe: (() => void) | null = null;
 
         const fetchData = async () => {
             try {
@@ -122,6 +138,13 @@ export function useSupabaseCustomQuery<T>(
                 if (isMounted) {
                     setData(result as T[]);
                 }
+
+                // Subscribe to real-time changes
+                unsubscribe = await subscribeToTable<T>(tableName, (updatedData) => {
+                    if (isMounted) {
+                        setData(updatedData);
+                    }
+                });
             } catch (error) {
                 console.error(`Failed to execute custom query for ${tableName}:`, error);
             }
@@ -131,6 +154,9 @@ export function useSupabaseCustomQuery<T>(
 
         return () => {
             isMounted = false;
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
     }, [tableName, ...dependencies]);
 
