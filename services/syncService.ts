@@ -314,8 +314,6 @@ async function syncFolders() {
             user_id: userId,
             name: item.name,
             parent_id: item.parentId || null,
-            created_at: item.createdAt,
-            updated_at: item.updatedAt,
         }));
 
         const existingFolders = localData.filter(f => f.id).map(item => ({
@@ -323,8 +321,6 @@ async function syncFolders() {
             user_id: userId,
             name: item.name,
             parent_id: item.parentId || null,
-            created_at: item.createdAt,
-            updated_at: item.updatedAt,
         }));
 
         // Insert new folders (let Supabase generate IDs)
@@ -336,15 +332,22 @@ async function syncFolders() {
             }
         }
 
-        // Update existing folders
+        // Update existing folders (use update, not upsert, to avoid id conflict)
         if (existingFolders.length > 0) {
-            const { error: updateError } = await supabase.from('folders').upsert(existingFolders, {
-                onConflict: 'id',
-                ignoreDuplicates: false,
-            });
-            if (updateError) {
-                console.error('Supabase update error (folders):', updateError);
-                throw updateError;
+            for (const folder of existingFolders) {
+                const { error: updateError } = await supabase
+                    .from('folders')
+                    .update({
+                        name: folder.name,
+                        parent_id: folder.parent_id,
+                    })
+                    .eq('id', folder.id)
+                    .eq('user_id', userId);
+
+                if (updateError) {
+                    console.error('Supabase update error (folders):', updateError);
+                    throw updateError;
+                }
             }
         }
 
