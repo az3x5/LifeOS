@@ -19,6 +19,8 @@ export interface Account {
     balance?: number;
     currency?: string;
     createdAt?: Date;
+    updatedAt?: Date;
+    includeInNetWorth?: boolean;
 }
 
 export interface Transaction {
@@ -68,18 +70,26 @@ export interface Habit {
     category?: string;
     frequency: 'daily' | 'custom';
     targetDays?: number[];
+    daysOfWeek?: number[];
     color?: string;
     icon?: string;
     reminderTime?: string;
+    reminderEnabled?: boolean;
     isActive?: boolean;
     createdAt?: Date;
+    updatedAt?: Date;
+    origin?: 'user' | 'system' | 'system-islamic';
+    xp?: number;
+    isFrozen?: boolean;
+    frozenFrom?: Date | string;
+    frozenTo?: Date | string;
 }
 
 export interface HabitLog {
     id?: number;
     userId?: string;
     habitId: number;
-    date: Date;
+    date: Date | string;
     completed?: boolean;
     notes?: string;
     createdAt?: Date;
@@ -121,7 +131,10 @@ export interface HealthMetric {
     targetOperator?: string;
     color?: string;
     icon?: string;
+    reminderEnabled?: boolean;
+    reminderTime?: string;
     createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export interface HealthLog {
@@ -131,7 +144,9 @@ export interface HealthLog {
     value: number;
     date: Date;
     notes?: string;
+    tags?: string[];
     createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export interface HealthGoal {
@@ -172,7 +187,7 @@ export interface Folder {
 export interface FastingLog {
     id?: number;
     userId?: string;
-    date: Date;
+    date: Date | string;
     type: string;
     status: 'completed' | 'missed' | 'pending';
     notes?: string;
@@ -208,19 +223,20 @@ export interface Bookmark {
 export interface IslamicEvent {
     id?: number;
     userId?: string;
-    gregorianDate: Date;
+    gregorianDate: Date | string;
     hijriDate?: string;
     notes?: string;
     createdAt?: Date;
 }
 
 export interface DailyReflection {
-    date: Date;
+    date: Date | string;
     userId?: string;
     gratitude?: string;
     wins?: string;
     challenges?: string;
     tomorrowGoals?: string;
+    content?: string | { ayah: string; reference: string; explanation: string };
     mood?: string;
     energyLevel?: number;
     createdAt?: Date;
@@ -261,13 +277,15 @@ export interface Reminder {
     dueDate: Date;
     dueTime?: string;
     priority: 'low' | 'medium' | 'high';
-    category: string;
+    category: 'personal' | 'work' | 'health' | 'finance' | 'other' | string;
     status: 'pending' | 'completed' | 'overdue';
-    recurring?: string;
+    recurring?: 'none' | 'daily' | 'weekly' | 'monthly' | string;
     recurringDays?: number[];
     notificationEnabled?: boolean;
     notificationTime?: number;
     tags?: string[];
     createdAt?: Date;
+    updatedAt?: Date;
     completedAt?: Date;
+    completed?: boolean;
 }

@@ -413,7 +413,15 @@ const DailyReflection: React.FC = () => {
     useEffect(() => {
         const fetchReflection = async () => {
             if (dailyReflection) {
-                setReflection(dailyReflection.content);
+                if (typeof dailyReflection.content === 'object') {
+                    setReflection(dailyReflection.content as any);
+                } else if (typeof dailyReflection.content === 'string') {
+                    try {
+                        setReflection(JSON.parse(dailyReflection.content));
+                    } catch {
+                        setReflection({ ayah: '', reference: '', explanation: '' });
+                    }
+                }
                 setIsLoading(false);
                 return;
             }
@@ -642,8 +650,9 @@ const FastingTracker: React.FC<{ setConfirmModal: (modal: { isOpen: boolean; tit
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
     const logsByDate = useMemo(() => {
-        return fastingLogs?.reduce((acc, log) => {
-            acc[log.date] = log;
+        return fastingLogs?.reduce((acc: any, log) => {
+            const dateKey = typeof log.date === 'string' ? log.date : new Date(log.date).toISOString().split('T')[0];
+            acc[dateKey] = log;
             return acc;
         }, {} as Record<string, FastingLog>) ?? {};
     }, [fastingLogs]);
@@ -698,8 +707,9 @@ const IslamicCalendar: React.FC<{ setConfirmModal: (modal: { isOpen: boolean; ti
     const userEvents = useLiveQuery(() => db.islamicEvents.toArray(), []);
 
     const userEventsByDate = useMemo(() => {
-        return userEvents?.reduce((acc, event) => {
-            acc[event.gregorianDate] = event;
+        return userEvents?.reduce((acc: any, event) => {
+            const dateKey = typeof event.gregorianDate === 'string' ? event.gregorianDate : new Date(event.gregorianDate).toISOString().split('T')[0];
+            acc[dateKey] = event;
             return acc;
         }, {} as Record<string, IslamicEvent>) ?? {};
     }, [userEvents]);

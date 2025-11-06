@@ -149,18 +149,19 @@ async function pullTable<T>(
                 }
 
                 // Compare timestamps if available (use updated_at for conflict resolution)
-                if (updated_at && localRecord.updatedAt) {
+                const localRecordTyped = localRecord as any;
+                if (updated_at && localRecordTyped.updatedAt) {
                     const remoteTime = new Date(updated_at).getTime();
-                    const localTime = new Date(localRecord.updatedAt).getTime();
+                    const localTime = new Date(localRecordTyped.updatedAt).getTime();
 
                     // Only update if remote is newer
                     if (remoteTime > localTime) {
                         itemsToUpdate.push(localItem);
                     }
-                } else if (created_at && localRecord.createdAt) {
+                } else if (created_at && localRecordTyped.createdAt) {
                     // Fallback to created_at if updated_at is not available
                     const remoteTime = new Date(created_at).getTime();
-                    const localTime = new Date(localRecord.createdAt).getTime();
+                    const localTime = new Date(localRecordTyped.createdAt).getTime();
 
                     // Only update if remote is newer
                     if (remoteTime > localTime) {

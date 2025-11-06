@@ -5,7 +5,11 @@ export const calculateStreaks = (habits: Habit[], logs: HabitLog[]): { [id: numb
     const streaks: { [id: number]: { currentStreak: number; longestStreak: number; } } = {};
     if (!habits || !logs) return streaks;
 
-    const sortedLogs = logs.sort((a: HabitLog, b: HabitLog) => a.date.localeCompare(b.date));
+    const sortedLogs = logs.sort((a: HabitLog, b: HabitLog) => {
+        const aDate = typeof a.date === 'string' ? a.date : new Date(a.date).toISOString().split('T')[0];
+        const bDate = typeof b.date === 'string' ? b.date : new Date(b.date).toISOString().split('T')[0];
+        return aDate.localeCompare(bDate);
+    });
 
     for (const habit of habits) {
         let currentStreak = 0;
@@ -21,8 +25,14 @@ export const calculateStreaks = (habits: Habit[], logs: HabitLog[]): { [id: numb
             const todayStr = today.toISOString().split('T')[0];
             const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-            const hasLogToday = habitLogs.some(l => l.date === todayStr);
-            const hasLogYesterday = habitLogs.some(l => l.date === yesterdayStr);
+            const hasLogToday = habitLogs.some(l => {
+                const logDate = typeof l.date === 'string' ? l.date : new Date(l.date).toISOString().split('T')[0];
+                return logDate === todayStr;
+            });
+            const hasLogYesterday = habitLogs.some(l => {
+                const logDate = typeof l.date === 'string' ? l.date : new Date(l.date).toISOString().split('T')[0];
+                return logDate === yesterdayStr;
+            });
 
             if (hasLogToday || hasLogYesterday) {
                 let lastDate = new Date();

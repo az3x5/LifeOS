@@ -243,7 +243,7 @@ const Sidebar: React.FC<{
                      <div className="space-y-1">
                         <h2 className="px-2 text-sm font-semibold text-text-secondary mb-2">{filteredNotes.length} Result(s)</h2>
                         {filteredNotes.map(note => (
-                            <NoteItem 
+                            <NoteItem
                                 key={note.id}
                                 note={note}
                                 isSelected={props.selectedNoteId === note.id}
@@ -253,6 +253,7 @@ const Sidebar: React.FC<{
                                 onStartRename={() => setRenamingNoteId(note.id!)}
                                 onCancelRename={() => setRenamingNoteId(null)}
                                 onMove={() => setMovingNote(note)}
+                                setConfirmModal={props.setConfirmModal}
                             />
                         ))}
                     </div>

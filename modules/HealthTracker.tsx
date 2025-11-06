@@ -120,7 +120,7 @@ const HealthTracker: React.FC = () => {
             case 'Logs': return <LogsTab logs={logs} metrics={metrics} onEdit={handleOpenEditLog} onDelete={handleDeleteLog} />;
             case 'Goals': return <GoalsTab goals={goals} metrics={metrics} logs={logs} onSelectGoal={setSelectedGoal} onEditGoal={handleOpenEditGoal} onDeleteGoal={handleDeleteGoal} />;
             case 'Reminders': return <RemindersTab metrics={metrics} onSetReminder={handleSetReminder} />;
-            case 'Settings': return <SettingsTab metrics={metrics} onAddMetric={handleOpenAddMetric} onEditMetric={handleOpenEditMetric} />;
+            case 'Settings': return <SettingsTab metrics={metrics} onAddMetric={handleOpenAddMetric} onEditMetric={handleOpenEditMetric} setAlertModal={setAlertModal} setConfirmModal={setConfirmModal} />;
             default: return null;
         }
     };
@@ -449,7 +449,7 @@ const SettingItem: React.FC<{title: string; description: string; children: React
     </div>
 );
 
-const SettingsTab: React.FC<{ metrics?: HealthMetric[], onAddMetric: () => void, onEditMetric: (metric: HealthMetric) => void }> = ({ metrics, onAddMetric, onEditMetric }) => {
+const SettingsTab: React.FC<{ metrics?: HealthMetric[], onAddMetric: () => void, onEditMetric: (metric: HealthMetric) => void, setAlertModal: (modal: any) => void, setConfirmModal: (modal: any) => void }> = ({ metrics, onAddMetric, onEditMetric, setAlertModal, setConfirmModal }) => {
     const [aiInsights, setAiInsights] = useState(true);
 
     const handleDeleteMetric = async (metricId: number) => {
@@ -657,13 +657,13 @@ const AddLogModal: React.FC<{closeModal: () => void; metrics?: HealthMetric[]; l
     );
 };
 const AddMetricModal: React.FC<{closeModal: () => void, metricToEdit?: HealthMetric | null}> = ({ closeModal, metricToEdit }) => {
-    const [name, setName] = useState(metricToEdit?.name ?? ''); 
+    const [name, setName] = useState(metricToEdit?.name ?? '');
     const [unit, setUnit] = useState(metricToEdit?.unit ?? '');
-    
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name || !unit) return;
-        const metricData = { name, unit, reminderEnabled: metricToEdit?.reminderEnabled ?? false, reminderTime: metricToEdit?.reminderTime ?? '09:00' };
+        const metricData = { name, unit, type: metricToEdit?.type ?? 'custom', reminderEnabled: metricToEdit?.reminderEnabled ?? false, reminderTime: metricToEdit?.reminderTime ?? '09:00' };
         if (metricToEdit) {
             await db.healthMetrics.update(metricToEdit.id!, metricData);
         } else {

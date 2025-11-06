@@ -415,8 +415,8 @@ const ReminderModal: React.FC<{
     );
     const [dueTime, setDueTime] = useState(reminder?.dueTime || '');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(reminder?.priority || 'medium');
-    const [category, setCategory] = useState<'personal' | 'work' | 'health' | 'finance' | 'other'>(reminder?.category || 'personal');
-    const [recurring, setRecurring] = useState<'none' | 'daily' | 'weekly' | 'monthly'>(reminder?.recurring || 'none');
+    const [category, setCategory] = useState<string>(reminder?.category || 'personal');
+    const [recurring, setRecurring] = useState<string>(reminder?.recurring || 'none');
     const [recurringDays, setRecurringDays] = useState<number[]>(reminder?.recurringDays || []);
     const [notificationEnabled, setNotificationEnabled] = useState(reminder?.notificationEnabled || false);
     const [notificationTime, setNotificationTime] = useState(reminder?.notificationTime || 15);

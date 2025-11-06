@@ -8,8 +8,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
-type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress';
-const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders'];
+type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics' | 'calendar';
+const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights', 'Calendar'];
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -719,7 +719,9 @@ const CorrelationEngineWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[]
 // --- MODALS ---
 
 const StreakFreezeModal: React.FC<{ habit: Habit, closeModal: () => void }> = ({ habit, closeModal }) => {
-    const [from, setFrom] = useState(habit.frozenFrom ?? ''); const [to, setTo] = useState(habit.frozenTo ?? '');
+    const fromStr = typeof habit.frozenFrom === 'string' ? habit.frozenFrom : (habit.frozenFrom ? new Date(habit.frozenFrom).toISOString().split('T')[0] : '');
+    const toStr = typeof habit.frozenTo === 'string' ? habit.frozenTo : (habit.frozenTo ? new Date(habit.frozenTo).toISOString().split('T')[0] : '');
+    const [from, setFrom] = useState(fromStr); const [to, setTo] = useState(toStr);
     const handleSave = async () => { await db.habits.update(habit.id!, { isFrozen: true, frozenFrom: from, frozenTo: to }); triggerAutoSync(); closeModal(); };
     const handleUnfreeze = async () => { await db.habits.update(habit.id!, { isFrozen: false, frozenFrom: undefined, frozenTo: undefined }); triggerAutoSync(); closeModal(); };
     return (<div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary"><h2 className="text-2xl font-bold mb-6">Freeze Streak for "{habit.name}"</h2><div className="grid grid-cols-2 gap-4"><label className="block text-sm font-medium text-text-secondary mb-2">From</label><label className="block text-sm font-medium text-text-secondary mb-2">To</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent" /><input type="date" value={to} onChange={e => setTo(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent" /></div><div className="flex justify-between items-center mt-6"><button onClick={handleUnfreeze} disabled={!habit.isFrozen} className="text-red-500 hover:underline disabled:opacity-50 text-sm">Unfreeze</button><div className="space-x-2"><button onClick={closeModal} className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg">Cancel</button><button onClick={handleSave} className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg">Save</button></div></div></div></div>);

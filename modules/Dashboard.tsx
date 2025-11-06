@@ -428,7 +428,7 @@ const FinanceAnalyticsWidget: React.FC<{ transactions?: Transaction[], categorie
                 <h3 className="text-sm font-semibold mb-2 text-text-primary">Expense Breakdown</h3>
                 <ResponsiveContainer width="100%" height="90%">
                     <PieChart>
-                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} fill="#8884d8" paddingAngle={3} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} fill="#8884d8" paddingAngle={3} labelLine={false} label={({ name, percent }: any) => `${name} ${((percent as number) * 100).toFixed(0)}%`}>
                             {categoryBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                         </Pie>
                         <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', fontSize: '11px' }} />
@@ -652,7 +652,7 @@ const DayDetailModal: React.FC<{
                         </h2>
                         {showIslamic && (
                             <p className="text-sm text-text-secondary mt-1">
-                                {hijriDate.day} {hijriDate.monthName} {hijriDate.year} AH
+                                {hijriDate.hDay} {hijriDate.hMonthName} {hijriDate.hYear} AH
                             </p>
                         )}
                     </div>
@@ -713,8 +713,7 @@ const DayDetailModal: React.FC<{
                             <div className="space-y-2">
                                 {majorEvents.map((event, idx) => (
                                     <div key={idx} className="bg-primary p-3 rounded-lg border border-tertiary">
-                                        <p className="font-medium text-text-primary">{event.name}</p>
-                                        <p className="text-sm text-text-secondary">{event.description}</p>
+                                        <p className="font-medium text-text-primary">{event}</p>
                                     </div>
                                 ))}
                             </div>
@@ -1025,9 +1024,10 @@ const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ se
 
     const islamicData = useMemo(() => {
         const fastLog = fastingLogs?.find(f => f.date === todayStr);
+        const ayah = dailyReflection?.content && typeof dailyReflection.content === 'object' ? (dailyReflection.content as any).ayah : undefined;
         return {
             fastingStatus: fastLog ? `Today's Fast: ${fastLog.status}` : 'No Fast Logged',
-            dailyAyah: dailyReflection?.content.ayah
+            dailyAyah: ayah
         }
     }, [fastingLogs, dailyReflection, todayStr]);
 

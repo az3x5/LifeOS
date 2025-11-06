@@ -177,7 +177,7 @@ const UnifiedCalendarGrid: React.FC<{
                             )}
                             {showIslamic && majorEvents.length > 0 && (
                                 <div className="text-xs bg-purple-500/30 text-purple-200 px-1 rounded truncate">
-                                    🕌 {majorEvents[0].name}
+                                    🕌 {majorEvents[0]}
                                 </div>
                             )}
                             {showIslamic && dayIslamicEvent && (
@@ -273,7 +273,7 @@ const DayDetailModal: React.FC<{
                         </h2>
                         {showIslamic && (
                             <p className="text-sm text-text-secondary mt-1">
-                                {hijriDate.day} {hijriDate.monthName} {hijriDate.year} AH
+                                {hijriDate.hDay} {hijriDate.hMonthName} {hijriDate.hYear} AH
                             </p>
                         )}
                     </div>
@@ -334,8 +334,7 @@ const DayDetailModal: React.FC<{
                             <div className="space-y-2">
                                 {majorEvents.map((event, idx) => (
                                     <div key={idx} className="bg-primary p-3 rounded-lg border border-tertiary">
-                                        <p className="font-medium text-text-primary">{event.name}</p>
-                                        <p className="text-sm text-text-secondary">{event.description}</p>
+                                        <p className="font-medium text-text-primary">{event}</p>
                                     </div>
                                 ))}
                             </div>
