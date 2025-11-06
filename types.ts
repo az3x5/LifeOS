@@ -151,6 +151,16 @@ export interface Note {
     content?: string;
     tags?: string[];
     status?: 'active' | 'trash';
+    folderId?: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export interface Folder {
+    id?: number;
+    userId?: string;
+    name: string;
+    parentId?: number;
     createdAt?: Date;
     updatedAt?: Date;
 }

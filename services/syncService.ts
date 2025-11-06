@@ -297,6 +297,21 @@ async function syncHealthLogs() {
     });
 }
 
+async function syncFolders() {
+    const localData = await db.folders.toArray();
+    return syncTable('folders', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+        };
+        if (item.parentId !== undefined && item.parentId !== null) data.parent_id = item.parentId;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
+        return data;
+    });
+}
+
 async function syncNotes() {
     const localData = await db.notes.toArray();
     return syncTable('notes', localData, (item, userId) => {
@@ -308,6 +323,7 @@ async function syncNotes() {
         if (item.content !== undefined && item.content !== null) data.content = item.content;
         if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
         if (item.status !== undefined && item.status !== null) data.status = item.status;
+        if (item.folderId !== undefined && item.folderId !== null) data.folder_id = item.folderId;
         if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
         if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
         return data;
@@ -415,6 +431,7 @@ export async function pushAllData(): Promise<boolean> {
         syncHabitLogs(),
         syncHealthMetrics(),
         syncHealthLogs(),
+        syncFolders(),
         syncNotes(),
         syncFastingLogs(),
         syncIslamicEvents(),
@@ -457,6 +474,7 @@ export async function pullAllData(): Promise<boolean> {
         pullTable('habit_logs', db.habitLogs),
         pullTable('health_metrics', db.healthMetrics),
         pullTable('health_logs', db.healthLogs),
+        pullTable('folders', db.folders),
         pullTable('notes', db.notes),
         pullTable('fasting_logs', db.fastingLogs),
         pullTable('islamic_events', db.islamicEvents),
