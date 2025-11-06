@@ -79,13 +79,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule
                 </div>
 
                 {/* Main Content */}
-                <div className={`flex-1 overflow-y-auto ${isNotesModule ? '' : 'px-6 md:px-10 py-6 md:py-10 pb-24 md:pb-10'}`}>
+                <div className={`flex-1 overflow-y-auto ${isNotesModule ? '' : 'px-6 md:px-10 py-6 md:py-10'} pb-20 md:pb-10`}>
                     {children}
                 </div>
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-secondary border-t border-tertiary z-10">
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-secondary border-t border-tertiary z-10 shadow-2xl">
                 <CodeNav activeModule={activeModule} setActiveModule={setActiveModule} />
             </nav>
 

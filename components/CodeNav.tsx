@@ -123,7 +123,7 @@ const CodeNav: React.FC<CodeNavProps> = ({ activeModule, setActiveModule }) => {
             </div>
 
             {/* Mobile Horizontal Layout */}
-            <div className="md:hidden flex justify-around p-1 overflow-x-auto">
+            <div className="md:hidden flex justify-around items-center p-2 overflow-x-auto gap-1">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeModule === item.module;
@@ -132,15 +132,15 @@ const CodeNav: React.FC<CodeNavProps> = ({ activeModule, setActiveModule }) => {
                         <button
                             key={item.module}
                             onClick={() => handleNavClick(item.module)}
-                            className={`flex flex-col items-center justify-center space-y-1 transition-all duration-200 px-3 py-2 rounded-lg flex-shrink-0 ${
+                            className={`flex flex-col items-center justify-center space-y-0.5 transition-all duration-200 px-2 py-1 rounded-lg flex-shrink-0 min-w-fit ${
                                 isActive
                                     ? 'bg-accent text-white'
                                     : 'text-text-secondary hover:bg-tertiary hover:text-text-primary'
                             }`}
                             title={item.label}
                         >
-                            <Icon className="text-2xl" />
-                            <span className="text-xs font-medium">{item.label}</span>
+                            <Icon className="text-xl" />
+                            <span className="text-xs font-medium whitespace-nowrap">{item.label}</span>
                         </button>
                     );
                 })}
