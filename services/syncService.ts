@@ -177,43 +177,52 @@ async function pullTable<T>(
 // Individual sync functions for each table
 async function syncAccounts() {
     const localData = await db.accounts.toArray();
-    return syncTable('accounts', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        name: item.name,
-        type: item.type,
-        balance: item.balance,
-        currency: item.currency,
-        created_at: item.createdAt,
-    }));
+    return syncTable('accounts', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+            type: item.type,
+        };
+        if (item.balance !== undefined && item.balance !== null) data.balance = item.balance;
+        if (item.currency !== undefined && item.currency !== null) data.currency = item.currency;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncCategories() {
     const localData = await db.categories.toArray();
-    return syncTable('categories', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        name: item.name,
-        type: item.type,
-        color: item.color,
-        icon: item.icon,
-        created_at: item.createdAt,
-    }));
+    return syncTable('categories', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+            type: item.type,
+        };
+        if (item.color !== undefined && item.color !== null) data.color = item.color;
+        if (item.icon !== undefined && item.icon !== null) data.icon = item.icon;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncTransactions() {
     const localData = await db.transactions.toArray();
-    return syncTable('transactions', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        account_id: item.accountId,
-        category_id: item.categoryId,
-        type: item.type,
-        amount: item.amount,
-        description: item.description,
-        date: item.date,
-        created_at: item.createdAt,
-    }));
+    return syncTable('transactions', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            type: item.type,
+            amount: item.amount,
+            date: item.date,
+        };
+        if (item.accountId !== undefined && item.accountId !== null) data.account_id = item.accountId;
+        if (item.categoryId !== undefined && item.categoryId !== null) data.category_id = item.categoryId;
+        if (item.description !== undefined && item.description !== null) data.description = item.description;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncHabits() {
@@ -224,45 +233,33 @@ async function syncHabits() {
             user_id: userId,
             name: item.name,
             frequency: item.frequency,
-            created_at: item.createdAt,
         };
-        // Only add optional fields if they exist
-        if (item.description !== undefined && item.description !== null) {
-            data.description = item.description;
-        }
-        if (item.category !== undefined && item.category !== null) {
-            data.category = item.category;
-        }
-        if (item.targetDays !== undefined && item.targetDays !== null) {
-            data.target_days = JSON.stringify(item.targetDays);
-        }
-        if (item.color !== undefined && item.color !== null) {
-            data.color = item.color;
-        }
-        if (item.icon !== undefined && item.icon !== null) {
-            data.icon = item.icon;
-        }
-        if (item.reminderTime !== undefined && item.reminderTime !== null) {
-            data.reminder_time = item.reminderTime;
-        }
-        if (item.isActive !== undefined && item.isActive !== null) {
-            data.is_active = item.isActive;
-        }
+        if (item.description !== undefined && item.description !== null) data.description = item.description;
+        if (item.category !== undefined && item.category !== null) data.category = item.category;
+        if (item.targetDays !== undefined && item.targetDays !== null) data.target_days = item.targetDays;
+        if (item.color !== undefined && item.color !== null) data.color = item.color;
+        if (item.icon !== undefined && item.icon !== null) data.icon = item.icon;
+        if (item.reminderTime !== undefined && item.reminderTime !== null) data.reminder_time = item.reminderTime;
+        if (item.isActive !== undefined && item.isActive !== null) data.is_active = item.isActive;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
         return data;
     });
 }
 
 async function syncHabitLogs() {
     const localData = await db.habitLogs.toArray();
-    return syncTable('habit_logs', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        habit_id: item.habitId,
-        date: item.date,
-        completed: item.completed,
-        notes: item.notes,
-        created_at: item.createdAt,
-    }));
+    return syncTable('habit_logs', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            habit_id: item.habitId,
+            date: item.date,
+        };
+        if (item.completed !== undefined && item.completed !== null) data.completed = item.completed;
+        if (item.notes !== undefined && item.notes !== null) data.notes = item.notes;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncHealthMetrics() {
@@ -274,32 +271,30 @@ async function syncHealthMetrics() {
             name: item.name,
             unit: item.unit,
             type: item.type,
-            color: item.color,
-            icon: item.icon,
-            created_at: item.createdAt,
         };
-        // Only add optional fields if they exist
-        if (item.targetValue !== undefined && item.targetValue !== null) {
-            data.target_value = item.targetValue;
-        }
-        if (item.targetOperator !== undefined && item.targetOperator !== null) {
-            data.target_operator = item.targetOperator;
-        }
+        if (item.targetValue !== undefined && item.targetValue !== null) data.target_value = item.targetValue;
+        if (item.targetOperator !== undefined && item.targetOperator !== null) data.target_operator = item.targetOperator;
+        if (item.color !== undefined && item.color !== null) data.color = item.color;
+        if (item.icon !== undefined && item.icon !== null) data.icon = item.icon;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
         return data;
     });
 }
 
 async function syncHealthLogs() {
     const localData = await db.healthLogs.toArray();
-    return syncTable('health_logs', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        metric_id: item.metricId,
-        value: item.value,
-        date: item.date,
-        notes: item.notes,
-        created_at: item.createdAt,
-    }));
+    return syncTable('health_logs', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            metric_id: item.metricId,
+            value: item.value,
+            date: item.date,
+        };
+        if (item.notes !== undefined && item.notes !== null) data.notes = item.notes;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncNotes() {
@@ -309,86 +304,89 @@ async function syncNotes() {
             id: item.id,
             user_id: userId,
             title: item.title,
-            created_at: item.createdAt,
         };
-        // Only add optional fields if they exist
-        if (item.content !== undefined && item.content !== null) {
-            data.content = item.content;
-        }
-        if (item.tags !== undefined && item.tags !== null) {
-            data.tags = JSON.stringify(item.tags);
-        }
-        if (item.status !== undefined && item.status !== null) {
-            data.status = item.status;
-        }
-        if (item.updatedAt !== undefined && item.updatedAt !== null) {
-            data.updated_at = item.updatedAt;
-        }
+        if (item.content !== undefined && item.content !== null) data.content = item.content;
+        if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
+        if (item.status !== undefined && item.status !== null) data.status = item.status;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
         return data;
     });
 }
 
 async function syncFastingLogs() {
     const localData = await db.fastingLogs.toArray();
-    return syncTable('fasting_logs', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        date: item.date,
-        type: item.type,
-        status: item.status,
-        notes: item.notes,
-        created_at: item.createdAt,
-    }));
+    return syncTable('fasting_logs', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            date: item.date,
+            type: item.type,
+            status: item.status,
+        };
+        if (item.notes !== undefined && item.notes !== null) data.notes = item.notes;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncIslamicEvents() {
     const localData = await db.islamicEvents.toArray();
-    return syncTable('islamic_events', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        gregorian_date: item.gregorianDate,
-        hijri_date: item.hijriDate,
-        notes: item.notes,
-        created_at: item.createdAt,
-    }));
+    return syncTable('islamic_events', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            gregorian_date: item.gregorianDate,
+        };
+        if (item.hijriDate !== undefined && item.hijriDate !== null) data.hijri_date = item.hijriDate;
+        if (item.notes !== undefined && item.notes !== null) data.notes = item.notes;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        return data;
+    });
 }
 
 async function syncDailyReflections() {
     const localData = await db.dailyReflections.toArray();
-    return syncTable('daily_reflections', localData, (item, userId) => ({
-        date: item.date,
-        user_id: userId,
-        gratitude: item.gratitude,
-        wins: item.wins,
-        challenges: item.challenges,
-        tomorrow_goals: item.tomorrowGoals,
-        mood: item.mood,
-        energy_level: item.energyLevel,
-        created_at: item.createdAt,
-        updated_at: item.updatedAt,
-    }));
+    return syncTable('daily_reflections', localData, (item, userId) => {
+        const data: any = {
+            date: item.date,
+            user_id: userId,
+        };
+        if (item.gratitude !== undefined && item.gratitude !== null) data.gratitude = item.gratitude;
+        if (item.wins !== undefined && item.wins !== null) data.wins = item.wins;
+        if (item.challenges !== undefined && item.challenges !== null) data.challenges = item.challenges;
+        if (item.tomorrowGoals !== undefined && item.tomorrowGoals !== null) data.tomorrow_goals = item.tomorrowGoals;
+        if (item.mood !== undefined && item.mood !== null) data.mood = item.mood;
+        if (item.energyLevel !== undefined && item.energyLevel !== null) data.energy_level = item.energyLevel;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        if (item.updatedAt !== undefined && item.updatedAt !== null) data.updated_at = item.updatedAt;
+        return data;
+    });
 }
 
 async function syncReminders() {
     const localData = await db.reminders.toArray();
-    return syncTable('reminders', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        title: item.title,
-        description: item.description,
-        due_date: item.dueDate,
-        due_time: item.dueTime,
-        priority: item.priority,
-        category: item.category,
-        status: item.status,
-        recurring: item.recurring,
-        recurring_days: item.recurringDays ? JSON.stringify(item.recurringDays) : null,
-        notification_enabled: item.notificationEnabled,
-        notification_time: item.notificationTime,
-        tags: item.tags ? JSON.stringify(item.tags) : null,
-        created_at: item.createdAt,
-        completed_at: item.completedAt,
-    }));
+    return syncTable('reminders', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            title: item.title,
+            due_date: item.dueDate,
+            priority: item.priority,
+            category: item.category,
+            status: item.status,
+        };
+        if (item.description !== undefined && item.description !== null) data.description = item.description;
+        if (item.dueTime !== undefined && item.dueTime !== null) data.due_time = item.dueTime;
+        if (item.recurring !== undefined && item.recurring !== null) data.recurring = item.recurring;
+        if (item.recurringDays !== undefined && item.recurringDays !== null) data.recurring_days = item.recurringDays;
+        if (item.notificationEnabled !== undefined && item.notificationEnabled !== null) data.notification_enabled = item.notificationEnabled;
+        if (item.notificationTime !== undefined && item.notificationTime !== null) data.notification_time = item.notificationTime;
+        if (item.tags !== undefined && item.tags !== null) data.tags = item.tags;
+        if (item.createdAt !== undefined && item.createdAt !== null) data.created_at = item.createdAt;
+        if (item.completedAt !== undefined && item.completedAt !== null) data.completed_at = item.completedAt;
+        return data;
+    });
 }
 
 
