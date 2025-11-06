@@ -46,9 +46,9 @@ async function syncTable<T extends Record<string, any>>(
         });
 
         // Use upsert with proper conflict resolution
-        // Supabase will use the primary key (id, user_id) for conflict detection
+        // Supabase will use the primary key (id) for conflict detection
         const { error } = await supabase.from(tableName).upsert(dataToSync, {
-            onConflict: 'id,user_id',
+            onConflict: 'id',
             ignoreDuplicates: false, // Update existing records
         });
 
