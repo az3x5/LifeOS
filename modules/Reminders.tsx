@@ -3,41 +3,28 @@ import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Reminder } from '../types';
 import { remindersService } from '../services/dataService';
 import ConfirmModal from '../components/modals/ConfirmModal';
-import AlertModal from '../components/modals/AlertModal';
 
-const TABS = ['All', 'Pending', 'Completed', 'Overdue'];
+type ReminderFilter = 'all' | 'pending' | 'completed' | 'overdue';
+type ReminderSort = 'dueDate' | 'priority' | 'created';
 
-const PRIORITY_COLORS = {
-    low: 'bg-blue-500/30 text-blue-200',
-    medium: 'bg-yellow-500/30 text-yellow-200',
-    high: 'bg-red-500/30 text-red-200',
-};
-
-const PRIORITY_ICONS = {
-    low: '🔵',
-    medium: '🟡',
-    high: '🔴',
-};
-
-const CATEGORY_ICONS = {
-    personal: '👤',
-    work: '💼',
-    health: '❤️',
-    finance: '💰',
-    other: '📌',
-};
+// --- ICONS ---
+const MenuIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>menu</span>;
+const BellIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>notifications</span>;
+const CheckCircleIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>check_circle</span>;
+const ClockIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>schedule</span>;
+const AlertIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>error</span>;
+const MoreVertIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>more_vert</span>;
+const DeleteIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
+const AddIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>add</span>;
 
 const Reminders: React.FC = () => {
-    const [activeTab, setActiveTab] = useState(TABS[0]);
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
-    const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterCategory, setFilterCategory] = useState<string>('all');
-    const [filterPriority, setFilterPriority] = useState<string>('all');
-
     const reminders = useSupabaseQuery<Reminder>('reminders');
+    const [selectedReminderId, setSelectedReminderId] = useState<number | null>(null);
+    const [reminderFilter, setReminderFilter] = useState<ReminderFilter>('all');
+    const [reminderSort, setReminderSort] = useState<ReminderSort>('dueDate');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
 
     // Update overdue status
     useMemo(() => {
@@ -50,63 +37,35 @@ const Reminders: React.FC = () => {
         });
     }, [reminders]);
 
-    const filteredReminders = useMemo(() => {
-        if (!reminders) return [];
-        
-        let filtered = reminders;
+    const selectedReminder = useMemo(() => {
+        return reminders?.find(r => r.id === selectedReminderId) || null;
+    }, [reminders, selectedReminderId]);
 
-        // Filter by tab
-        if (activeTab === 'Pending') {
-            filtered = filtered.filter(r => r.status === 'pending');
-        } else if (activeTab === 'Completed') {
-            filtered = filtered.filter(r => r.status === 'completed');
-        } else if (activeTab === 'Overdue') {
-            filtered = filtered.filter(r => r.status === 'overdue');
+    const handleNewReminder = async () => {
+        const newReminder = await remindersService.create({
+            title: 'New Reminder',
+            description: '',
+            dueDate: new Date(),
+            priority: 'medium',
+            category: 'personal',
+            status: 'pending',
+            recurring: 'none',
+            notificationEnabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as Reminder);
+        if (newReminder && newReminder.id) {
+            setSelectedReminderId(newReminder.id);
+            setIsSidebarOpen(false);
         }
-
-        // Filter by search
-        if (searchQuery) {
-            filtered = filtered.filter(r => 
-                r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                r.description?.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Filter by category
-        if (filterCategory !== 'all') {
-            filtered = filtered.filter(r => r.category === filterCategory);
-        }
-
-        // Filter by priority
-        if (filterPriority !== 'all') {
-            filtered = filtered.filter(r => r.priority === filterPriority);
-        }
-
-        // Sort by due date
-        return filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    }, [reminders, activeTab, searchQuery, filterCategory, filterPriority]);
-
-    const stats = useMemo(() => {
-        if (!reminders) return { total: 0, pending: 0, completed: 0, overdue: 0 };
-        return {
-            total: reminders.length,
-            pending: reminders.filter(r => r.status === 'pending').length,
-            completed: reminders.filter(r => r.status === 'completed').length,
-            overdue: reminders.filter(r => r.status === 'overdue').length,
-        };
-    }, [reminders]);
-
-    const handleAddReminder = () => {
-        setEditingReminder(null);
-        setShowAddModal(true);
     };
 
-    const handleEditReminder = (reminder: Reminder) => {
-        setEditingReminder(reminder);
-        setShowAddModal(true);
+    const handleSelectReminder = (id: number | null) => {
+        setSelectedReminderId(id);
+        setIsSidebarOpen(false);
     };
 
-    const handleDeleteReminder = (reminder: Reminder) => {
+    const handleDeleteReminder = async (reminder: Reminder) => {
         setConfirmModal({
             isOpen: true,
             title: 'Delete Reminder',
@@ -114,281 +73,239 @@ const Reminders: React.FC = () => {
             icon: '🗑️',
             onConfirm: async () => {
                 await remindersService.delete(reminder.id!);
+                if (selectedReminderId === reminder.id) {
+                    setSelectedReminderId(null);
+                }
                 setConfirmModal(null);
             }
         });
     };
 
-    const handleCompleteReminder = async (reminder: Reminder) => {
+    const handleToggleComplete = async (reminder: Reminder) => {
+        const newStatus = reminder.status === 'completed' ? 'pending' : 'completed';
         await remindersService.update(reminder.id!, {
-            status: 'completed',
-            completedAt: new Date()
-        });
-    };
-
-    const handleUncompleteReminder = async (reminder: Reminder) => {
-        const now = new Date();
-        const dueDate = new Date(reminder.dueDate);
-        const status = dueDate < now ? 'overdue' : 'pending';
-
-        await remindersService.update(reminder.id!, {
-            status,
-            completedAt: undefined
+            status: newStatus,
+            completedAt: newStatus === 'completed' ? new Date() : undefined,
         });
     };
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <div>
-                    <h1 className="text-3xl font-bold text-text-primary">Reminders</h1>
-                    <p className="text-text-secondary mt-1">Manage your tasks and reminders</p>
-                </div>
-                <button
-                    onClick={handleAddReminder}
-                    className="bg-accent hover:bg-accent/80 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                    <span className="material-symbols-outlined">add</span>
-                    Add Reminder
-                </button>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Total</p>
-                    <p className="text-2xl font-bold text-text-primary">{stats.total}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Pending</p>
-                    <p className="text-2xl font-bold text-blue-400">{stats.pending}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Overdue</p>
-                    <p className="text-2xl font-bold text-red-400">{stats.overdue}</p>
-                </div>
-                <div className="bg-secondary p-4 rounded-xl border border-tertiary">
-                    <p className="text-text-secondary text-sm">Completed</p>
-                    <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
-                </div>
-            </div>
-
-            {/* Filters and Search */}
-            <div className="bg-secondary p-4 rounded-xl border border-tertiary space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                        <input
-                            type="text"
-                            placeholder="Search reminders..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                        />
-                    </div>
-                    <select
-                        value={filterCategory}
-                        onChange={(e) => setFilterCategory(e.target.value)}
-                        className="bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                    >
-                        <option value="all">All Categories</option>
-                        <option value="personal">Personal</option>
-                        <option value="work">Work</option>
-                        <option value="health">Health</option>
-                        <option value="finance">Finance</option>
-                        <option value="other">Other</option>
-                    </select>
-                    <select
-                        value={filterPriority}
-                        onChange={(e) => setFilterPriority(e.target.value)}
-                        className="bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                    >
-                        <option value="all">All Priorities</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-2 border-b border-tertiary">
-                {TABS.map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 font-medium transition-colors ${
-                            activeTab === tab
-                                ? 'text-accent border-b-2 border-accent'
-                                : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                    >
-                        {tab}
-                    </button>
-                ))}
-            </div>
-
-            {/* Reminders List */}
-            <div className="space-y-3">
-                {filteredReminders.length === 0 ? (
-                    <div className="bg-secondary p-12 rounded-xl border border-tertiary text-center">
-                        <span className="material-symbols-outlined text-6xl text-text-muted mb-4">notifications_off</span>
-                        <p className="text-text-muted text-lg">No reminders found</p>
-                        <p className="text-text-secondary text-sm mt-2">Create your first reminder to get started</p>
-                    </div>
-                ) : (
-                    filteredReminders.map(reminder => (
-                        <ReminderCard
-                            key={reminder.id}
-                            reminder={reminder}
-                            onEdit={handleEditReminder}
-                            onDelete={handleDeleteReminder}
-                            onComplete={handleCompleteReminder}
-                            onUncomplete={handleUncompleteReminder}
-                        />
-                    ))
-                )}
-            </div>
-
-            {/* Add/Edit Modal */}
-            {showAddModal && (
-                <ReminderModal
-                    reminder={editingReminder}
-                    onClose={() => {
-                        setShowAddModal(false);
-                        setEditingReminder(null);
-                    }}
-                    onSave={() => {
-                        setShowAddModal(false);
-                        setEditingReminder(null);
-                        setAlertModal({
-                            isOpen: true,
-                            title: 'Success',
-                            message: editingReminder ? 'Reminder updated successfully!' : 'Reminder created successfully!',
-                            icon: '✅'
-                        });
-                    }}
-                />
+        <div className="flex h-full bg-primary font-sans relative overflow-hidden">
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />
             )}
+            <Sidebar
+                reminders={reminders}
+                reminderFilter={reminderFilter}
+                setReminderFilter={setReminderFilter}
+                reminderSort={reminderSort}
+                setReminderSort={setReminderSort}
+                selectedReminderId={selectedReminderId}
+                setSelectedReminderId={handleSelectReminder}
+                onNewReminder={handleNewReminder}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                isSidebarOpen={isSidebarOpen}
+                onDeleteReminder={handleDeleteReminder}
+                onToggleComplete={handleToggleComplete}
+            />
+            <main className="flex-1 flex flex-col min-w-0">
+                {selectedReminder ? (
+                    <EditorPanel
+                        reminder={selectedReminder}
+                        toggleSidebar={() => setIsSidebarOpen(p => !p)}
+                        onDelete={handleDeleteReminder}
+                        onToggleComplete={handleToggleComplete}
+                    />
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-text-muted bg-primary relative">
+                        <button onClick={() => setIsSidebarOpen(true)} title="Open reminders list" className="md:hidden absolute top-4 left-4 p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
+                            <MenuIcon className="text-2xl" />
+                        </button>
+                        <div className="text-center">
+                            <BellIcon className="text-6xl mx-auto text-tertiary" />
+                            <h2 className="mt-4 text-xl font-semibold">Select a reminder</h2>
+                            <p>Choose a reminder from the list to view or edit it.</p>
+                        </div>
+                    </div>
+                )}
+            </main>
 
-            {/* Confirm Modal */}
             {confirmModal && (
                 <ConfirmModal
                     isOpen={confirmModal.isOpen}
                     title={confirmModal.title}
                     message={confirmModal.message}
-                    icon={confirmModal.icon}
+                    confirmText="Delete"
+                    icon={confirmModal.icon || "🗑️"}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
-                />
-            )}
-
-            {/* Alert Modal */}
-            {alertModal && (
-                <AlertModal
-                    isOpen={alertModal.isOpen}
-                    title={alertModal.title}
-                    message={alertModal.message}
-                    icon={alertModal.icon}
-                    onClose={() => setAlertModal(null)}
                 />
             )}
         </div>
     );
 };
 
-// --- REMINDER CARD COMPONENT ---
+const Sidebar: React.FC<{
+    reminders?: Reminder[];
+    reminderFilter: ReminderFilter;
+    setReminderFilter: (f: ReminderFilter) => void;
+    reminderSort: ReminderSort;
+    setReminderSort: (s: ReminderSort) => void;
+    selectedReminderId: number | null;
+    setSelectedReminderId: (id: number | null) => void;
+    onNewReminder: () => void;
+    searchQuery: string;
+    setSearchQuery: (q: string) => void;
+    isSidebarOpen: boolean;
+    onDeleteReminder: (reminder: Reminder) => void;
+    onToggleComplete: (reminder: Reminder) => void;
+}> = (props) => {
+    const filteredReminders = useMemo(() => {
+        let tempReminders = props.reminders ?? [];
 
-const ReminderCard: React.FC<{
-    reminder: Reminder;
-    onEdit: (reminder: Reminder) => void;
-    onDelete: (reminder: Reminder) => void;
-    onComplete: (reminder: Reminder) => void;
-    onUncomplete: (reminder: Reminder) => void;
-}> = ({ reminder, onEdit, onDelete, onComplete, onUncomplete }) => {
-    const isCompleted = reminder.status === 'completed';
-    const isOverdue = reminder.status === 'overdue';
+        switch (props.reminderFilter) {
+            case 'pending':
+                tempReminders = tempReminders.filter(r => r.status === 'pending');
+                break;
+            case 'completed':
+                tempReminders = tempReminders.filter(r => r.status === 'completed');
+                break;
+            case 'overdue':
+                tempReminders = tempReminders.filter(r => r.status === 'overdue');
+                break;
+        }
 
-    const dueDate = new Date(reminder.dueDate);
-    const formattedDate = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const formattedTime = reminder.dueTime || '';
+        if (props.searchQuery) {
+            const q = props.searchQuery.toLowerCase();
+            tempReminders = tempReminders.filter(r =>
+                r.title.toLowerCase().includes(q) ||
+                r.description?.toLowerCase().includes(q)
+            );
+        }
+
+        // Sort
+        tempReminders.sort((a, b) => {
+            switch (props.reminderSort) {
+                case 'priority':
+                    const priorityOrder = { high: 0, medium: 1, low: 2 };
+                    return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
+                case 'created':
+                    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+                case 'dueDate':
+                default:
+                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            }
+        });
+
+        return tempReminders;
+    }, [props.reminders, props.reminderFilter, props.reminderSort, props.searchQuery]);
 
     return (
-        <div className={`bg-secondary p-4 rounded-xl border transition-all ${
-            isCompleted ? 'border-green-500/30 opacity-75' :
-            isOverdue ? 'border-red-500/50' :
-            'border-tertiary hover:border-accent/50'
-        }`}>
-            <div className="flex items-start gap-4">
-                {/* Checkbox */}
-                <button
-                    onClick={() => isCompleted ? onUncomplete(reminder) : onComplete(reminder)}
-                    className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        isCompleted
-                            ? 'bg-green-500 border-green-500'
-                            : 'border-text-muted hover:border-accent'
-                    }`}
+        <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-3 flex-shrink-0 space-y-3">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold">Reminders</h1>
+                    <button onClick={props.onNewReminder} title="New Reminder" className="p-2 rounded-md hover:bg-tertiary">
+                        <AddIcon className="text-xl" />
+                    </button>
+                </div>
+                <input
+                    type="text"
+                    placeholder="Search reminders..."
+                    value={props.searchQuery}
+                    onChange={e => props.setSearchQuery(e.target.value)}
+                    className="w-full bg-primary border border-tertiary rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+            </div>
+
+            <div className="px-3 pb-2 space-y-1 border-b border-tertiary">
+                <NavItem icon={<BellIcon className="text-xl" />} label="All" isActive={props.reminderFilter === 'all'} onClick={() => props.setReminderFilter('all')} />
+                <NavItem icon={<ClockIcon className="text-xl" />} label="Pending" isActive={props.reminderFilter === 'pending'} onClick={() => props.setReminderFilter('pending')} />
+                <NavItem icon={<CheckCircleIcon className="text-xl" />} label="Completed" isActive={props.reminderFilter === 'completed'} onClick={() => props.setReminderFilter('completed')} />
+                <NavItem icon={<AlertIcon className="text-xl" />} label="Overdue" isActive={props.reminderFilter === 'overdue'} onClick={() => props.setReminderFilter('overdue')} />
+            </div>
+
+            <div className="px-3 py-2 border-b border-tertiary text-xs text-text-secondary">
+                <label className="block mb-2">Sort by:</label>
+                <select
+                    value={props.reminderSort}
+                    onChange={e => props.setReminderSort(e.target.value as ReminderSort)}
+                    className="w-full bg-primary border border-tertiary rounded px-2 py-1 text-xs"
                 >
-                    {isCompleted && <span className="material-symbols-outlined text-white text-sm">check</span>}
-                </button>
+                    <option value="dueDate">Due Date</option>
+                    <option value="priority">Priority</option>
+                    <option value="created">Created</option>
+                </select>
+            </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                            <h3 className={`text-lg font-semibold ${
-                                isCompleted ? 'line-through text-text-muted' : 'text-text-primary'
-                            }`}>
-                                {reminder.title}
-                            </h3>
-                            {reminder.description && (
-                                <p className="text-text-secondary text-sm mt-1">{reminder.description}</p>
-                            )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => onEdit(reminder)}
-                                className="text-text-muted hover:text-accent transition-colors"
-                                title="Edit"
-                            >
-                                <span className="material-symbols-outlined text-xl">edit</span>
-                            </button>
-                            <button
-                                onClick={() => onDelete(reminder)}
-                                className="text-text-muted hover:text-red-400 transition-colors"
-                                title="Delete"
-                            >
-                                <span className="material-symbols-outlined text-xl">delete</span>
-                            </button>
-                        </div>
+            <div className="flex-1 overflow-y-auto p-3">
+                {filteredReminders.length === 0 ? (
+                    <div className="text-center text-text-secondary py-8">
+                        <BellIcon className="text-4xl mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No reminders</p>
                     </div>
+                ) : (
+                    <div className="space-y-1">
+                        {filteredReminders.map(reminder => (
+                            <ReminderItem
+                                key={reminder.id}
+                                reminder={reminder}
+                                isSelected={props.selectedReminderId === reminder.id}
+                                onSelect={() => props.setSelectedReminderId(reminder.id!)}
+                                onDelete={() => props.onDeleteReminder(reminder)}
+                                onToggleComplete={() => props.onToggleComplete(reminder)}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
-                    {/* Meta Info */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${PRIORITY_COLORS[reminder.priority]}`}>
-                            {PRIORITY_ICONS[reminder.priority]} {reminder.priority.toUpperCase()}
-                        </span>
-                        <span className="px-2 py-1 rounded text-xs font-medium bg-tertiary text-text-secondary">
-                            {CATEGORY_ICONS[reminder.category]} {reminder.category}
-                        </span>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            isOverdue ? 'bg-red-500/30 text-red-200' : 'bg-tertiary text-text-secondary'
-                        }`}>
-                            📅 {formattedDate} {formattedTime && `at ${formattedTime}`}
-                        </span>
-                        {reminder.recurring && reminder.recurring !== 'none' && (
-                            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-500/30 text-purple-200">
-                                🔄 {reminder.recurring}
-                            </span>
-                        )}
-                        {reminder.tags && reminder.tags.length > 0 && (
-                            reminder.tags.map(tag => (
-                                <span key={tag} className="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-300">
-                                    #{tag}
-                                </span>
-                            ))
+const ReminderItem: React.FC<{
+    reminder: Reminder;
+    isSelected: boolean;
+    onSelect: () => void;
+    onDelete: () => void;
+    onToggleComplete: () => void;
+}> = ({ reminder, isSelected, onSelect, onDelete, onToggleComplete }) => {
+    const [showMenu, setShowMenu] = useState(false);
+    const priorityColors = { high: 'text-red-500', medium: 'text-yellow-500', low: 'text-green-500' };
+
+    return (
+        <div
+            onClick={onSelect}
+            className={`p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-accent/20 border border-accent' : 'hover:bg-tertiary border border-transparent'}`}
+        >
+            <div className="flex items-start gap-2">
+                <button
+                    onClick={(e) => { e.stopPropagation(); onToggleComplete(); }}
+                    className={`mt-1 flex-shrink-0 ${reminder.status === 'completed' ? 'text-accent' : 'text-tertiary'}`}
+                >
+                    <CheckCircleIcon className="text-lg" />
+                </button>
+                <div className="flex-1 min-w-0">
+                    <h3 className={`font-semibold truncate ${reminder.status === 'completed' ? 'line-through text-text-secondary' : ''}`}>
+                        {reminder.title}
+                    </h3>
+                    <p className="text-xs text-text-secondary truncate">{new Date(reminder.dueDate).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                    <span className={`text-xs font-semibold ${priorityColors[reminder.priority as keyof typeof priorityColors]}`}>
+                        {reminder.priority.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                            <MoreVertIcon className="text-lg" />
+                        </button>
+                        {showMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-secondary border border-tertiary rounded-lg shadow-lg z-50">
+                                <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-tertiary flex items-center gap-2">
+                                    <DeleteIcon className="text-lg" /> Delete
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -397,266 +314,221 @@ const ReminderCard: React.FC<{
     );
 };
 
-// --- REMINDER MODAL COMPONENT ---
+const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:bg-tertiary'}`}
+    >
+        {icon}
+        <span className="font-medium">{label}</span>
+    </button>
+);
 
-const ReminderModal: React.FC<{
-    reminder: Reminder | null;
-    onClose: () => void;
-    onSave: () => void;
-}> = ({ reminder, onClose, onSave }) => {
-    const [title, setTitle] = useState(reminder?.title || '');
-    const [description, setDescription] = useState(reminder?.description || '');
-    const [dueDate, setDueDate] = useState(
-        reminder?.dueDate ? new Date(reminder.dueDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-    );
-    const [dueTime, setDueTime] = useState(reminder?.dueTime || '');
-    const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(reminder?.priority || 'medium');
-    const [category, setCategory] = useState<string>(reminder?.category || 'personal');
-    const [recurring, setRecurring] = useState<string>(reminder?.recurring || 'none');
-    const [recurringDays, setRecurringDays] = useState<number[]>(reminder?.recurringDays || []);
-    const [notificationEnabled, setNotificationEnabled] = useState(reminder?.notificationEnabled || false);
-    const [notificationTime, setNotificationTime] = useState(reminder?.notificationTime || 15);
-    const [tags, setTags] = useState(reminder?.tags?.join(', ') || '');
+const EditorPanel: React.FC<{
+    reminder: Reminder;
+    toggleSidebar: () => void;
+    onDelete: (reminder: Reminder) => void;
+    onToggleComplete: (reminder: Reminder) => void;
+}> = ({ reminder, toggleSidebar, onDelete, onToggleComplete }) => {
+    const [title, setTitle] = useState(reminder.title);
+    const [description, setDescription] = useState(reminder.description || '');
+    const [dueDate, setDueDate] = useState(reminder.dueDate instanceof Date ? reminder.dueDate.toISOString().split('T')[0] : '');
+    const [dueTime, setDueTime] = useState(reminder.dueTime || '');
+    const [priority, setPriority] = useState(reminder.priority);
+    const [category, setCategory] = useState(reminder.category);
+    const [recurring, setRecurring] = useState(reminder.recurring || 'none');
+    const [notificationEnabled, setNotificationEnabled] = useState(reminder.notificationEnabled ?? true);
+    const [notificationTime, setNotificationTime] = useState(reminder.notificationTime || 15);
 
     const handleSave = async () => {
-        if (!title.trim()) {
-            alert('Please enter a title');
-            return;
-        }
-
-        const reminderData: Partial<Reminder> = {
-            title: title.trim(),
-            description: description.trim() || undefined,
-            dueDate: new Date(dueDate + 'T' + (dueTime || '00:00')),
-            dueTime: dueTime || undefined,
-            priority,
+        if (!title.trim()) return;
+        await remindersService.update(reminder.id!, {
+            title,
+            description,
+            dueDate: new Date(dueDate),
+            dueTime,
+            priority: priority as 'low' | 'medium' | 'high',
             category,
-            status: 'pending',
             recurring,
-            recurringDays: recurring === 'weekly' ? recurringDays : undefined,
             notificationEnabled,
-            notificationTime: notificationEnabled ? notificationTime : undefined,
-            tags: tags ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
-        };
-
-        if (reminder?.id) {
-            await remindersService.update(reminder.id, reminderData);
-        } else {
-            await remindersService.create({
-                ...reminderData,
-                createdAt: new Date(),
-            } as Reminder);
-        }
-
-        onSave();
+            notificationTime,
+        });
     };
 
-    const toggleRecurringDay = (day: number) => {
-        setRecurringDays(prev =>
-            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
-        );
+    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTitle(e.target.value);
+    };
+
+    const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setDescription(e.target.value);
+    };
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setDueDate(e.target.value);
+    };
+
+    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setDueTime(e.target.value);
+    };
+
+    const handlePriorityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setPriority(e.target.value as 'low' | 'medium' | 'high');
+    };
+
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setCategory(e.target.value);
+    };
+
+    const handleRecurringChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setRecurring(e.target.value);
+    };
+
+    const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNotificationEnabled(e.target.checked);
+    };
+
+    const handleNotificationTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setNotificationTime(parseInt(e.target.value));
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-secondary border border-tertiary rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-text-primary">
-                        {reminder ? 'Edit Reminder' : 'New Reminder'}
-                    </h2>
-                    <button onClick={onClose} className="text-text-muted hover:text-text-primary text-2xl">
-                        &times;
+        <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-tertiary flex-shrink-0">
+                <button onClick={toggleSidebar} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
+                    <MenuIcon className="text-2xl" />
+                </button>
+                <div className="flex-1 flex items-center gap-3 ml-2">
+                    <button
+                        onClick={() => onToggleComplete(reminder)}
+                        className={`p-2 rounded-md transition-colors ${reminder.status === 'completed' ? 'bg-accent/20 text-accent' : 'hover:bg-tertiary'}`}
+                    >
+                        <CheckCircleIcon className="text-2xl" />
                     </button>
+                    <h2 className="text-xl font-semibold">{reminder.status === 'completed' ? '✓ Completed' : 'Reminder'}</h2>
+                </div>
+                <button onClick={() => onDelete(reminder)} className="p-2 rounded-md hover:bg-red-500/20 text-red-400">
+                    <DeleteIcon className="text-2xl" />
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div>
+                    <input
+                        type="text"
+                        value={title}
+                        onChange={handleTitleChange}
+                        onBlur={handleSave}
+                        className="w-full text-3xl font-bold bg-transparent text-text-primary focus:outline-none"
+                        placeholder="Reminder title"
+                    />
                 </div>
 
-                <div className="space-y-4">
-                    {/* Title */}
+                <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                    <textarea
+                        value={description}
+                        onChange={handleDescriptionChange}
+                        onBlur={handleSave}
+                        className="w-full bg-primary border border-tertiary rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                        rows={4}
+                        placeholder="Add details..."
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Title *
-                        </label>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Due Date</label>
                         <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Enter reminder title"
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                            type="date"
+                            value={dueDate}
+                            onChange={handleDateChange}
+                            onBlur={handleSave}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                         />
                     </div>
-
-                    {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Description
-                        </label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Enter description (optional)"
-                            rows={3}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent resize-none"
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Time</label>
+                        <input
+                            type="time"
+                            value={dueTime}
+                            onChange={handleTimeChange}
+                            onBlur={handleSave}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                         />
                     </div>
+                </div>
 
-                    {/* Date and Time */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Due Date *
-                            </label>
-                            <input
-                                type="date"
-                                value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Due Time
-                            </label>
-                            <input
-                                type="time"
-                                value={dueTime}
-                                onChange={(e) => setDueTime(e.target.value)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Priority and Category */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Priority
-                            </label>
-                            <select
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value as any)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                            >
-                                <option value="low">🔵 Low</option>
-                                <option value="medium">🟡 Medium</option>
-                                <option value="high">🔴 High</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Category
-                            </label>
-                            <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value as any)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                            >
-                                <option value="personal">👤 Personal</option>
-                                <option value="work">💼 Work</option>
-                                <option value="health">❤️ Health</option>
-                                <option value="finance">💰 Finance</option>
-                                <option value="other">📌 Other</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Recurring */}
+                <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Recurring
-                        </label>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
                         <select
-                            value={recurring}
-                            onChange={(e) => setRecurring(e.target.value as any)}
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
+                            value={priority}
+                            onChange={handlePriorityChange}
+                            onBlur={handleSave}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                         >
-                            <option value="none">None</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
                         </select>
                     </div>
-
-                    {/* Recurring Days (for weekly) */}
-                    {recurring === 'weekly' && (
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">
-                                Repeat on
-                            </label>
-                            <div className="flex gap-2">
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => toggleRecurringDay(idx)}
-                                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                            recurringDays.includes(idx)
-                                                ? 'bg-accent text-white'
-                                                : 'bg-primary text-text-secondary hover:bg-tertiary'
-                                        }`}
-                                    >
-                                        {day}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Notification */}
                     <div>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={notificationEnabled}
-                                onChange={(e) => setNotificationEnabled(e.target.checked)}
-                                className="w-5 h-5 rounded border-tertiary text-accent focus:ring-accent"
-                            />
-                            <span className="text-sm font-medium text-text-secondary">
-                                Enable notification
-                            </span>
-                        </label>
-                        {notificationEnabled && (
-                            <div className="mt-2">
-                                <label className="block text-sm font-medium text-text-secondary mb-2">
-                                    Notify me (minutes before)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={notificationTime}
-                                    onChange={(e) => setNotificationTime(parseInt(e.target.value) || 0)}
-                                    min="0"
-                                    className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:border-accent"
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Tags */}
-                    <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">
-                            Tags (comma-separated)
-                        </label>
-                        <input
-                            type="text"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            placeholder="work, urgent, meeting"
-                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                        />
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Category</label>
+                        <select
+                            value={category}
+                            onChange={handleCategoryChange}
+                            onBlur={handleSave}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value="personal">Personal</option>
+                            <option value="work">Work</option>
+                            <option value="health">Health</option>
+                            <option value="finance">Finance</option>
+                            <option value="other">Other</option>
+                        </select>
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 mt-6">
-                    <button
-                        onClick={handleSave}
-                        className="flex-1 bg-accent hover:bg-accent/80 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Recurring</label>
+                    <select
+                        value={recurring}
+                        onChange={handleRecurringChange}
+                        onBlur={handleSave}
+                        className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                     >
-                        {reminder ? 'Update' : 'Create'} Reminder
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-3 rounded-lg font-medium bg-tertiary text-text-secondary hover:bg-tertiary/80 transition-colors"
-                    >
-                        Cancel
-                    </button>
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={notificationEnabled}
+                            onChange={handleNotificationChange}
+                            onBlur={handleSave}
+                            className="w-4 h-4 rounded border-tertiary"
+                        />
+                        <span className="text-sm font-medium text-text-primary">Enable Notification</span>
+                    </label>
+                    {notificationEnabled && (
+                        <select
+                            value={notificationTime}
+                            onChange={handleNotificationTimeChange}
+                            onBlur={handleSave}
+                            className="bg-primary border border-tertiary rounded-lg px-3 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value={5}>5 min before</option>
+                            <option value={15}>15 min before</option>
+                            <option value={30}>30 min before</option>
+                            <option value={60}>1 hour before</option>
+                            <option value={1440}>1 day before</option>
+                        </select>
+                    )}
                 </div>
             </div>
         </div>
