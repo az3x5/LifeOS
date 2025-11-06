@@ -5,6 +5,44 @@ import { supabase } from './supabase';
 // Handles two-way sync between local Dexie DB and Supabase
 
 /**
+ * Convert camelCase to snake_case
+ */
+function toSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/**
+ * Convert snake_case to camelCase
+ */
+function toCamelCase(str: string): string {
+    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Convert object keys from camelCase to snake_case
+ */
+function convertToSnakeCase(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        const snakeKey = toSnakeCase(key);
+        result[snakeKey] = value;
+    }
+    return result;
+}
+
+/**
+ * Convert object keys from snake_case to camelCase
+ */
+function convertToCamelCase(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        const camelKey = toCamelCase(key);
+        result[camelKey] = value;
+    }
+    return result;
+}
+
+/**
  * Get the current authenticated user ID
  */
 async function getUserId(): Promise<string | null> {
@@ -32,17 +70,14 @@ async function syncTable<T extends Record<string, any>>(
             return false;
         }
 
-        // Transform data to include user_id and updated_at
+        // Transform data to include user_id and convert to snake_case
         const dataToSync = localData.map(item => {
             const baseData = transformData ? transformData(item, userId) : { ...item, user_id: userId };
 
-            // Add updated_at timestamp if not already present
-            // This ensures we can do timestamp-based conflict resolution
-            if (!baseData.updated_at) {
-                baseData.updated_at = new Date().toISOString();
-            }
+            // Convert camelCase keys to snake_case for Supabase
+            const snakeCaseData = convertToSnakeCase(baseData);
 
-            return baseData;
+            return snakeCaseData;
         });
 
         // Use upsert with proper conflict resolution
@@ -97,7 +132,10 @@ async function pullTable<T>(
             const itemsToUpdate = [];
 
             for (const remoteItem of data) {
-                const { user_id, created_at, updated_at, ...localItem } = remoteItem;
+                // Remove Supabase-specific fields and convert to camelCase
+                const { user_id, created_at, ...remoteData } = remoteItem;
+                const localItem = convertToCamelCase(remoteData);
+
                 const localRecord = localDataMap.get(remoteItem.id);
 
                 // If no local record exists, add it
@@ -106,17 +144,8 @@ async function pullTable<T>(
                     continue;
                 }
 
-                // If both have updated_at, compare timestamps
-                if (updated_at && localRecord.updatedAt) {
-                    const remoteTime = new Date(updated_at).getTime();
-                    const localTime = new Date(localRecord.updatedAt).getTime();
-
-                    // Only update if remote is newer
-                    if (remoteTime > localTime) {
-                        itemsToUpdate.push(localItem);
-                    }
-                } else if (created_at && localRecord.createdAt) {
-                    // Fallback to created_at if updated_at doesn't exist
+                // Compare timestamps if available (use created_at since updated_at doesn't exist)
+                if (created_at && localRecord.createdAt) {
                     const remoteTime = new Date(created_at).getTime();
                     const localTime = new Date(localRecord.createdAt).getTime();
 
