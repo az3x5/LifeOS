@@ -102,11 +102,17 @@ const App: React.FC = () => {
             setUser(session?.user || null);
 
             if (event === 'SIGNED_IN' && session?.user) {
-                console.log('User signed in, syncing data in background...');
+                console.log('User signed in, performing two-way sync...');
                 setIsSyncing(true);
-                pullAllData()
-                    .then(() => setIsSyncing(false))
-                    .catch(() => setIsSyncing(false));
+                syncAllData()
+                    .then(() => {
+                        console.log('Sign-in sync completed successfully');
+                        setIsSyncing(false);
+                    })
+                    .catch((error) => {
+                        console.error('Sign-in sync failed:', error);
+                        setIsSyncing(false);
+                    });
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
                 setIsSyncing(false);

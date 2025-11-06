@@ -14,6 +14,7 @@ async function getUserId(): Promise<string | null> {
 
 /**
  * Generic sync function for any table
+ * Adds updated_at timestamp for conflict resolution
  */
 async function syncTable<T extends Record<string, any>>(
     tableName: string,
@@ -31,12 +32,17 @@ async function syncTable<T extends Record<string, any>>(
             return false;
         }
 
-        // Transform data to include user_id
+        // Transform data to include user_id and updated_at
         const dataToSync = localData.map(item => {
-            if (transformData) {
-                return transformData(item, userId);
+            const baseData = transformData ? transformData(item, userId) : { ...item, user_id: userId };
+
+            // Add updated_at timestamp if not already present
+            // This ensures we can do timestamp-based conflict resolution
+            if (!baseData.updated_at) {
+                baseData.updated_at = new Date().toISOString();
             }
-            return { ...item, user_id: userId };
+
+            return baseData;
         });
 
         // Use upsert with proper conflict resolution
@@ -61,6 +67,7 @@ async function syncTable<T extends Record<string, any>>(
 
 /**
  * Pull data from Supabase for a specific table with smart merge
+ * Uses timestamp-based conflict resolution: newer data wins
  */
 async function pullTable<T>(
     tableName: string,
@@ -83,17 +90,52 @@ async function pullTable<T>(
         }
 
         if (data && data.length > 0) {
-            // Smart merge: Use upsert instead of clear + add
-            // This preserves local data and only updates/adds remote changes
-            const remoteData = data.map(item => {
-                // Remove user_id before storing locally
-                const { user_id, ...localItem } = item;
-                return localItem;
-            });
+            // Get all local data for comparison
+            const localData = await localTable.toArray();
+            const localDataMap = new Map(localData.map((item: any) => [item.id, item]));
 
-            // Use bulkPut to update existing records and add new ones
-            await localTable.bulkPut(remoteData);
-            console.log(`${data.length} ${tableName} merged from Supabase.`);
+            const itemsToUpdate = [];
+
+            for (const remoteItem of data) {
+                const { user_id, created_at, updated_at, ...localItem } = remoteItem;
+                const localRecord = localDataMap.get(remoteItem.id);
+
+                // If no local record exists, add it
+                if (!localRecord) {
+                    itemsToUpdate.push(localItem);
+                    continue;
+                }
+
+                // If both have updated_at, compare timestamps
+                if (updated_at && localRecord.updatedAt) {
+                    const remoteTime = new Date(updated_at).getTime();
+                    const localTime = new Date(localRecord.updatedAt).getTime();
+
+                    // Only update if remote is newer
+                    if (remoteTime > localTime) {
+                        itemsToUpdate.push(localItem);
+                    }
+                } else if (created_at && localRecord.createdAt) {
+                    // Fallback to created_at if updated_at doesn't exist
+                    const remoteTime = new Date(created_at).getTime();
+                    const localTime = new Date(localRecord.createdAt).getTime();
+
+                    // Only update if remote is newer
+                    if (remoteTime > localTime) {
+                        itemsToUpdate.push(localItem);
+                    }
+                } else {
+                    // No timestamps, always update (safer to take remote)
+                    itemsToUpdate.push(localItem);
+                }
+            }
+
+            if (itemsToUpdate.length > 0) {
+                await localTable.bulkPut(itemsToUpdate);
+                console.log(`${itemsToUpdate.length} ${tableName} merged from Supabase (${data.length} total remote).`);
+            } else {
+                console.log(`No updates needed for ${tableName} (all local data is current).`);
+            }
         }
 
         return true;
@@ -290,22 +332,26 @@ export async function syncAllData(): Promise<boolean> {
         return false;
     }
 
-    console.log("Starting two-way sync...");
+    console.log("=== Starting two-way sync ===");
+    console.log("User ID:", userId);
+    console.log("Timestamp:", new Date().toISOString());
 
     // Step 1: Pull remote changes first (merge into local)
     console.log("Step 1: Pulling remote changes...");
     const pullSuccess = await pullAllData();
+    console.log("Pull result:", pullSuccess ? "SUCCESS" : "FAILED");
 
     // Step 2: Push local changes to remote
     console.log("Step 2: Pushing local changes...");
     const pushSuccess = await pushAllData();
+    console.log("Push result:", pushSuccess ? "SUCCESS" : "FAILED");
 
     const syncSuccess = pullSuccess && pushSuccess;
 
     if (syncSuccess) {
-        console.log("Two-way sync completed successfully.");
+        console.log("=== Two-way sync completed successfully ===");
     } else {
-        console.warn("Sync completed with some errors.");
+        console.warn("=== Sync completed with some errors ===");
     }
 
     return syncSuccess;
