@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../services/db';
-import { triggerAutoSync } from '../../services/syncService';
+import { useSupabaseQuery } from '../../hooks/useSupabaseQuery';
+import { HealthMetric, HealthLog } from '../../types';
+import { healthMetricsService, healthLogsService } from '../../services/dataService';
 
 interface QuickAddHealthLogModalProps {
     closeModal: () => void;
@@ -11,7 +11,7 @@ const QuickAddHealthLogModal: React.FC<QuickAddHealthLogModalProps> = ({ closeMo
     const [metricId, setMetricId] = useState('');
     const [value, setValue] = useState('');
     
-    const metrics = useLiveQuery(() => db.healthMetrics.toArray());
+    const metrics = useSupabaseQuery<HealthMetric>('health_metrics');
     const selectedMetric = metrics?.find(m => m.id === parseInt(metricId));
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -20,12 +20,11 @@ const QuickAddHealthLogModal: React.FC<QuickAddHealthLogModalProps> = ({ closeMo
             alert('Please select a metric and enter a value.');
             return;
         }
-        await db.healthLogs.add({
+        await healthLogsService.create({
             metricId: parseInt(metricId),
             value: parseFloat(value),
             date: new Date(),
-        });
-        triggerAutoSync();
+        } as HealthLog);
         closeModal();
     };
 

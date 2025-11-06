@@ -1,8 +1,7 @@
 
-import React, { ReactNode } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { Module } from '../types';
+import React, { ReactNode, useMemo } from 'react';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { Module, AppNotification } from '../types';
 import NotificationsIcon from './icons/NotificationsIcon';
 import GlobalSearch from './GlobalSearch';
 import NotificationCenter from './NotificationCenter';
@@ -37,7 +36,8 @@ const SyncStatus: React.FC<{ isSyncing: boolean }> = ({ isSyncing }) => (
 
 const Layout: React.FC<LayoutProps> = ({ children, activeModule, setActiveModule, quickActionHandlers, isNotificationCenterOpen, setIsNotificationCenterOpen, isSyncing }) => {
     const isNotesModule = activeModule === Module.NOTES;
-    const unreadCount = useLiveQuery(() => db.notifications.where('status').equals('unread').count(), []);
+    const allNotifications = useSupabaseQuery<AppNotification>('notifications');
+    const unreadCount = useMemo(() => (allNotifications ?? []).filter(n => n.status === 'unread').length, [allNotifications]);
 
     return (
         <div className="flex flex-col md:flex-row h-screen bg-primary text-text-primary font-sans">

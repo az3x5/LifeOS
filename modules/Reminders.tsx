@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { triggerAutoSync } from '../services/syncService';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Reminder } from '../types';
+import { remindersService } from '../services/dataService';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
@@ -38,7 +37,7 @@ const Reminders: React.FC = () => {
     const [filterCategory, setFilterCategory] = useState<string>('all');
     const [filterPriority, setFilterPriority] = useState<string>('all');
 
-    const reminders = useLiveQuery(() => db.reminders.toArray());
+    const reminders = useSupabaseQuery<Reminder>('reminders');
 
     // Update overdue status
     useMemo(() => {
@@ -46,7 +45,7 @@ const Reminders: React.FC = () => {
         const now = new Date();
         reminders.forEach(async (reminder) => {
             if (reminder.status === 'pending' && new Date(reminder.dueDate) < now) {
-                await db.reminders.update(reminder.id!, { status: 'overdue' });
+                await remindersService.update(reminder.id!, { status: 'overdue' });
             }
         });
     }, [reminders]);
@@ -114,19 +113,17 @@ const Reminders: React.FC = () => {
             message: `Are you sure you want to delete "${reminder.title}"?`,
             icon: '🗑️',
             onConfirm: async () => {
-                await db.reminders.delete(reminder.id!);
-                triggerAutoSync();
+                await remindersService.delete(reminder.id!);
                 setConfirmModal(null);
             }
         });
     };
 
     const handleCompleteReminder = async (reminder: Reminder) => {
-        await db.reminders.update(reminder.id!, {
+        await remindersService.update(reminder.id!, {
             status: 'completed',
             completedAt: new Date()
         });
-        triggerAutoSync();
     };
 
     const handleUncompleteReminder = async (reminder: Reminder) => {
@@ -134,11 +131,10 @@ const Reminders: React.FC = () => {
         const dueDate = new Date(reminder.dueDate);
         const status = dueDate < now ? 'overdue' : 'pending';
 
-        await db.reminders.update(reminder.id!, {
+        await remindersService.update(reminder.id!, {
             status,
             completedAt: undefined
         });
-        triggerAutoSync();
     };
 
     return (
@@ -444,15 +440,14 @@ const ReminderModal: React.FC<{
         };
 
         if (reminder?.id) {
-            await db.reminders.update(reminder.id, reminderData);
+            await remindersService.update(reminder.id, reminderData);
         } else {
-            await db.reminders.add({
+            await remindersService.create({
                 ...reminderData,
                 createdAt: new Date(),
             } as Reminder);
         }
 
-        triggerAutoSync();
         onSave();
     };
 

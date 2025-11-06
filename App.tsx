@@ -11,10 +11,10 @@ import Notes from './modules/Notes';
 import Reminders from './modules/Reminders';
 import Settings from './modules/Settings';
 import Auth from './modules/Auth';
-import { db } from './services/db';
 import { runNotificationChecks } from './services/notificationService';
 import { syncAllData } from './services/syncService';
 import { supabase } from './services/supabase';
+import { habitsService, habitLogsService, healthMetricsService, healthLogsService } from './services/dataService';
 import type { User } from '@supabase/supabase-js';
 
 // Import Quick Add Modals
@@ -200,16 +200,16 @@ const App: React.FC = () => {
             // --- Check Habit Reminders ---
             const todayStr = now.toISOString().split('T')[0];
             const todayDay = now.getDay();
-    
-            const dueHabits = await db.habits
-                .where({ reminderEnabled: true, reminderTime: currentTime })
-                .toArray();
-    
+
+            const allHabits = await habitsService.getAll();
+            const dueHabits = allHabits.filter(h => h.reminderEnabled && h.reminderTime === currentTime);
+
             if (dueHabits.length > 0) {
+                 const allHabitLogs = await habitLogsService.getAll();
                  const completedTodayIds = new Set(
-                    (await db.habitLogs.where({ date: todayStr }).toArray()).map(log => log.habitId)
+                    allHabitLogs.filter(log => log.date === todayStr).map(log => log.habitId)
                 );
-        
+
                 for (const habit of dueHabits) {
                     const isScheduledToday = habit.frequency === 'daily' || (habit.frequency === 'custom' && habit.daysOfWeek?.includes(todayDay));
                     if (isScheduledToday && !completedTodayIds.has(habit.id!)) {
@@ -223,17 +223,16 @@ const App: React.FC = () => {
             }
 
             // --- Check Health Log Reminders ---
-            const dueHealthMetrics = await db.healthMetrics
-                .where({ reminderEnabled: true, reminderTime: currentTime })
-                .toArray();
+            const allHealthMetrics = await healthMetricsService.getAll();
+            const dueHealthMetrics = allHealthMetrics.filter(m => m.reminderEnabled && m.reminderTime === currentTime);
 
             if (dueHealthMetrics.length > 0) {
-                const todayStart = new Date();
-                todayStart.setHours(0, 0, 0, 0);
-                
+                const allHealthLogs = await healthLogsService.getAll();
                 const loggedTodayMetricIds = new Set(
-                    (await db.healthLogs.where('date').above(todayStart).toArray())
-                        .map(log => log.metricId)
+                    allHealthLogs.filter(log => {
+                        const logDate = typeof log.date === 'string' ? log.date : log.date.toISOString().split('T')[0];
+                        return logDate === todayStr;
+                    }).map(log => log.metricId)
                 );
 
                 for (const metric of dueHealthMetrics) {

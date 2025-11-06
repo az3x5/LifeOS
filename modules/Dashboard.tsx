@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Module, Account, Transaction, Category, Habit, HabitLog, HealthLog, Note, HealthMetric, FastingLog, DailyReflection, SmartInsight, IslamicEvent, Reminder } from '../types';
+import { smartInsightsService, transactionsService, habitsService, habitLogsService, healthLogsService, notesService, fastingLogsService, islamicEventsService, remindersService, healthMetricsService } from '../services/dataService';
 import { calculateStreaks } from '../utils/habits';
 import FinanceIcon from '../components/icons/FinanceIcon';
 import HabitIcon from '../components/icons/HabitIcon';
@@ -39,9 +39,13 @@ const InsightCard: React.FC<{
 
 const SmartInsights: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
-    const insights = useLiveQuery(() => 
-        db.smartInsights.where('status').equals('active').reverse().sortBy('generatedAt'), 
-    []);
+    const allInsights = useSupabaseQuery<SmartInsight>('smart_insights');
+    const insights = useMemo(() =>
+        (allInsights ?? []).filter(i => i.status === 'active').sort((a, b) =>
+            new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()
+        ),
+        [allInsights]
+    );
 
     const generateInsights = useCallback(async () => {
         setIsLoading(true);
@@ -49,12 +53,15 @@ const SmartInsights: React.FC = () => {
             // 1. Aggregate Data
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            
-            const transactions = await db.transactions.where('date').above(thirtyDaysAgo).toArray();
-            const habits = await db.habits.toArray();
-            const habitLogs = await db.habitLogs.toArray();
-            const healthLogs = await db.healthLogs.where('date').above(thirtyDaysAgo).toArray();
-            const notesCount = await db.notes.where('createdAt').above(thirtyDaysAgo).count();
+
+            const allTransactions = await transactionsService.getAll();
+            const transactions = allTransactions.filter(t => new Date(t.date) > thirtyDaysAgo);
+            const habits = await habitsService.getAll();
+            const habitLogs = await habitLogsService.getAll();
+            const allHealthLogs = await healthLogsService.getAll();
+            const healthLogs = allHealthLogs.filter(l => new Date(l.date) > thirtyDaysAgo);
+            const allNotes = await notesService.getAll();
+            const notesCount = allNotes.filter(n => new Date(n.createdAt) > thirtyDaysAgo).length;
 
             const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
             const streaks = calculateStreaks(habits, habitLogs);
@@ -99,13 +106,18 @@ const SmartInsights: React.FC = () => {
             const jsonResponse = JSON.parse(response.text.replace(/```json|```/g, '').trim());
 
             // 3. Cache Insights
-            await db.smartInsights.where('status').equals('active').modify({ status: 'dismissed' });
+            const activeInsights = (allInsights ?? []).filter(i => i.status === 'active');
+            for (const insight of activeInsights) {
+                if (insight.id) await smartInsightsService.update(insight.id, { status: 'dismissed' });
+            }
             const newInsights: Omit<SmartInsight, 'id'>[] = jsonResponse.map((item: any) => ({
                 ...item,
                 generatedAt: new Date(),
                 status: 'active' as const
             }));
-            await db.smartInsights.bulkAdd(newInsights);
+            for (const insight of newInsights) {
+                await smartInsightsService.create(insight as SmartInsight);
+            }
 
         } catch (error) {
             console.error("Failed to generate insights:", error);
@@ -113,26 +125,27 @@ const SmartInsights: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [allInsights]);
 
     useEffect(() => {
         const shouldGenerate = async () => {
-            const activeInsights = await db.smartInsights.where('status').equals('active').toArray();
+            const activeInsights = (allInsights ?? []).filter(i => i.status === 'active');
             if (activeInsights.length === 0) {
                 generateInsights();
             } else {
                 const oneDayAgo = new Date();
                 oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-                if (activeInsights[0].generatedAt < oneDayAgo) {
+                const latestInsight = activeInsights[0];
+                if (new Date(latestInsight.generatedAt) < oneDayAgo) {
                     generateInsights();
                 }
             }
         };
         shouldGenerate();
-    }, [generateInsights]);
+    }, [generateInsights, allInsights]);
 
     const handleDismiss = async (id: number) => {
-        await db.smartInsights.update(id, { status: 'dismissed' });
+        await smartInsightsService.update(id, { status: 'dismissed' });
     };
     
     return (
@@ -618,7 +631,7 @@ const DayDetailModal: React.FC<{
                 message: 'Are you sure you want to delete this fasting log?',
                 icon: '🌙',
                 onConfirm: async () => {
-                    await db.fastingLogs.delete(dayFastingLog.id!);
+                    await fastingLogsService.delete(dayFastingLog.id!);
                     setConfirmModal(null);
                     onClose();
                 }
@@ -634,7 +647,7 @@ const DayDetailModal: React.FC<{
                 message: 'Are you sure you want to delete this note?',
                 icon: '📅',
                 onConfirm: async () => {
-                    await db.islamicEvents.delete(dayIslamicEvent.gregorianDate);
+                    await islamicEventsService.delete(dayIslamicEvent.id!);
                     setConfirmModal(null);
                     onClose();
                 }
@@ -939,28 +952,28 @@ const AnalyticsTab: React.FC<{
 const Dashboard: React.FC<{ setActiveModule: (module: Module) => void }> = ({ setActiveModule }) => {
 
     // --- Data Hooks ---
-    const accounts = useLiveQuery(() => db.accounts.toArray());
-    const transactions = useLiveQuery(() => db.transactions.toArray());
-    const categories = useLiveQuery(() => db.categories.toArray());
-    const habits = useLiveQuery(() => db.habits.toArray());
-    const habitLogs = useLiveQuery(() => db.habitLogs.toArray());
-    const healthMetrics = useLiveQuery(() => db.healthMetrics.toArray());
-    const healthLogs = useLiveQuery(() => db.healthLogs.toArray());
-    // FIX: Corrected Dexie query. `orderBy` is not a method on a Collection returned by `where`.
-    // Instead, we fetch the active notes and perform a client-side sort.
-    const notes = useLiveQuery(async () => {
-        const activeNotes = await db.notes.where({ status: 'active' }).toArray();
+    const accounts = useSupabaseQuery<Account>('accounts');
+    const transactions = useSupabaseQuery<Transaction>('transactions');
+    const categories = useSupabaseQuery<Category>('categories');
+    const habits = useSupabaseQuery<Habit>('habits');
+    const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
+    const healthMetrics = useSupabaseQuery<HealthMetric>('health_metrics');
+    const healthLogs = useSupabaseQuery<HealthLog>('health_logs');
+    const allNotes = useSupabaseQuery<Note>('notes');
+    const notes = useMemo(() => {
+        const activeNotes = (allNotes ?? []).filter(n => n.status === 'active');
         return activeNotes.sort((a, b) => {
             const aTime = a.updatedAt ? (typeof a.updatedAt === 'string' ? new Date(a.updatedAt).getTime() : a.updatedAt.getTime()) : 0;
             const bTime = b.updatedAt ? (typeof b.updatedAt === 'string' ? new Date(b.updatedAt).getTime() : b.updatedAt.getTime()) : 0;
             return bTime - aTime;
         }).slice(0, 3);
-    }, []);
-    const fastingLogs = useLiveQuery(() => db.fastingLogs.toArray());
-    const islamicEvents = useLiveQuery(() => db.islamicEvents.toArray());
-    const reminders = useLiveQuery(() => db.reminders.toArray());
+    }, [allNotes]);
+    const fastingLogs = useSupabaseQuery<FastingLog>('fasting_logs');
+    const islamicEvents = useSupabaseQuery<IslamicEvent>('islamic_events');
+    const reminders = useSupabaseQuery<Reminder>('reminders');
     const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-    const dailyReflection = useLiveQuery(() => db.dailyReflections.get(todayStr), [todayStr]);
+    const allDailyReflections = useSupabaseQuery<DailyReflection>('daily_reflections');
+    const dailyReflection = useMemo(() => allDailyReflections?.find(r => r.date === todayStr), [allDailyReflections, todayStr]);
 
     // --- Memoized Data Processing ---
 

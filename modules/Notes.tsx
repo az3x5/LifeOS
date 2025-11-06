@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { triggerAutoSync } from '../services/syncService';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Note, Folder } from '../types';
+import { notesService, foldersService } from '../services/dataService';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
@@ -58,8 +57,8 @@ const ListIcon = ({ className }: { className?: string }) => <span className={`ma
 const LinkIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>link</span>;
 
 const Notes: React.FC = () => {
-    const allNotes = useLiveQuery(() => db.notes.orderBy('updatedAt').reverse().toArray());
-    const folders = useLiveQuery(() => db.folders.toArray());
+    const allNotes = useSupabaseQuery<Note>('notes');
+    const folders = useSupabaseQuery<Folder>('folders');
 
     const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
     const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
@@ -76,7 +75,7 @@ const Notes: React.FC = () => {
     }, [allNotes, selectedNoteId]);
 
     const handleNewNote = async (folderId?: number) => {
-        const newId = await db.notes.add({
+        const newNote = await notesService.create({
             title: 'Untitled Note',
             content: '',
             createdAt: new Date(),
@@ -85,9 +84,10 @@ const Notes: React.FC = () => {
             status: 'active',
             pinned: noteFilter === 'pinned',
         });
-        triggerAutoSync();
         setNoteFilter('all');
-        handleSelectNote(newId);
+        if (newNote && newNote.id) {
+            handleSelectNote(newNote.id);
+        }
     };
 
     const handleSelectNote = (id: number | null) => {
@@ -187,22 +187,22 @@ const Sidebar: React.FC<{
         if (renamingNoteId !== note.id) return;
         setRenamingNoteId(null);
         if (newName.trim() && newName.trim() !== note.title) {
-            await db.notes.update(note.id!, { title: newName.trim(), updatedAt: new Date() });
-            triggerAutoSync();
+            await notesService.update(note.id!, { title: newName.trim(), updatedAt: new Date() });
         }
     };
     
     const handleNewFolder = async (parentId: number | null = null) => {
-        const newFolderId = await db.folders.add({
+        const newFolder = await foldersService.create({
             name: 'Untitled Folder',
             parentId,
             createdAt: new Date(),
         });
-        triggerAutoSync();
         if (parentId) {
             setExpandedFolders(prev => new Set(prev).add(parentId));
         }
-        setRenamingFolderId(newFolderId);
+        if (newFolder && newFolder.id) {
+            setRenamingFolderId(newFolder.id);
+        }
     };
 
     const toggleFolder = (folderId: number) => {
@@ -312,14 +312,13 @@ const FolderTree: React.FC<{
         if (renamingFolderId !== folder.id) return;
         setRenamingFolderId(null);
         if(newName.trim() && newName.trim() !== folder.name) {
-            await db.folders.update(folder.id!, { name: newName.trim() });
-            triggerAutoSync();
+            await foldersService.update(folder.id!, { name: newName.trim() });
         }
     }
     
     const handleDeleteFolder = async (folder: Folder) => {
-        const childNotesCount = await db.notes.where({ folderId: folder.id }).count();
-        const childFoldersCount = await db.folders.where({ parentId: folder.id }).count();
+        const childNotesCount = (props.notes?.filter(n => n.folderId === folder.id) || []).length;
+        const childFoldersCount = (props.folders?.filter(f => f.parentId === folder.id) || []).length;
         if (childNotesCount > 0 || childFoldersCount > 0) {
             props.setAlertModal({
                 isOpen: true,
@@ -335,8 +334,7 @@ const FolderTree: React.FC<{
             message: `Are you sure you want to delete the folder "${folder.name}"?`,
             icon: '📁',
             onConfirm: async () => {
-                await db.folders.delete(folder.id!);
-                triggerAutoSync();
+                await foldersService.delete(folder.id!);
                 props.setConfirmModal(null);
             }
         });
@@ -462,8 +460,7 @@ const EditorPanel: React.FC<{
     const handleSave = useCallback(async (newTitle: string, newContent: string) => {
         if (newTitle.trim() === initialNote.title && newContent === initialNote.content) return;
         const updatedNote = { ...initialNote, title: newTitle.trim() || 'Untitled Note', content: newContent, updatedAt: new Date() };
-        await db.notes.update(initialNote.id!, updatedNote);
-        triggerAutoSync();
+        await notesService.update(initialNote.id!, updatedNote);
     }, [initialNote]);
 
     useEffect(() => {
@@ -510,8 +507,7 @@ const EditorPanel: React.FC<{
     };
 
     const handleTogglePin = async () => {
-        await db.notes.update(initialNote.id!, { pinned: !initialNote.pinned });
-        triggerAutoSync();
+        await notesService.update(initialNote.id!, { pinned: !initialNote.pinned });
     };
     const handleTrash = async () => {
         setConfirmModal({
@@ -520,15 +516,13 @@ const EditorPanel: React.FC<{
             message: `Move "${initialNote.title}" to trash?`,
             icon: '🗑️',
             onConfirm: async () => {
-                await db.notes.update(initialNote.id!, { status: 'trash' as const });
-                triggerAutoSync();
+                await notesService.update(initialNote.id!, { status: 'trash' as const });
                 setConfirmModal(null);
             }
         });
     };
     const handleRestore = async () => {
-        await db.notes.update(initialNote.id!, { status: 'active' as const });
-        triggerAutoSync();
+        await notesService.update(initialNote.id!, { status: 'active' as const });
     };
     const handleDeleteForever = async () => {
         setConfirmModal({
@@ -537,8 +531,7 @@ const EditorPanel: React.FC<{
             message: `Permanently delete "${initialNote.title}"? This cannot be undone.`,
             icon: '⚠️',
             onConfirm: async () => {
-                await db.notes.delete(initialNote.id!);
-                triggerAutoSync();
+                await notesService.delete(initialNote.id!);
                 setConfirmModal(null);
             }
         });
@@ -627,7 +620,7 @@ const NoteActions: React.FC<{
     onRename: () => void,
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
 }> = ({note, onMove, onRename, setConfirmModal}) => {
-     const handleTogglePin = async () => await db.notes.update(note.id!, { pinned: !note.pinned });
+     const handleTogglePin = async () => await notesService.update(note.id!, { pinned: !note.pinned });
      const handleTrash = async () => {
         setConfirmModal({
             isOpen: true,
@@ -635,7 +628,7 @@ const NoteActions: React.FC<{
             message: `Move "${note.title}" to trash?`,
             icon: '🗑️',
             onConfirm: async () => {
-                await db.notes.update(note.id!, { status: 'trash' });
+                await notesService.update(note.id!, { status: 'trash' });
                 setConfirmModal(null);
             }
         });
@@ -670,7 +663,7 @@ const MoveNoteModal: React.FC<{note: Note; folders?: Folder[]; onClose: () => vo
 
     const handleMove = async () => {
         const newFolderId = targetFolderId === '' ? undefined : Number(targetFolderId);
-        await db.notes.update(note.id!, { folderId: newFolderId });
+        await notesService.update(note.id!, { folderId: newFolderId });
         onClose();
     };
     
@@ -703,11 +696,11 @@ const MoveNoteModal: React.FC<{note: Note; folders?: Folder[]; onClose: () => vo
 const FolderCustomizationModal: React.FC<{ folder: Folder, onClose: () => void; icons: {[key: string]: React.ComponentType<{className?: string}>}, colors: {[key: string]: string} }> = ({ folder, onClose, icons, colors }) => {
     
     const handleSetIcon = async (icon: string) => {
-        await db.folders.update(folder.id!, { icon });
+        await foldersService.update(folder.id!, { icon });
     };
 
     const handleSetColor = async (color: string) => {
-        await db.folders.update(folder.id!, { color });
+        await foldersService.update(folder.id!, { color });
     };
 
     const availableIcons = { default: icons.default, book: icons.book, project: icons.project, knowledge: icons.knowledge, personal: icons.personal, work: icons.work, studies: icons.studies, home: icons.home };

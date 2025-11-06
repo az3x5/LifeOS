@@ -1,8 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { Transaction, HabitLog, HealthLog, Note, FastingLog, Module } from '../types';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { Transaction, HabitLog, HealthLog, Note, FastingLog, Module, Habit, HealthMetric } from '../types';
 import FinanceIcon from '../components/icons/FinanceIcon';
 import HabitIcon from '../components/icons/HabitIcon';
 import HealthIcon from '../components/icons/HealthIcon';
@@ -29,13 +28,13 @@ const ActivityTimeline: React.FC = () => {
     const loaderRef = useRef(null);
 
     // --- Data Fetching ---
-    const transactions = useLiveQuery(() => db.transactions.toArray(), []);
-    const habitLogs = useLiveQuery(() => db.habitLogs.toArray(), []);
-    const healthLogs = useLiveQuery(() => db.healthLogs.toArray(), []);
-    const notes = useLiveQuery(() => db.notes.toArray(), []);
-    const fastingLogs = useLiveQuery(() => db.fastingLogs.toArray(), []);
-    const habits = useLiveQuery(() => db.habits.toArray(), []);
-    const healthMetrics = useLiveQuery(() => db.healthMetrics.toArray(), []);
+    const transactions = useSupabaseQuery<Transaction>('transactions');
+    const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
+    const healthLogs = useSupabaseQuery<HealthLog>('health_logs');
+    const notes = useSupabaseQuery<Note>('notes');
+    const fastingLogs = useSupabaseQuery<FastingLog>('fasting_logs');
+    const habits = useSupabaseQuery<Habit>('habits');
+    const healthMetrics = useSupabaseQuery<HealthMetric>('health_metrics');
 
     const habitMap = useMemo(() => new Map(habits?.map(h => [h.id, h.name])), [habits]);
     const metricMap = useMemo(() => new Map(healthMetrics?.map(m => [m.id, { name: m.name, unit: m.unit }])), [healthMetrics]);

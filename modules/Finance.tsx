@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import Dexie from 'dexie';
-import { db } from '../services/db';
-import { triggerAutoSync } from '../services/syncService';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Account, Transaction, Category, Budget, SavingsGoal } from '../types';
+import { accountsService, transactionsService, categoriesService, budgetsService, savingsGoalsService } from '../services/dataService';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
@@ -34,11 +32,11 @@ const Finance: React.FC = () => {
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
 
     // Data Hooks
-    const accounts = useLiveQuery(() => db.accounts.toArray(), []);
-    const transactions = useLiveQuery(() => db.transactions.orderBy('date').reverse().toArray(), []);
-    const categories = useLiveQuery(() => db.categories.toArray(), []);
-    const budgets = useLiveQuery(() => db.budgets.toArray(), []);
-    const goals = useLiveQuery(() => db.savingsGoals.toArray(), []);
+    const accounts = useSupabaseQuery<Account>('accounts');
+    const transactions = useSupabaseQuery<Transaction>('transactions');
+    const categories = useSupabaseQuery<Category>('categories');
+    const budgets = useSupabaseQuery<Budget>('budgets');
+    const goals = useSupabaseQuery<SavingsGoal>('savings_goals');
 
     const openEditTransactionModal = (tx: Transaction) => {
         setEditingTransaction(tx);
@@ -67,7 +65,7 @@ const Finance: React.FC = () => {
             case 'Transactions':
                 return <TransactionsTab transactions={transactions} categories={categories} accounts={accounts} onEdit={openEditTransactionModal} setConfirmModal={setConfirmModal} />;
             case 'Accounts':
-                return <AccountsTab accounts={accounts} onEdit={openEditAccountModal} setConfirmModal={setConfirmModal} setAlertModal={setAlertModal} />;
+                return <AccountsTab accounts={accounts} transactions={transactions} onEdit={openEditAccountModal} setConfirmModal={setConfirmModal} setAlertModal={setAlertModal} />;
             case 'Budgets':
                 return <BudgetsTab budgets={budgets} transactions={transactions} categories={categories} onEdit={openEditBudgetModal} />;
             case 'Goals':
@@ -111,7 +109,7 @@ const Finance: React.FC = () => {
             {(isAddBudgetModalOpen || editingBudget) && <AddBudgetModal closeModal={() => { setIsAddBudgetModalOpen(false); setEditingBudget(null); }} categories={categories} budgetToEdit={editingBudget} />}
             {(isAddGoalModalOpen || editingGoal) && <AddGoalModal closeModal={() => { setIsAddGoalModalOpen(false); setEditingGoal(null); }} goalToEdit={editingGoal} />}
             {goalToAddFunds && <AddFundsToGoalModal goal={goalToAddFunds} accounts={accounts} categories={categories} closeModal={() => setGoalToAddFunds(null)} />}
-            {isManageCategoriesModalOpen && <ManageCategoriesModal closeModal={() => setIsManageCategoriesModalOpen(false)} />}
+            {isManageCategoriesModalOpen && <ManageCategoriesModal closeModal={() => setIsManageCategoriesModalOpen(false)} transactions={transactions} />}
 
             {confirmModal && (
                 <ConfirmModal
@@ -249,24 +247,15 @@ const TransactionsTab: React.FC<{
             message: `Delete transaction "${tx.description}"? This action cannot be undone.`,
             icon: '💸',
             onConfirm: async () => {
-                await (db as Dexie).transaction('rw', db.transactions, db.accounts, async () => {
-                    // Robustness check: Ensure accountId exists and amount is a valid number before updating balance.
-                    if (tx.accountId != null && typeof tx.amount === 'number' && isFinite(tx.amount)) {
-                        const amountToRevert = tx.type === 'income' ? -tx.amount : tx.amount;
-
-                        await db.accounts.where({ id: tx.accountId }).modify(account => {
-                            // Even more robust: check if account.balance is valid before modifying.
-                            if (typeof account.balance === 'number' && isFinite(account.balance)) {
-                                account.balance += amountToRevert;
-                            } else {
-                                console.error(`Account (ID: ${tx.accountId}) balance is corrupted (NaN/Infinity). Skipping balance update for this deletion.`);
-                            }
-                        });
-                    } else {
-                        console.warn(`Skipping balance update for transaction (ID: ${tx.id}). It may be legacy data or have an invalid amount.`);
+                // Revert transaction effect
+                if (tx.accountId != null && typeof tx.amount === 'number' && isFinite(tx.amount)) {
+                    const amountToRevert = tx.type === 'income' ? -tx.amount : tx.amount;
+                    const account = accounts?.find(a => a.id === tx.accountId);
+                    if (account && typeof account.balance === 'number' && isFinite(account.balance)) {
+                        await accountsService.update(account.id!, { balance: account.balance + amountToRevert });
                     }
-                    await db.transactions.delete(tx.id!);
-                });
+                }
+                await transactionsService.delete(tx.id!);
                 setConfirmModal(null);
             }
         });
@@ -314,12 +303,13 @@ const TransactionsTab: React.FC<{
 
 const AccountsTab: React.FC<{
     accounts?: Account[],
+    transactions?: Transaction[],
     onEdit: (acc: Account) => void,
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void,
     setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void
-}> = ({ accounts, onEdit, setConfirmModal, setAlertModal }) => {
+}> = ({ accounts, transactions, onEdit, setConfirmModal, setAlertModal }) => {
     const handleDelete = async (account: Account) => {
-        const txCount = await db.transactions.where({ accountId: account.id! }).count();
+        const txCount = (transactions?.filter(t => t.accountId === account.id!) || []).length;
         if (txCount > 0) {
             setAlertModal({
                 isOpen: true,
@@ -335,7 +325,7 @@ const AccountsTab: React.FC<{
             message: `Are you sure you want to delete the account "${account.name}"? This action is permanent.`,
             icon: '🏦',
             onConfirm: async () => {
-                await db.accounts.delete(account.id!);
+                await accountsService.delete(account.id!);
                 setConfirmModal(null);
             }
         });
@@ -390,7 +380,7 @@ const BudgetsTab: React.FC<{ budgets?: Budget[], transactions?: Transaction[], c
     
     const handleDelete = async (budgetId: number) => {
         if (window.confirm("Are you sure you want to delete this budget?")) {
-            await db.budgets.delete(budgetId);
+            await budgetsService.delete(budgetId);
         }
     };
 
@@ -440,7 +430,7 @@ const BudgetCard: React.FC<{ budget: any, onEdit: () => void, onDelete: () => vo
 const GoalsTab: React.FC<{ goals?: SavingsGoal[], onEdit: (goal: SavingsGoal) => void, onAddFunds: (goal: SavingsGoal) => void }> = ({ goals, onEdit, onAddFunds }) => {
     const handleDelete = async (goalId: number) => {
         if (window.confirm("Are you sure you want to delete this savings goal?")) {
-            await db.savingsGoals.delete(goalId);
+            await savingsGoalsService.delete(goalId);
         }
     };
     
@@ -526,39 +516,37 @@ const AddTransactionModal: React.FC<{ closeModal: () => void; categories?: Categ
             currency: accounts?.find(a => a.id === +accountId)?.currency || 'USD',
         };
 
-        // FIX: Cast 'db' to Dexie to resolve incorrect type inference for the 'transaction' method.
-        await (db as Dexie).transaction('rw', db.transactions, db.accounts, async () => {
-            if (transactionToEdit) {
-                // Revert old transaction effect
-                const oldTx = await db.transactions.get(transactionToEdit.id!);
-                if(oldTx) {
-                    const revertAmount = oldTx.type === 'income' ? -oldTx.amount : oldTx.amount;
-                    await db.accounts.where({ id: oldTx.accountId }).modify(account => {
-                        account.balance += revertAmount;
-                    });
+        // Handle transaction with account balance update
+        if (transactionToEdit) {
+            // Revert old transaction effect
+            const oldTx = transactionToEdit;
+            if(oldTx) {
+                const revertAmount = oldTx.type === 'income' ? -oldTx.amount : oldTx.amount;
+                const account = accounts?.find(a => a.id === oldTx.accountId);
+                if (account) {
+                    await accountsService.update(account.id!, { balance: account.balance + revertAmount });
                 }
-                
-                // Update transaction
-                await db.transactions.update(transactionToEdit.id!, transactionData);
-                
-                // Apply new transaction effect (might be on a new account)
-                const applyAmount = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
-                await db.accounts.where({ id: transactionData.accountId }).modify(account => {
-                    account.balance += applyAmount;
-                });
-
-            } else {
-                // Add new transaction
-                await db.transactions.add(transactionData);
-                // Apply transaction effect
-                const applyAmount = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
-                await db.accounts.where({ id: transactionData.accountId }).modify(account => {
-                    account.balance += applyAmount;
-                });
             }
-        });
 
-        triggerAutoSync();
+            // Update transaction
+            await transactionsService.update(transactionToEdit.id!, transactionData);
+
+            // Apply new transaction effect (might be on a new account)
+            const applyAmount = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
+            const newAccount = accounts?.find(a => a.id === transactionData.accountId);
+            if (newAccount) {
+                await accountsService.update(newAccount.id!, { balance: newAccount.balance + applyAmount });
+            }
+        } else {
+            // Add new transaction
+            await transactionsService.create(transactionData);
+            // Apply transaction effect
+            const applyAmount = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
+            const account = accounts?.find(a => a.id === transactionData.accountId);
+            if (account) {
+                await accountsService.update(account.id!, { balance: account.balance + applyAmount });
+            }
+        }
         closeModal();
     };
 
@@ -595,9 +583,9 @@ const AddAccountModal: React.FC<{ closeModal: () => void; accountToEdit: Account
         if(!name || !balance || !currency) return;
         const accountData = { name, type, balance: +balance, currency, includeInNetWorth, createdAt: accountToEdit?.createdAt || new Date() };
         if(accountToEdit) {
-            await db.accounts.update(accountToEdit.id!, accountData);
+            await accountsService.update(accountToEdit.id!, accountData);
         } else {
-            await db.accounts.add(accountData);
+            await accountsService.create(accountData);
         }
         closeModal();
     }
@@ -628,9 +616,9 @@ const AddBudgetModal: React.FC<{ closeModal: () => void; categories?: Category[]
         if(!categoryId || !amount) return;
         const budgetData = { categoryId: +categoryId, amount: +amount, period: 'monthly' as const };
         if(budgetToEdit) {
-            await db.budgets.update(budgetToEdit.id!, budgetData);
+            await budgetsService.update(budgetToEdit.id!, budgetData);
         } else {
-            await db.budgets.add(budgetData);
+            await budgetsService.create(budgetData);
         }
         closeModal();
     }
@@ -660,9 +648,9 @@ const AddGoalModal: React.FC<{ closeModal: () => void; goalToEdit: SavingsGoal |
         if (!name || !targetAmount) return;
         const goalData = { name, targetAmount: +targetAmount, currentAmount: +currentAmount, deadline: deadline ? new Date(deadline) : undefined };
         if (goalToEdit) {
-            await db.savingsGoals.update(goalToEdit.id!, goalData);
+            await savingsGoalsService.update(goalToEdit.id!, goalData);
         } else {
-            await db.savingsGoals.add(goalData);
+            await savingsGoalsService.create(goalData);
         }
         closeModal();
     };
@@ -713,18 +701,15 @@ const AddFundsToGoalModal: React.FC<{ goal: SavingsGoal; accounts?: Account[]; c
             currency: accounts?.find(a => a.id === +accountId)?.currency || 'USD'
         };
         
-        // FIX: Cast 'db' to Dexie to resolve incorrect type inference for the 'transaction' method.
-        await (db as Dexie).transaction('rw', db.transactions, db.accounts, db.savingsGoals, async () => {
-            await db.transactions.add(transactionData);
-            await db.accounts.where({ id: +accountId }).modify(account => {
-                account.balance -= transactionData.amount;
-            });
-            await db.savingsGoals.where({ id: goal.id! }).modify(g => {
-                g.currentAmount += transactionData.amount;
-            });
-        });
+        // Add transaction and update account and goal
+        await transactionsService.create(transactionData);
 
-        triggerAutoSync();
+        const account = accounts?.find(a => a.id === +accountId);
+        if (account) {
+            await accountsService.update(account.id!, { balance: account.balance - transactionData.amount });
+        }
+
+        await savingsGoalsService.update(goal.id!, { currentAmount: (goal.currentAmount || 0) + transactionData.amount });
         closeModal();
     };
 
@@ -743,25 +728,25 @@ const AddFundsToGoalModal: React.FC<{ goal: SavingsGoal; accounts?: Account[]; c
     );
 }
 
-const ManageCategoriesModal: React.FC<{ closeModal: () => void }> = ({ closeModal }) => {
-    const categories = useLiveQuery(() => db.categories.toArray(), []);
+const ManageCategoriesModal: React.FC<{ closeModal: () => void; transactions?: Transaction[] }> = ({ closeModal, transactions }) => {
+    const categories = useSupabaseQuery<Category>('categories');
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryType, setNewCategoryType] = useState<'income' | 'expense'>('expense');
 
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) return;
-        await db.categories.add({ name: newCategoryName.trim(), type: newCategoryType, icon: 'category' });
+        await categoriesService.create({ name: newCategoryName.trim(), type: newCategoryType, icon: 'category' });
         setNewCategoryName('');
     };
 
     const handleDeleteCategory = async (id: number) => {
-        const txCount = await db.transactions.where({ categoryId: id }).count();
-        if (txCount > 0) {
+        const txs = transactions?.filter(t => t.categoryId === id) || [];
+        if (txs.length > 0) {
             alert("Cannot delete category with associated transactions.");
             return;
         }
         if (window.confirm("Delete this category?")) {
-            await db.categories.delete(id);
+            await categoriesService.delete(id);
         }
     };
     

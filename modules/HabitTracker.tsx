@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import Dexie from 'dexie';
-import { db } from '../services/db';
-import { triggerAutoSync } from '../services/syncService';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Habit, HabitLog, Routine, HealthMetric, HealthLog, UserProfile, Badge, UserBadge } from '../types';
+import { habitsService, habitLogsService, routinesService, userProfileService, badgesService, userBadgesService } from '../services/dataService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
@@ -28,12 +26,13 @@ const HabitTracker: React.FC = () => {
     const [focusRoutine, setFocusRoutine] = useState<Routine | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
-    const habits = useLiveQuery(() => db.habits.toArray(), []);
-    const habitLogs = useLiveQuery(() => db.habitLogs.toArray(), []);
-    const routines = useLiveQuery(() => db.routines.toArray(), []);
-    const userProfile = useLiveQuery(() => db.userProfile.get(1), []);
-    const badges = useLiveQuery(() => db.badges.toArray(), []);
-    const userBadges = useLiveQuery(() => db.userBadges.toArray(), []);
+    const habits = useSupabaseQuery<Habit>('habits');
+    const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
+    const routines = useSupabaseQuery<Routine>('routines');
+    const userProfileArray = useSupabaseQuery<UserProfile>('user_profile');
+    const userProfile = userProfileArray?.[0];
+    const badges = useSupabaseQuery<Badge>('badges');
+    const userBadges = useSupabaseQuery<UserBadge>('user_badges');
 
     const streaks = useMemo(() => calculateStreaks(habits ?? [], habitLogs ?? []), [habits, habitLogs]);
 
@@ -49,13 +48,11 @@ const HabitTracker: React.FC = () => {
         if (!habit) return;
 
         const newTotalXp = (userProfile.totalXp || 0) + habit.xp;
-        await db.userProfile.update(1, { totalXp: newTotalXp });
-        triggerAutoSync();
-        
+        await userProfileService.update(1, { totalXp: newTotalXp });
+
         const earnedBadgeIds = new Set(userBadges.map(ub => ub.badgeId));
-        const allHabitLogs = await db.habitLogs.toArray();
-        const currentStreaks = calculateStreaks([habit], allHabitLogs);
-        
+        const currentStreaks = calculateStreaks([habit], habitLogs ?? []);
+
         for (const badge of badges) {
             if (earnedBadgeIds.has(badge.id)) continue;
             let earned = false;
@@ -66,17 +63,17 @@ const HabitTracker: React.FC = () => {
                     break;
                 case 'completions-10': case 'completions-100':
                     const requiredCompletions = badge.id === 'completions-10' ? 10 : 100;
-                    if (allHabitLogs.length >= requiredCompletions) earned = true;
+                    if ((habitLogs?.length ?? 0) >= requiredCompletions) earned = true;
                     break;
                 case 'xp-1000': if (newTotalXp >= 1000) earned = true; break;
             }
 
             if (earned) {
-                await db.userBadges.add({ badgeId: badge.id, earnedAt: new Date() });
+                await userBadgesService.create({ badgeId: badge.id, earnedAt: new Date() });
                 addToast({ icon: badge.icon, title: 'Badge Unlocked!', message: `You've earned the "${badge.name}" badge.` });
             }
         }
-    }, [habits, userProfile, badges, userBadges]);
+    }, [habits, userProfile, badges, userBadges, habitLogs]);
 
     const handleToggleHabit = useCallback(async (habit: Habit, date: string, isFromFocusMode = false) => {
         if (habit.origin === 'system-islamic') {
@@ -86,33 +83,31 @@ const HabitTracker: React.FC = () => {
         if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
         setUndoAction(null);
 
-        const log = await db.habitLogs.where({ habitId: habit.id!, date }).first();
+        const log = habitLogs?.find(l => l.habitId === habit.id! && l.date === date);
 
         if (log) {
-            await db.habitLogs.delete(log.id!);
-            triggerAutoSync();
-            const undoFunc = async () => { await db.habitLogs.add({ habitId: habit.id!, date }); triggerAutoSync(); };
+            await habitLogsService.delete(log.id!);
+            const undoFunc = async () => { await habitLogsService.create({ habitId: habit.id!, date }); };
             if (!isFromFocusMode) setUndoAction({ message: `"${habit.name}" marked incomplete.`, onUndo: undoFunc });
         } else {
-            const newId = await db.habitLogs.add({ habitId: habit.id!, date });
-            triggerAutoSync();
+            const newLog = await habitLogsService.create({ habitId: habit.id!, date });
             if (date === getTodayDateString()) {
                 awardXpAndCheckBadges(habit.id!);
             }
-            const undoFunc = async () => { await db.habitLogs.delete(newId); triggerAutoSync(); };
+            const undoFunc = async () => { if (newLog && newLog.id) await habitLogsService.delete(newLog.id); };
             if (!isFromFocusMode) setUndoAction({ message: `"${habit.name}" completed!`, onUndo: undoFunc });
         }
 
         if (!isFromFocusMode) {
             undoTimeoutRef.current = window.setTimeout(() => setUndoAction(null), 6000);
         }
-    }, [awardXpAndCheckBadges, addToast]);
+    }, [awardXpAndCheckBadges, addToast, habitLogs]);
 
     if (view === 'habitDetail' && selectedHabitId) {
         return <HabitDetailView habitId={selectedHabitId} setView={setView} habits={habits} habitLogs={habitLogs} setConfirmModal={setConfirmModal} />;
     }
     if (view === 'routineDetail' && selectedRoutineId) {
-        return <RoutineDetailView routineId={selectedRoutineId} setView={setView} habits={habits} />;
+        return <RoutineDetailView routineId={selectedRoutineId} setView={setView} habits={habits} routines={routines} />;
     }
 
     const activeTab = view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'calendar' ? 'Calendar' : view === 'reminders' ? 'Reminders' : 'Dashboard';
@@ -132,10 +127,11 @@ const HabitTracker: React.FC = () => {
     };
     
     const handleNewHabit = async () => {
-        const newId = await db.habits.add({ name: 'New Awesome Habit', frequency: 'daily', createdAt: new Date(), xp: 10, isFrozen: false, origin: 'user' });
-        triggerAutoSync();
-        setSelectedHabitId(newId);
-        setView('habitDetail');
+        const newHabit = await habitsService.create({ name: 'New Awesome Habit', frequency: 'daily', createdAt: new Date(), xp: 10, isFrozen: false, origin: 'user' });
+        if (newHabit && newHabit.id) {
+            setSelectedHabitId(newHabit.id);
+            setView('habitDetail');
+        }
     }
 
     return (
@@ -208,9 +204,11 @@ const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId
 
     if (todaysHabits.length === 0) {
         return <EmptyState icon="deck" title="No Habits Today" message="You have no habits scheduled for today. Ready to add one?" ctaText="+ New Habit" onCtaClick={async () => {
-            const newId = await db.habits.add({ name: 'New Awesome Habit', frequency: 'daily', createdAt: new Date(), xp: 10, isFrozen: false });
-            setSelectedHabitId(newId);
-            setView('habitDetail');
+            const newHabit = await habitsService.create({ name: 'New Awesome Habit', frequency: 'daily', createdAt: new Date(), xp: 10, isFrozen: false });
+            if (newHabit && newHabit.id) {
+                setSelectedHabitId(newHabit.id);
+                setView('habitDetail');
+            }
         }} />;
     }
 
@@ -500,20 +498,20 @@ const HabitDetailView: React.FC<{
     if(!habit) return <div>Loading...</div>
     
     const isSystemHabit = habit.origin === 'system-islamic';
-    const handleRename = async (newName: string) => { if (newName.trim() && habit.name !== newName.trim()) { await db.habits.update(habitId, { name: newName.trim() }); triggerAutoSync(); } };
-    const handleSetXp = async (newXp: number) => { if (!isNaN(newXp) && newXp >= 0) { await db.habits.update(habitId, { xp: newXp }); triggerAutoSync(); } };
+    const handleRename = async (newName: string) => { if (newName.trim() && habit.name !== newName.trim()) { await habitsService.update(habitId, { name: newName.trim() }); } };
+    const handleSetXp = async (newXp: number) => { if (!isNaN(newXp) && newXp >= 0) { await habitsService.update(habitId, { xp: newXp }); } };
     const handleDeleteHabit = async () => {
         setConfirmModal({
             isOpen: true,
             title: 'Delete Habit',
             message: `Are you sure you want to permanently delete "${habit.name}"? All its logs will also be removed.`,
             onConfirm: async () => {
-                // FIX: Cast 'db' to Dexie to resolve incorrect type inference for the 'transaction' method.
-                await (db as Dexie).transaction('rw', db.habits, db.habitLogs, async () => {
-                    await db.habitLogs.where({ habitId: habit.id! }).delete();
-                    await db.habits.delete(habit.id!);
-                });
-                triggerAutoSync();
+                // Delete all habit logs first, then delete the habit
+                const logsToDelete = habitLogs?.filter(l => l.habitId === habit.id!) ?? [];
+                for (const log of logsToDelete) {
+                    if (log.id) await habitLogsService.delete(log.id);
+                }
+                await habitsService.delete(habit.id!);
                 setConfirmModal(null);
                 setView('dashboard');
             }
@@ -564,7 +562,7 @@ const HabitDetailView: React.FC<{
 
 const RoutinesListView: React.FC<{ setView: (view: View) => void; setSelectedRoutineId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; routines?: Routine[]; }> = ({ setView, setSelectedRoutineId, habits, habitLogs, routines }) => {
     const todayStr = getTodayDateString(); const todayDay = new Date().getDay(); const completedHabitIds = new Set(habitLogs?.filter(l => l.date === todayStr).map(l => l.habitId) ?? []);
-    const handleNewRoutine = async () => { const newId = await db.routines.add({ name: 'New Routine', habitIds: [] }); triggerAutoSync(); setSelectedRoutineId(newId); setView('routineDetail'); };
+    const handleNewRoutine = async () => { const newRoutine = await routinesService.create({ name: 'New Routine', habitIds: [] }); if (newRoutine && newRoutine.id) { setSelectedRoutineId(newRoutine.id); setView('routineDetail'); } };
     return (
         <div className="space-y-6">
              <div className="flex items-center justify-between"><h2 className="text-2xl font-bold">Manage Routines</h2><button onClick={handleNewRoutine} className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg text-sm">+ New Routine</button></div>
@@ -590,17 +588,16 @@ const RoutinesListView: React.FC<{ setView: (view: View) => void; setSelectedRou
     );
 };
 
-const RoutineDetailView: React.FC<{ setView: (view: View) => void; routineId: number; habits?: Habit[]; }> = ({ setView, routineId, habits }) => {
-    const routine = useLiveQuery(() => db.routines.get(routineId), [routineId]); const [draggedHabitId, setDraggedHabitId] = useState<number | null>(null);
+const RoutineDetailView: React.FC<{ setView: (view: View) => void; routineId: number; habits?: Habit[]; routines?: Routine[]; }> = ({ setView, routineId, habits, routines }) => {
+    const routine = routines?.find(r => r.id === routineId); const [draggedHabitId, setDraggedHabitId] = useState<number | null>(null);
     const { habitsInRoutine, availableHabits } = useMemo(() => { if (!routine || !habits) return { habitsInRoutine: [], availableHabits: [] }; const habitMap = new Map(habits.map(h => [h.id!, h])); const habitsInRoutine = routine.habitIds.map(id => habitMap.get(id)).filter((h): h is Habit => !!h); const availableHabits = habits.filter(h => !routine.habitIds.includes(h.id!)); return { habitsInRoutine, availableHabits }; }, [routine, habits]);
-    const handleRename = async (newName: string) => { if (routine && newName.trim() && routine.name !== newName.trim()) { await db.routines.update(routine.id!, { name: newName.trim() }); triggerAutoSync(); } };
-    const addHabitToRoutine = async (habitId: number) => { if (!routine) return; await db.routines.update(routine.id!, { habitIds: [...routine.habitIds, habitId] }); triggerAutoSync(); };
-    const removeHabitFromRoutine = async (habitId: number) => { if (!routine) return; await db.routines.update(routine.id!, { habitIds: routine.habitIds.filter(id => id !== habitId) }); triggerAutoSync(); };
-    const handleDrop = async (targetHabitId: number) => { if (!routine || draggedHabitId === null || draggedHabitId === targetHabitId) return; const currentIds = [...routine.habitIds]; const draggedIndex = currentIds.indexOf(draggedHabitId); const targetIndex = currentIds.indexOf(targetHabitId); currentIds.splice(draggedIndex, 1); currentIds.splice(targetIndex, 0, draggedHabitId); await db.routines.update(routine.id!, { habitIds: currentIds }); triggerAutoSync(); setDraggedHabitId(null); };
+    const handleRename = async (newName: string) => { if (routine && newName.trim() && routine.name !== newName.trim()) { await routinesService.update(routine.id!, { name: newName.trim() }); } };
+    const addHabitToRoutine = async (habitId: number) => { if (!routine) return; await routinesService.update(routine.id!, { habitIds: [...routine.habitIds, habitId] }); };
+    const removeHabitFromRoutine = async (habitId: number) => { if (!routine) return; await routinesService.update(routine.id!, { habitIds: routine.habitIds.filter(id => id !== habitId) }); };
+    const handleDrop = async (targetHabitId: number) => { if (!routine || draggedHabitId === null || draggedHabitId === targetHabitId) return; const currentIds = [...routine.habitIds]; const draggedIndex = currentIds.indexOf(draggedHabitId); const targetIndex = currentIds.indexOf(targetHabitId); currentIds.splice(draggedIndex, 1); currentIds.splice(targetIndex, 0, draggedHabitId); await routinesService.update(routine.id!, { habitIds: currentIds }); setDraggedHabitId(null); };
     const handleDeleteRoutine = async () => {
         if (routine && window.confirm(`Are you sure you want to delete the routine "${routine.name}"?`)) {
-            await db.routines.delete(routine.id!);
-            triggerAutoSync();
+            await routinesService.delete(routine.id!);
             setView('routinesList');
         }
     };
@@ -647,8 +644,8 @@ const RemindersTab: React.FC<{ habits?: Habit[], onSetReminder: (habit: Habit) =
 
 const SetReminderModal: React.FC<{ habit: Habit, closeModal: () => void }> = ({ habit, closeModal }) => {
     const [enabled, setEnabled] = useState(habit.reminderEnabled ?? false); const [time, setTime] = useState(habit.reminderTime ?? '09:00');
-    const handleSave = async () => { await db.habits.update(habit.id!, { reminderEnabled: enabled, reminderTime: time }); triggerAutoSync(); closeModal(); };
-    const handleRemove = async () => { await db.habits.update(habit.id!, { reminderEnabled: false }); triggerAutoSync(); closeModal(); }
+    const handleSave = async () => { await habitsService.update(habit.id!, { reminderEnabled: enabled, reminderTime: time }); closeModal(); };
+    const handleRemove = async () => { await habitsService.update(habit.id!, { reminderEnabled: false }); closeModal(); }
     return (
         <div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary">
@@ -690,8 +687,8 @@ const HabitPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] 
     );
 };
 const CorrelationEngineWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] }> = ({ habits, habitLogs }) => {
-    const healthMetrics = useLiveQuery(() => db.healthMetrics.toArray());
-    const healthLogs = useLiveQuery(() => db.healthLogs.toArray());
+    const healthMetrics = useSupabaseQuery<HealthMetric>('health_metrics');
+    const healthLogs = useSupabaseQuery<HealthLog>('health_logs');
     const [habitId, setHabitId] = useState<string>(''); const [metricId, setMetricId] = useState<string>('');
     const correlation = useMemo(() => {
         if (!habitId || !metricId || !healthLogs) return { text: "Select a habit and a health metric to see their correlation.", value: 0 };
@@ -722,8 +719,8 @@ const StreakFreezeModal: React.FC<{ habit: Habit, closeModal: () => void }> = ({
     const fromStr = typeof habit.frozenFrom === 'string' ? habit.frozenFrom : (habit.frozenFrom ? new Date(habit.frozenFrom).toISOString().split('T')[0] : '');
     const toStr = typeof habit.frozenTo === 'string' ? habit.frozenTo : (habit.frozenTo ? new Date(habit.frozenTo).toISOString().split('T')[0] : '');
     const [from, setFrom] = useState(fromStr); const [to, setTo] = useState(toStr);
-    const handleSave = async () => { await db.habits.update(habit.id!, { isFrozen: true, frozenFrom: from, frozenTo: to }); triggerAutoSync(); closeModal(); };
-    const handleUnfreeze = async () => { await db.habits.update(habit.id!, { isFrozen: false, frozenFrom: undefined, frozenTo: undefined }); triggerAutoSync(); closeModal(); };
+    const handleSave = async () => { await habitsService.update(habit.id!, { isFrozen: true, frozenFrom: from, frozenTo: to }); closeModal(); };
+    const handleUnfreeze = async () => { await habitsService.update(habit.id!, { isFrozen: false, frozenFrom: undefined, frozenTo: undefined }); closeModal(); };
     return (<div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary"><h2 className="text-2xl font-bold mb-6">Freeze Streak for "{habit.name}"</h2><div className="grid grid-cols-2 gap-4"><label className="block text-sm font-medium text-text-secondary mb-2">From</label><label className="block text-sm font-medium text-text-secondary mb-2">To</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent" /><input type="date" value={to} onChange={e => setTo(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent" /></div><div className="flex justify-between items-center mt-6"><button onClick={handleUnfreeze} disabled={!habit.isFrozen} className="text-red-500 hover:underline disabled:opacity-50 text-sm">Unfreeze</button><div className="space-x-2"><button onClick={closeModal} className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg">Cancel</button><button onClick={handleSave} className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-4 rounded-lg">Save</button></div></div></div></div>);
 };
 

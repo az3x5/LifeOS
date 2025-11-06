@@ -1,9 +1,10 @@
 
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { FastingLog, LearningMaterial, LearningLog, Bookmark, IslamicEvent, HabitLog, PrayerLog } from '../types';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import type { DailyReflection } from '../types';
+import { FastingLog, LearningMaterial, LearningLog, Bookmark, IslamicEvent, HabitLog, PrayerLog, Habit } from '../types';
+import { learningMaterialsService, learningLogsService, bookmarksService, fastingLogsService, prayerLogsService, dailyReflectionsService, habitsService, habitLogsService, islamicEventsService } from '../services/dataService';
 import { surahData } from '../data/quran-data';
 import { duas } from '../data/duas-data';
 import { GoogleGenAI, Type } from '@google/genai';
@@ -76,9 +77,10 @@ const IslamicKnowledge: React.FC = () => {
 
 
 const KnowledgeHub: React.FC<{ addToast: (message: string) => void }> = ({ addToast }) => {
-    const materials = useLiveQuery(() => db.learningMaterials.toArray(), []);
-    const learningLogs = useLiveQuery(() => db.learningLogs.toArray(), []);
-    const bookmarks = useLiveQuery(() => db.bookmarks.orderBy('createdAt').reverse().toArray(), []);
+    const materials = useSupabaseQuery<LearningMaterial>('learning_materials');
+    const learningLogs = useSupabaseQuery<LearningLog>('learning_logs');
+    const allBookmarks = useSupabaseQuery<Bookmark>('bookmarks');
+    const bookmarks = useMemo(() => (allBookmarks ?? []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [allBookmarks]);
     
     const [selectedArticle, setSelectedArticle] = useState<LearningMaterial | null>(null);
 
@@ -90,21 +92,22 @@ const KnowledgeHub: React.FC<{ addToast: (message: string) => void }> = ({ addTo
     }, [bookmarks, materials]);
     
     const handleBookmarkToggle = async (materialId: number) => {
-        const existing = await db.bookmarks.where({ materialId }).first();
+        const existing = bookmarks?.find(b => b.materialId === materialId);
         if (existing) {
-            await db.bookmarks.delete(existing.id!);
+            await bookmarksService.delete(existing.id!);
             addToast("Bookmark removed.");
         } else {
-            await db.bookmarks.add({ materialId, createdAt: new Date() });
+            await bookmarksService.create({ materialId, createdAt: new Date() } as Bookmark);
             addToast("Article bookmarked!");
         }
     };
 
     const handleMarkAsRead = async () => {
         const todayStr = new Date().toISOString().split('T')[0];
-        const todayLog = await db.learningLogs.where({ date: todayStr }).first();
+        const allLogs = await learningLogsService.getAll();
+        const todayLog = allLogs.find(l => l.date === todayStr);
         if (!todayLog) {
-            await db.learningLogs.add({ date: todayStr });
+            await learningLogsService.create({ date: todayStr } as LearningLog);
             addToast("Today's learning goal completed!");
         }
     };
@@ -199,10 +202,13 @@ const AISuggestions: React.FC = () => {
         setSuggestion(null);
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const recentFasts = await db.fastingLogs.orderBy('date').reverse().limit(2).toArray();
-            const recentBookmarks = await db.bookmarks.orderBy('createdAt').reverse().limit(2).toArray();
+            const allFasts = await fastingLogsService.getAll();
+            const recentFasts = allFasts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 2);
+            const allBookmarks = await bookmarksService.getAll();
+            const recentBookmarks = allBookmarks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 2);
+            const allMaterials = await learningMaterialsService.getAll();
             const bookmarkedMaterials = recentBookmarks.length > 0
-                ? await db.learningMaterials.where('id').anyOf(recentBookmarks.map(b => b.materialId)).toArray()
+                ? recentBookmarks.map(b => allMaterials.find(m => m.id === b.materialId)).filter((m): m is LearningMaterial => !!m)
                 : [];
             
             let context = "A user is looking for a suggestion on what to learn about in Islam.";
@@ -292,7 +298,8 @@ const parseContent = (text: string): string => {
 };
 
 const ArticleModal: React.FC<{ material: LearningMaterial; onClose: () => void; onMarkAsRead: () => void; }> = ({ material, onClose, onMarkAsRead }) => {
-    const bookmark = useLiveQuery(() => db.bookmarks.where({ materialId: material.id }).first(), [material.id]);
+    const allBookmarks = useSupabaseQuery<Bookmark>('bookmarks');
+    const bookmark = useMemo(() => allBookmarks?.find(b => b.materialId === material.id), [allBookmarks, material.id]);
     const [notes, setNotes] = useState(bookmark?.notes ?? '');
 
     const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -301,7 +308,7 @@ const ArticleModal: React.FC<{ material: LearningMaterial; onClose: () => void; 
 
     const saveNotes = useCallback(async () => {
         if (bookmark && notes !== bookmark.notes) {
-            await db.bookmarks.update(bookmark.id!, { notes });
+            await bookmarksService.update(bookmark.id!, { notes });
         }
     }, [bookmark, notes]);
 
@@ -408,7 +415,8 @@ const DailyReflection: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const dailyReflection = useLiveQuery(() => db.dailyReflections.get(todayStr), [todayStr]);
+    const allReflections = useSupabaseQuery<DailyReflection>('daily_reflections');
+    const dailyReflection = useMemo(() => allReflections?.find(r => r.date === todayStr), [allReflections, todayStr]);
 
     useEffect(() => {
         const fetchReflection = async () => {
@@ -453,7 +461,11 @@ const DailyReflection: React.FC = () => {
                 const jsonText = response.text.replace(/```json|```/g, '').trim();
                 const jsonResponse = JSON.parse(jsonText);
                 setReflection(jsonResponse);
-                await db.dailyReflections.put({ date: todayStr, content: jsonResponse });
+                if (dailyReflection) {
+                    await dailyReflectionsService.update(todayStr, { content: jsonResponse });
+                } else {
+                    await dailyReflectionsService.create({ date: todayStr, content: jsonResponse } as DailyReflection);
+                }
             } catch (err) {
                 console.error("Error fetching daily reflection:", err);
                 setError("Could not fetch a reflection today. Please check your connection or try again later.");
@@ -494,18 +506,20 @@ const DailyReflection: React.FC = () => {
 const PRAYERS: PrayerLog['prayer'][] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 const syncPrayerHabitLog = async (prayerName: PrayerLog['prayer'], date: string, isCompleted: boolean) => {
-    const integrationEnabled = (await db.settings.get('islamicHabitIntegration'))?.value;
-    if (!integrationEnabled) return;
+    // Note: Settings integration is not yet implemented in Supabase
+    // TODO: Implement settings service and check for islamicHabitIntegration
 
-    const prayerHabit = await db.habits.where({ origin: 'system-islamic', name: prayerName }).first();
+    const allHabits = await habitsService.getAll();
+    const prayerHabit = allHabits.find(h => h.origin === 'system-islamic' && h.name === prayerName);
     if (!prayerHabit) return;
 
-    const existingLog = await db.habitLogs.where({ habitId: prayerHabit.id!, date }).first();
+    const allLogs = await habitLogsService.getAll();
+    const existingLog = allLogs.find(l => l.habitId === prayerHabit.id! && l.date === date);
 
     if (isCompleted && !existingLog) {
-        await db.habitLogs.add({ habitId: prayerHabit.id!, date });
+        await habitLogsService.create({ habitId: prayerHabit.id!, date } as HabitLog);
     } else if (!isCompleted && existingLog) {
-        await db.habitLogs.delete(existingLog.id!);
+        await habitLogsService.delete(existingLog.id!);
     }
 };
 
@@ -532,7 +546,7 @@ const PrayerTracker: React.FC = () => {
         return date;
     }), [weekStart]);
 
-    const prayerLogs = useLiveQuery(() => db.prayerLogs.toArray(), []);
+    const prayerLogs = useSupabaseQuery<PrayerLog>('prayer_logs');
 
     const weeklyLogs = useMemo(() => {
         const map = new Map<string, Set<PrayerLog['prayer']>>();
@@ -544,16 +558,17 @@ const PrayerTracker: React.FC = () => {
         });
         return map;
     }, [prayerLogs]);
-    
+
     const handleTogglePrayer = async (date: Date, prayer: PrayerLog['prayer']) => {
         const dateStr = date.toISOString().split('T')[0];
-        const log = await db.prayerLogs.where({ date: dateStr, prayer }).first();
+        const allLogs = await prayerLogsService.getAll();
+        const log = allLogs.find(l => l.date === dateStr && l.prayer === prayer);
 
         if (log) {
-            await db.prayerLogs.delete(log.id!);
+            await prayerLogsService.delete(log.id!);
             await syncPrayerHabitLog(prayer, dateStr, false);
         } else {
-            await db.prayerLogs.add({ date: dateStr, prayer });
+            await prayerLogsService.create({ date: dateStr, prayer } as PrayerLog);
             await syncPrayerHabitLog(prayer, dateStr, true);
         }
     };
@@ -645,7 +660,7 @@ const PrayerTracker: React.FC = () => {
 
 
 const FastingTracker: React.FC<{ setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void }> = ({ setConfirmModal }) => {
-    const fastingLogs = useLiveQuery(() => db.fastingLogs.toArray(), []);
+    const fastingLogs = useSupabaseQuery<FastingLog>('fasting_logs');
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -704,7 +719,7 @@ const FastingTracker: React.FC<{ setConfirmModal: (modal: { isOpen: boolean; tit
 const IslamicCalendar: React.FC<{ setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void }> = ({ setConfirmModal }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
-    const userEvents = useLiveQuery(() => db.islamicEvents.toArray(), []);
+    const userEvents = useSupabaseQuery<IslamicEvent>('islamic_events');
 
     const userEventsByDate = useMemo(() => {
         return userEvents?.reduce((acc: any, event) => {
@@ -795,9 +810,13 @@ const EventModal: React.FC<{
 
     const handleSave = async () => {
         if (notes.trim()) {
-            await db.islamicEvents.put({ gregorianDate: dateStr, notes: notes.trim() });
+            if (userEvent) {
+                await islamicEventsService.update(userEvent.id!, { notes: notes.trim() });
+            } else {
+                await islamicEventsService.create({ gregorianDate: dateStr, notes: notes.trim() } as IslamicEvent);
+            }
         } else if (userEvent) {
-            await db.islamicEvents.delete(userEvent.gregorianDate);
+            await islamicEventsService.delete(userEvent.id!);
         }
         closeModal();
     };
@@ -810,7 +829,7 @@ const EventModal: React.FC<{
                 message: "Are you sure? This will delete your custom note.",
                 icon: '📅',
                 onConfirm: async () => {
-                    await db.islamicEvents.delete(userEvent.gregorianDate);
+                    await islamicEventsService.delete(userEvent.id!);
                     setConfirmModal(null);
                     closeModal();
                 }
@@ -952,19 +971,21 @@ const CalendarGrid: React.FC<{ currentDate: Date; logsByDate: Record<string, Fas
 };
 
 const syncHabitLog = async (date: string, status: FastingLog['status'], previousStatus?: FastingLog['status']) => {
-    const integrationEnabled = (await db.settings.get('islamicHabitIntegration'))?.value;
-    if (!integrationEnabled) return;
+    // Note: Settings integration is not yet implemented in Supabase
+    // TODO: Implement settings service and check for islamicHabitIntegration
 
-    const fastingHabit = await db.habits.where({ origin: 'system-islamic', name: 'Fasting' }).first();
+    const allHabits = await habitsService.getAll();
+    const fastingHabit = allHabits.find(h => h.origin === 'system-islamic' && h.name === 'Fasting');
     if (!fastingHabit) return;
 
-    const habitLogExists = await db.habitLogs.where({ habitId: fastingHabit.id!, date }).first();
+    const allLogs = await habitLogsService.getAll();
+    const habitLogExists = allLogs.find(l => l.habitId === fastingHabit.id! && l.date === date);
 
     if (status === 'completed' && !habitLogExists) {
-        await db.habitLogs.add({ habitId: fastingHabit.id!, date });
+        await habitLogsService.create({ habitId: fastingHabit.id!, date } as HabitLog);
     } else if (status !== 'completed' && habitLogExists) {
         if (previousStatus === 'completed' || previousStatus === undefined) {
-             await db.habitLogs.delete(habitLogExists.id!);
+             await habitLogsService.delete(habitLogExists.id!);
         }
     }
 };
@@ -981,9 +1002,9 @@ const AddFastLogModal: React.FC<{
     const handleSubmit = async () => {
         const logData = { date, type, status };
         if (existingLog) {
-            await db.fastingLogs.update(existingLog.id!, logData);
+            await fastingLogsService.update(existingLog.id!, logData);
         } else {
-            await db.fastingLogs.add(logData);
+            await fastingLogsService.create(logData as FastingLog);
         }
         await syncHabitLog(date, status, existingLog?.status);
         closeModal();
@@ -997,7 +1018,7 @@ const AddFastLogModal: React.FC<{
                 message: "Are you sure you want to delete this log?",
                 icon: '🌙',
                 onConfirm: async () => {
-                    await db.fastingLogs.delete(existingLog.id!);
+                    await fastingLogsService.delete(existingLog.id!);
                     if (existingLog.status === 'completed') {
                         await syncHabitLog(date, 'missed', 'completed'); // Effectively deletes the habit log
                     }

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import React, { useState, useMemo } from 'react';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { AppNotification, Module } from '../types';
+import { notificationsService } from '../services/dataService';
 import FinanceIcon from './icons/FinanceIcon';
 import HabitIcon from './icons/HabitIcon';
 import IslamicIcon from './icons/IslamicIcon';
@@ -44,16 +44,27 @@ const NotificationItem: React.FC<{
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
 
-    const notifications = useLiveQuery(() =>
-        db.notifications.where('status').equals('unread').reverse().sortBy('timestamp')
-    , []);
+    const allNotifications = useSupabaseQuery<AppNotification>('notifications');
+    const notifications = React.useMemo(() => {
+        const unread = (allNotifications ?? []).filter(n => n.status === 'unread');
+        return unread.sort((a, b) => {
+            const aTime = a.timestamp ? (typeof a.timestamp === 'string' ? new Date(a.timestamp).getTime() : a.timestamp.getTime()) : 0;
+            const bTime = b.timestamp ? (typeof b.timestamp === 'string' ? new Date(b.timestamp).getTime() : b.timestamp.getTime()) : 0;
+            return bTime - aTime;
+        });
+    }, [allNotifications]);
 
     const handleMarkAsRead = async (id: number) => {
-        await db.notifications.update(id, { status: 'read' });
+        await notificationsService.update(id, { status: 'read' });
     };
 
     const handleMarkAllRead = async () => {
-        await db.notifications.where('status').equals('unread').modify({ status: 'read' });
+        const unread = (allNotifications ?? []).filter(n => n.status === 'unread');
+        for (const notif of unread) {
+            if (notif.id) {
+                await notificationsService.update(notif.id, { status: 'read' });
+            }
+        }
     };
 
     const handleClearRead = async () => {
@@ -63,9 +74,11 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
             message: "Are you sure you want to clear all read notifications?",
             icon: '🔔',
             onConfirm: async () => {
-                const readIds = (await db.notifications.where('status').equals('read').toArray()).map(n => n.id!);
-                if (readIds.length > 0) {
-                    await db.notifications.bulkDelete(readIds);
+                const readNotifs = (allNotifications ?? []).filter(n => n.status === 'read');
+                for (const notif of readNotifs) {
+                    if (notif.id) {
+                        await notificationsService.delete(notif.id);
+                    }
                 }
                 setConfirmModal(null);
             }

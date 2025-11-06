@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import Dexie from 'dexie';
-import { db } from '../../services/db';
-import { triggerAutoSync } from '../../services/syncService';
-import { Category, Account } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { useSupabaseQuery } from '../../hooks/useSupabaseQuery';
+import { Category, Account, Transaction } from '../../types';
+import { transactionsService, accountsService } from '../../services/dataService';
 
 interface QuickAddTransactionModalProps {
     closeModal: () => void;
@@ -17,8 +15,9 @@ const QuickAddTransactionModal: React.FC<QuickAddTransactionModalProps> = ({ clo
     const [categoryId, setCategoryId] = useState('');
     const [accountId, setAccountId] = useState('');
     
-    const categories = useLiveQuery(() => db.categories.where('type').equals('expense').toArray(), []);
-    const accounts = useLiveQuery(() => db.accounts.toArray(), []);
+    const allCategories = useSupabaseQuery<Category>('categories');
+    const categories = React.useMemo(() => (allCategories ?? []).filter(c => c.type === 'expense'), [allCategories]);
+    const accounts = useSupabaseQuery<Account>('accounts');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,15 +49,16 @@ const QuickAddTransactionModal: React.FC<QuickAddTransactionModalProps> = ({ clo
             currency: selectedAccount.currency,
         };
 
-        await (db as Dexie).transaction('rw', db.transactions, db.accounts, async () => {
-            await db.transactions.add(transactionData);
-            // Decrease account balance for expense
-            await db.accounts.where({ id: parseInt(accountId) }).modify(account => {
-                account.balance -= transactionData.amount;
-            });
-        });
+        // Add transaction
+        await transactionsService.create(transactionData as Transaction);
 
-        triggerAutoSync();
+        // Decrease account balance for expense
+        if (selectedAccount.balance !== undefined) {
+            await accountsService.update(parseInt(accountId), {
+                balance: selectedAccount.balance - transactionData.amount
+            });
+        }
+
         closeModal();
     };
 

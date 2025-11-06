@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../services/db';
-import { PrayerLog } from '../../types';
+import { useSupabaseQuery } from '../../hooks/useSupabaseQuery';
+import { PrayerLog, Habit, HabitLog, Setting } from '../../types';
+import { prayerLogsService, habitsService, habitLogsService, settingsService } from '../../services/dataService';
 
 interface QuickLogPrayerModalProps {
     closeModal: () => void;
@@ -12,26 +12,31 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 const QuickLogPrayerModal: React.FC<QuickLogPrayerModalProps> = ({ closeModal }) => {
     const todayStr = useMemo(() => getTodayDateString(), []);
-    const prayerLogs = useLiveQuery(() => db.prayerLogs.where({ date: todayStr }).toArray(), [todayStr]);
+    const allPrayerLogs = useSupabaseQuery<PrayerLog>('prayer_logs');
+    const prayerLogs = useMemo(() => (allPrayerLogs ?? []).filter(p => p.date === todayStr), [allPrayerLogs, todayStr]);
     const loggedPrayers = useMemo(() => new Set(prayerLogs?.map(p => p.prayer) ?? []), [prayerLogs]);
     
     const syncPrayerHabitLog = async (prayerName: PrayerLog['prayer'], date: string) => {
-        const integrationEnabled = (await db.settings.get('islamicHabitIntegration'))?.value;
+        const allSettings = await settingsService.getAll();
+        const integrationSetting = allSettings.find(s => s.key === 'islamicHabitIntegration');
+        const integrationEnabled = integrationSetting?.value;
         if (!integrationEnabled) return;
 
-        const prayerHabit = await db.habits.where({ origin: 'system-islamic', name: prayerName }).first();
+        const allHabits = await habitsService.getAll();
+        const prayerHabit = allHabits.find(h => h.origin === 'system-islamic' && h.name === prayerName);
         if (!prayerHabit) return;
 
-        const habitLogExists = await db.habitLogs.where({ habitId: prayerHabit.id!, date }).first();
+        const allLogs = await habitLogsService.getAll();
+        const habitLogExists = allLogs.find(l => l.habitId === prayerHabit.id! && l.date === date);
         if (!habitLogExists) {
-            await db.habitLogs.add({ habitId: prayerHabit.id!, date });
+            await habitLogsService.create({ habitId: prayerHabit.id!, date } as HabitLog);
         }
     };
 
     const handleLogPrayer = async (prayer: PrayerLog['prayer']) => {
         if (loggedPrayers.has(prayer)) return;
 
-        await db.prayerLogs.add({ date: todayStr, prayer });
+        await prayerLogsService.create({ date: todayStr, prayer });
         await syncPrayerHabitLog(prayer, todayStr);
     };
 

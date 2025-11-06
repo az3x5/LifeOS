@@ -1,0 +1,210 @@
+import { supabase } from './supabase';
+import {
+    Account, Transaction, Category, Budget, SavingsGoal,
+    Habit, HabitLog, Routine, UserProfile, Badge, UserBadge,
+    HealthMetric, HealthLog, HealthGoal,
+    Note, Folder,
+    FastingLog, PrayerLog, LearningMaterial, LearningLog, Bookmark,
+    IslamicEvent, DailyReflection, Setting, SmartInsight, AppNotification, Reminder
+} from '../types';
+
+/**
+ * Convert camelCase to snake_case
+ */
+function toSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/**
+ * Convert snake_case to camelCase
+ */
+function toCamelCase(str: string): string {
+    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Convert object keys from camelCase to snake_case
+ */
+function convertToSnakeCase(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        const snakeKey = toSnakeCase(key);
+        result[snakeKey] = value;
+    }
+    return result;
+}
+
+/**
+ * Convert object keys from snake_case to camelCase
+ */
+function convertToCamelCase(obj: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        const camelKey = toCamelCase(key);
+        result[camelKey] = value;
+    }
+    return result;
+}
+
+/**
+ * Get the current authenticated user ID
+ */
+export async function getUserId(): Promise<string | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
+}
+
+/**
+ * Generic fetch function for any table
+ */
+export async function fetchFromSupabase<T>(
+    tableName: string,
+    filters?: Record<string, any>
+): Promise<T[]> {
+    try {
+        const userId = await getUserId();
+        if (!userId) return [];
+
+        let query = supabase.from(tableName).select('*').eq('user_id', userId);
+
+        if (filters) {
+            for (const [key, value] of Object.entries(filters)) {
+                query = query.eq(toSnakeCase(key), value);
+            }
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error(`Error fetching from ${tableName}:`, error);
+            return [];
+        }
+
+        return (data || []).map(item => convertToCamelCase(item)) as T[];
+    } catch (error) {
+        console.error(`Failed to fetch ${tableName}:`, error);
+        return [];
+    }
+}
+
+/**
+ * Generic insert function for any table
+ */
+export async function insertToSupabase<T>(
+    tableName: string,
+    data: T
+): Promise<T | null> {
+    try {
+        const userId = await getUserId();
+        if (!userId) return null;
+
+        const dataWithUser = { ...data, user_id: userId };
+        const snakeCaseData = convertToSnakeCase(dataWithUser);
+
+        const { data: result, error } = await supabase
+            .from(tableName)
+            .insert([snakeCaseData])
+            .select()
+            .single();
+
+        if (error) {
+            console.error(`Error inserting into ${tableName}:`, error);
+            return null;
+        }
+
+        return convertToCamelCase(result) as T;
+    } catch (error) {
+        console.error(`Failed to insert into ${tableName}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Generic update function for any table
+ */
+export async function updateInSupabase<T>(
+    tableName: string,
+    id: number | string,
+    data: Partial<T>
+): Promise<T | null> {
+    try {
+        const snakeCaseData = convertToSnakeCase(data as Record<string, any>);
+
+        const { data: result, error } = await supabase
+            .from(tableName)
+            .update(snakeCaseData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error(`Error updating ${tableName}:`, error);
+            return null;
+        }
+
+        return convertToCamelCase(result) as T;
+    } catch (error) {
+        console.error(`Failed to update ${tableName}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Generic delete function for any table
+ */
+export async function deleteFromSupabase(
+    tableName: string,
+    id: number | string
+): Promise<boolean> {
+    try {
+        const { error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error(`Error deleting from ${tableName}:`, error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error(`Failed to delete from ${tableName}:`, error);
+        return false;
+    }
+}
+
+/**
+ * Subscribe to real-time changes for a table
+ */
+export function subscribeToTable<T>(
+    tableName: string,
+    callback: (data: T[]) => void
+): (() => void) | null {
+    try {
+        const subscription = supabase
+            .channel(`${tableName}_changes`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: tableName,
+                },
+                async () => {
+                    // Refetch data when changes occur
+                    const data = await fetchFromSupabase<T>(tableName);
+                    callback(data);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
+    } catch (error) {
+        console.error(`Failed to subscribe to ${tableName}:`, error);
+        return null;
+    }
+}
+

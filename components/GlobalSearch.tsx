@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { db } from '../services/db';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Module, Note, Transaction, Habit } from '../types';
 
 type SearchResult = (Note | Transaction | Habit) & { resultType: 'Note' | 'Transaction' | 'Habit' };
@@ -9,7 +9,11 @@ const GlobalSearch: React.FC<{setActiveModule: (module: Module) => void}> = ({ s
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
 
-    const performSearch = useCallback(async (searchQuery: string) => {
+    const allNotes = useSupabaseQuery<Note>('notes');
+    const allTransactions = useSupabaseQuery<Transaction>('transactions');
+    const allHabits = useSupabaseQuery<Habit>('habits');
+
+    const performSearch = useCallback((searchQuery: string) => {
         if (searchQuery.length < 2) {
             setResults([]);
             return;
@@ -17,19 +21,17 @@ const GlobalSearch: React.FC<{setActiveModule: (module: Module) => void}> = ({ s
 
         const lowerCaseQuery = searchQuery.toLowerCase();
 
-        const notesPromise = db.notes
-            .filter(note => note.title.toLowerCase().includes(lowerCaseQuery) || note.content.toLowerCase().includes(lowerCaseQuery))
-            .limit(5).toArray();
-            
-        const transactionsPromise = db.transactions
-            .filter(t => t.description.toLowerCase().includes(lowerCaseQuery))
-            .limit(5).toArray();
+        const notes = (allNotes ?? [])
+            .filter(note => (note.title?.toLowerCase().includes(lowerCaseQuery) || note.content?.toLowerCase().includes(lowerCaseQuery)))
+            .slice(0, 5);
 
-        const habitsPromise = db.habits
+        const transactions = (allTransactions ?? [])
+            .filter(t => t.description?.toLowerCase().includes(lowerCaseQuery))
+            .slice(0, 5);
+
+        const habits = (allHabits ?? [])
             .filter(h => h.name.toLowerCase().includes(lowerCaseQuery))
-            .limit(5).toArray();
-
-        const [notes, transactions, habits] = await Promise.all([notesPromise, transactionsPromise, habitsPromise]);
+            .slice(0, 5);
 
         const combinedResults: SearchResult[] = [
             ...notes.map(n => ({ ...n, resultType: 'Note' as const })),
@@ -38,7 +40,7 @@ const GlobalSearch: React.FC<{setActiveModule: (module: Module) => void}> = ({ s
         ];
 
         setResults(combinedResults);
-    }, []);
+    }, [allNotes, allTransactions, allHabits]);
 
     useEffect(() => {
         const handler = setTimeout(() => {

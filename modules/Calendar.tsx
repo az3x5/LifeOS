@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import { Habit, HabitLog, FastingLog, IslamicEvent } from '../types';
+import { habitLogsService, fastingLogsService, islamicEventsService } from '../services/dataService';
 import { gregorianToHijri, getMajorEventsForDate } from '../utils/islamic-calendar';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
@@ -20,10 +20,10 @@ const Calendar: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
 
-    const habits = useLiveQuery(() => db.habits.toArray(), []);
-    const habitLogs = useLiveQuery(() => db.habitLogs.toArray(), []);
-    const fastingLogs = useLiveQuery(() => db.fastingLogs.toArray(), []);
-    const islamicEvents = useLiveQuery(() => db.islamicEvents.toArray(), []);
+    const habits = useSupabaseQuery<Habit>('habits');
+    const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
+    const fastingLogs = useSupabaseQuery<FastingLog>('fasting_logs');
+    const islamicEvents = useSupabaseQuery<IslamicEvent>('islamic_events');
 
     const changeMonth = (offset: number) => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
@@ -239,7 +239,7 @@ const DayDetailModal: React.FC<{
                 message: 'Are you sure you want to delete this fasting log?',
                 icon: '🌙',
                 onConfirm: async () => {
-                    await db.fastingLogs.delete(dayFastingLog.id!);
+                    await fastingLogsService.delete(dayFastingLog.id!);
                     setConfirmModal(null);
                     onClose();
                 }
@@ -255,7 +255,7 @@ const DayDetailModal: React.FC<{
                 message: 'Are you sure you want to delete this note?',
                 icon: '📅',
                 onConfirm: async () => {
-                    await db.islamicEvents.delete(dayIslamicEvent.gregorianDate);
+                    await islamicEventsService.delete(dayIslamicEvent.id!);
                     setConfirmModal(null);
                     onClose();
                 }

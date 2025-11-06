@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { Setting } from '../types';
 import { supabase } from '../services/supabase';
 import AlertModal from '../components/modals/AlertModal';
 import ConfirmModal from '../components/modals/ConfirmModal';
@@ -18,6 +18,7 @@ import {
     getLockTimeout
 } from '../services/securityService';
 import { getThemeMode, setThemeMode, type ThemeMode } from '../services/themeService';
+import { habitsService, habitLogsService, notesService, accountsService, transactionsService, healthMetricsService, healthLogsService, remindersService, fastingLogsService, islamicEventsService, dailyReflectionsService, settingsService } from '../services/dataService';
 
 const Settings: React.FC = () => {
     const [user, setUser] = useState<any>(null);
@@ -40,7 +41,8 @@ const Settings: React.FC = () => {
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
     const [pinSetupModal, setPinSetupModal] = useState<{ isOpen: boolean; mode: 'setup' | 'change' } | null>(null);
 
-    const integrationSetting = useLiveQuery(() => db.settings.get('islamicHabitIntegration'));
+    const allSettings = useSupabaseQuery<Setting>('settings');
+    const integrationSetting = useMemo(() => allSettings?.find(s => s.key === 'islamicHabitIntegration'), [allSettings]);
     const integrationEnabled = integrationSetting?.value ?? false;
 
     useEffect(() => {
@@ -98,17 +100,17 @@ const Settings: React.FC = () => {
     const handleExportData = async () => {
         try {
             const data = {
-                habits: await db.habits.toArray(),
-                habitLogs: await db.habitLogs.toArray(),
-                notes: await db.notes.toArray(),
-                accounts: await db.accounts.toArray(),
-                transactions: await db.transactions.toArray(),
-                healthMetrics: await db.healthMetrics.toArray(),
-                healthLogs: await db.healthLogs.toArray(),
-                reminders: await db.reminders.toArray(),
-                fastingLogs: await db.fastingLogs.toArray(),
-                islamicEvents: await db.islamicEvents.toArray(),
-                dailyReflections: await db.dailyReflections.toArray(),
+                habits: await habitsService.getAll(),
+                habitLogs: await habitLogsService.getAll(),
+                notes: await notesService.getAll(),
+                accounts: await accountsService.getAll(),
+                transactions: await transactionsService.getAll(),
+                healthMetrics: await healthMetricsService.getAll(),
+                healthLogs: await healthLogsService.getAll(),
+                reminders: await remindersService.getAll(),
+                fastingLogs: await fastingLogsService.getAll(),
+                islamicEvents: await islamicEventsService.getAll(),
+                dailyReflections: await dailyReflectionsService.getAll(),
             };
 
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -144,12 +146,14 @@ const Settings: React.FC = () => {
             message: 'Are you sure you want to delete ALL local data? This action cannot be undone. Your cloud data will remain safe.',
             onConfirm: async () => {
                 try {
-                    await db.delete();
-                    await db.open();
+                    // Clear localStorage
+                    localStorage.clear();
+                    // Note: Supabase data will remain on the server
+                    // To fully clear, user would need to delete account
                     setAlertModal({
                         isOpen: true,
                         title: 'Data Cleared',
-                        message: 'All local data has been cleared successfully.',
+                        message: 'All local data has been cleared successfully. Cloud data remains safe.',
                         icon: '🗑️'
                     });
                 } catch (error: any) {
@@ -291,27 +295,35 @@ const Settings: React.FC = () => {
 
     const handleToggleIntegration = async () => {
         const newValue = !integrationEnabled;
-        await db.settings.put({ key: 'islamicHabitIntegration', value: newValue });
-    
+        // Update or create setting
+        if (integrationSetting) {
+            // Settings use key as primary key, so we need to delete and recreate
+            await settingsService.delete(integrationSetting.key as any);
+            await settingsService.create({ key: 'islamicHabitIntegration', value: newValue });
+        } else {
+            await settingsService.create({ key: 'islamicHabitIntegration', value: newValue });
+        }
+
         if (newValue) {
             // Create system habits if they don't exist
-            const existingFastingHabit = await db.habits.where({ origin: 'system-islamic', name: 'Fasting' }).first();
+            const allHabits = await habitsService.getAll();
+            const existingFastingHabit = allHabits.find(h => h.origin === 'system-islamic' && h.name === 'Fasting');
             if (!existingFastingHabit) {
-                await db.habits.add({
+                await habitsService.create({
                     name: 'Fasting',
                     frequency: 'daily',
                     createdAt: new Date(),
                     xp: 25,
                     isFrozen: false,
                     origin: 'system-islamic'
-                });
+                } as any);
             }
-            
+
             const prayerHabitNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
             for (const prayerName of prayerHabitNames) {
-                 const existingPrayerHabit = await db.habits.where({ origin: 'system-islamic', name: prayerName }).first();
+                 const existingPrayerHabit = allHabits.find(h => h.origin === 'system-islamic' && h.name === prayerName);
                  if (!existingPrayerHabit) {
-                     await db.habits.add({
+                     await habitsService.create({
                         name: prayerName,
                         frequency: 'daily',
                         createdAt: new Date(),
@@ -319,7 +331,7 @@ const Settings: React.FC = () => {
                         isFrozen: true, // Frozen until prayer tracking is implemented
                         frozenFrom: new Date().toISOString().split('T')[0],
                         origin: 'system-islamic'
-                     });
+                     } as any);
                  }
             }
             setAlertModal({
@@ -605,7 +617,7 @@ const Settings: React.FC = () => {
                                         });
                                     } else {
                                         // Clear local data on sign out
-                                        await db.delete();
+                                        localStorage.clear();
                                         window.location.reload();
                                     }
                                     setConfirmModal(null);
