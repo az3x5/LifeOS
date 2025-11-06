@@ -218,20 +218,38 @@ async function syncTransactions() {
 
 async function syncHabits() {
     const localData = await db.habits.toArray();
-    return syncTable('habits', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        name: item.name,
-        description: item.description,
-        category: item.category,
-        frequency: item.frequency,
-        target_days: item.targetDays ? JSON.stringify(item.targetDays) : null,
-        color: item.color,
-        icon: item.icon,
-        reminder_time: item.reminderTime,
-        is_active: item.isActive,
-        created_at: item.createdAt,
-    }));
+    return syncTable('habits', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+            frequency: item.frequency,
+            created_at: item.createdAt,
+        };
+        // Only add optional fields if they exist
+        if (item.description !== undefined && item.description !== null) {
+            data.description = item.description;
+        }
+        if (item.category !== undefined && item.category !== null) {
+            data.category = item.category;
+        }
+        if (item.targetDays !== undefined && item.targetDays !== null) {
+            data.target_days = JSON.stringify(item.targetDays);
+        }
+        if (item.color !== undefined && item.color !== null) {
+            data.color = item.color;
+        }
+        if (item.icon !== undefined && item.icon !== null) {
+            data.icon = item.icon;
+        }
+        if (item.reminderTime !== undefined && item.reminderTime !== null) {
+            data.reminder_time = item.reminderTime;
+        }
+        if (item.isActive !== undefined && item.isActive !== null) {
+            data.is_active = item.isActive;
+        }
+        return data;
+    });
 }
 
 async function syncHabitLogs() {
@@ -249,18 +267,26 @@ async function syncHabitLogs() {
 
 async function syncHealthMetrics() {
     const localData = await db.healthMetrics.toArray();
-    return syncTable('health_metrics', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        name: item.name,
-        unit: item.unit,
-        type: item.type,
-        target_value: item.targetValue,
-        target_operator: item.targetOperator,
-        color: item.color,
-        icon: item.icon,
-        created_at: item.createdAt,
-    }));
+    return syncTable('health_metrics', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+            unit: item.unit,
+            type: item.type,
+            color: item.color,
+            icon: item.icon,
+            created_at: item.createdAt,
+        };
+        // Only add optional fields if they exist
+        if (item.targetValue !== undefined && item.targetValue !== null) {
+            data.target_value = item.targetValue;
+        }
+        if (item.targetOperator !== undefined && item.targetOperator !== null) {
+            data.target_operator = item.targetOperator;
+        }
+        return data;
+    });
 }
 
 async function syncHealthLogs() {
@@ -278,16 +304,28 @@ async function syncHealthLogs() {
 
 async function syncNotes() {
     const localData = await db.notes.toArray();
-    return syncTable('notes', localData, (item, userId) => ({
-        id: item.id,
-        user_id: userId,
-        title: item.title,
-        content: item.content,
-        tags: item.tags ? JSON.stringify(item.tags) : null,
-        status: item.status,
-        created_at: item.createdAt,
-        updated_at: item.updatedAt,
-    }));
+    return syncTable('notes', localData, (item, userId) => {
+        const data: any = {
+            id: item.id,
+            user_id: userId,
+            title: item.title,
+            created_at: item.createdAt,
+        };
+        // Only add optional fields if they exist
+        if (item.content !== undefined && item.content !== null) {
+            data.content = item.content;
+        }
+        if (item.tags !== undefined && item.tags !== null) {
+            data.tags = JSON.stringify(item.tags);
+        }
+        if (item.status !== undefined && item.status !== null) {
+            data.status = item.status;
+        }
+        if (item.updatedAt !== undefined && item.updatedAt !== null) {
+            data.updated_at = item.updatedAt;
+        }
+        return data;
+    });
 }
 
 async function syncFastingLogs() {
