@@ -167,7 +167,17 @@ const Reminders: React.FC = () => {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {displayReminders.map(reminder => (
-                                <ReminderCard key={reminder.id} reminder={reminder} isSelected={selectedReminderId === reminder.id} onSelect={() => handleSelectReminder(reminder.id!)} setConfirmModal={setConfirmModal} />
+                                <ReminderCard
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    isSelected={selectedReminderId === reminder.id}
+                                    onSelect={() => handleSelectReminder(reminder.id!)}
+                                    onEdit={() => {
+                                        setEditingReminder(reminder);
+                                        setIsEditModalOpen(true);
+                                    }}
+                                    setConfirmModal={setConfirmModal}
+                                />
                             ))}
                         </div>
                     )}
@@ -203,6 +213,7 @@ const Reminders: React.FC = () => {
                         setEditingReminder(null);
                     }}
                     onSave={handleSaveReminder}
+                    reminderFolders={reminderFolders}
                 />
             )}
         </div>
@@ -350,8 +361,9 @@ const ReminderCard: React.FC<{
     reminder: Reminder;
     isSelected: boolean;
     onSelect: () => void;
+    onEdit: () => void;
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
-}> = ({ reminder, isSelected, onSelect, setConfirmModal }) => {
+}> = ({ reminder, isSelected, onSelect, onEdit, setConfirmModal }) => {
     const [showMenu, setShowMenu] = useState(false);
     const priorityColors = { high: 'bg-red-500/20 text-red-400', medium: 'bg-yellow-500/20 text-yellow-400', low: 'bg-green-500/20 text-green-400' };
     const statusColors = { pending: 'bg-blue-500/20 text-blue-400', overdue: 'bg-red-500/20 text-red-400', completed: 'bg-green-500/20 text-green-400' };
@@ -389,6 +401,9 @@ const ReminderCard: React.FC<{
                     </button>
                     {showMenu && (
                         <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                <PencilIcon className="text-lg" /> Edit
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); handleToggleComplete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
                                 <CheckCircleIcon className="text-lg" /> {reminder.status === 'completed' ? 'Mark Pending' : 'Mark Complete'}
                             </button>
@@ -902,13 +917,23 @@ const ReminderEditModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     onSave: (reminder: Reminder) => Promise<void>;
-}> = ({ reminder, isOpen, onClose, onSave }) => {
+    reminderFolders?: ReminderFolder[];
+}> = ({ reminder, isOpen, onClose, onSave, reminderFolders }) => {
     const [formData, setFormData] = useState<Reminder>(reminder);
     const [isSaving, setIsSaving] = useState(false);
 
     React.useEffect(() => {
         setFormData(reminder);
     }, [reminder]);
+
+    const renderFolderOptions = (parentId: number | null = null, level = 0) => {
+        return reminderFolders?.filter(f => f.parentId === parentId).map(folder => (
+            <React.Fragment key={folder.id}>
+                <option value={folder.id} style={{ paddingLeft: `${level * 20}px` }}>{folder.name}</option>
+                {renderFolderOptions(folder.id, level + 1)}
+            </React.Fragment>
+        ));
+    };
 
     const handleSave = async () => {
         try {
@@ -1020,6 +1045,19 @@ const ReminderEditModal: React.FC<{
                             <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
                             <option value="overdue">Overdue</option>
+                        </select>
+                    </div>
+
+                    {/* Folder */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Folder</label>
+                        <select
+                            value={formData.folderId || ''}
+                            onChange={(e) => setFormData({ ...formData, folderId: e.target.value === '' ? null : Number(e.target.value) })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                        >
+                            <option value="">(No folder)</option>
+                            {renderFolderOptions()}
                         </select>
                     </div>
 
