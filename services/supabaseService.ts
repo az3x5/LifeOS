@@ -124,10 +124,15 @@ export async function insertToSupabase<T>(
 ): Promise<T | null> {
     try {
         const userId = await getUserId();
-        if (!userId) return null;
+        if (!userId) {
+            console.error('No user ID found');
+            return null;
+        }
 
         const dataWithUser = { ...data, user_id: userId };
         const snakeCaseData = convertToSnakeCase(dataWithUser);
+
+        console.log(`[insertToSupabase] Inserting into ${tableName}:`, snakeCaseData);
 
         const { data: result, error } = await supabase
             .from(tableName)
@@ -136,16 +141,24 @@ export async function insertToSupabase<T>(
             .single();
 
         if (error) {
-            console.error(`Error inserting into ${tableName}:`, error);
+            console.error(`[insertToSupabase] Error inserting into ${tableName}:`, {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint,
+                fullError: error
+            });
             return null;
         }
+
+        console.log(`[insertToSupabase] Successfully inserted into ${tableName}:`, result);
 
         // Trigger refetch callbacks to update UI immediately
         triggerRefetch(tableName);
 
         return convertToCamelCase(result) as T;
     } catch (error) {
-        console.error(`Failed to insert into ${tableName}:`, error);
+        console.error(`[insertToSupabase] Failed to insert into ${tableName}:`, error);
         return null;
     }
 }
