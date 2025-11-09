@@ -6,9 +6,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
-type View = 'dashboard' | 'habitsList' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics';
+type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics';
 type SortBy = 'name' | 'streak' | 'completion' | 'category';
-const TABS = ['Dashboard', 'Habits', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights'];
+const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights'];
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -114,33 +114,20 @@ const HabitTracker: React.FC = () => {
         return <RoutineDetailView routineId={selectedRoutineId} setView={setView} habits={habits} routines={routines} />;
     }
 
-    const activeTab = view === 'habitsList' ? 'Habits' : view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'reminders' ? 'Reminders' : 'Dashboard';
+    const activeTab = view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'reminders' ? 'Reminders' : 'Dashboard';
 
     const handleTabClick = (tab: string) => {
-        if (tab === 'Dashboard') setView('dashboard');
-        else if (tab === 'Habits') setView('habitsList');
-        else if (tab === 'Progress') setView('progress');
-        else if (tab === 'Analytics & Insights') setView('analytics');
-        else if (tab === 'Routines') setView('routinesList');
-        else if (tab === 'Reminders') setView('reminders');
+        if (tab === 'Dashboard') setView('dashboard'); else if (tab === 'Progress') setView('progress'); else if (tab === 'Analytics & Insights') setView('analytics'); else if (tab === 'Routines') setView('routinesList'); else if (tab === 'Reminders') setView('reminders');
     }
 
     const renderContent = () => {
         switch (view) {
-            case 'dashboard':
-                return <DashboardTab setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} routines={routines} onToggleHabit={(h) => handleToggleHabit(h, getTodayDateString())} onStartRoutine={setFocusRoutine} streaks={streaks} sortBy={sortBy} setSortBy={setSortBy} filterCategory={filterCategory} setFilterCategory={setFilterCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />;
-            case 'habitsList':
-                return <HabitsListView setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} onToggleHabitWithDate={(h, d) => handleToggleHabit(h, d)} sortBy={sortBy} setSortBy={setSortBy} filterCategory={filterCategory} setFilterCategory={setFilterCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} streaks={streaks} />;
-            case 'progress':
-                return <ProgressTab userProfile={userProfile} badges={badges} userBadges={userBadges} />;
-            case 'routinesList':
-                return <RoutinesListView setView={setView} setSelectedRoutineId={setSelectedRoutineId} habits={habits} habitLogs={habitLogs} routines={routines} />;
-            case 'reminders':
-                return <RemindersTab habits={habits} onSetReminder={(habit) => { setSelectedHabitForReminder(habit); setIsSetReminderModalOpen(true); }} />;
-            case 'analytics':
-                return <AnalyticsAndInsightsTab habits={habits} habitLogs={habitLogs} />;
-            default:
-                return null;
+            case 'dashboard': return <DashboardTab setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} routines={routines} onToggleHabit={(h) => handleToggleHabit(h, getTodayDateString())} onStartRoutine={setFocusRoutine} streaks={streaks} sortBy={sortBy} setSortBy={setSortBy} filterCategory={filterCategory} setFilterCategory={setFilterCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />;
+            case 'progress': return <ProgressTab userProfile={userProfile} badges={badges} userBadges={userBadges} />;
+            case 'routinesList': return <RoutinesListView setView={setView} setSelectedRoutineId={setSelectedRoutineId} habits={habits} habitLogs={habitLogs} routines={routines} />;
+            case 'reminders': return <RemindersTab habits={habits} onSetReminder={(habit) => { setSelectedHabitForReminder(habit); setIsSetReminderModalOpen(true); }} />;
+            case 'analytics': return <AnalyticsAndInsightsTab habits={habits} habitLogs={habitLogs} />;
+            default: return null;
         }
     };
     
@@ -370,93 +357,6 @@ const StreakBadge: React.FC<{ streak: number }> = ({ streak }) => (
     </div>
 );
 
-const HabitsListView: React.FC<{ setView: (view: View) => void; setSelectedHabitId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; onToggleHabitWithDate: (habit: Habit, date: string) => void; sortBy: SortBy; setSortBy: (sort: SortBy) => void; filterCategory: string | null; setFilterCategory: (cat: string | null) => void; searchQuery: string; setSearchQuery: (q: string) => void; streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; }> = ({ setView, setSelectedHabitId, habits, habitLogs, onToggleHabitWithDate, sortBy, setSortBy, filterCategory, setFilterCategory, searchQuery, setSearchQuery, streaks }) => {
-    if (!habits || !habitLogs) return <div className="text-center p-8 text-text-muted">Loading habits...</div>;
-
-    const isScheduledOn = (habit: Habit, dateStr: string) => {
-        const date = new Date(dateStr);
-        return habit.frequency === 'daily' || habit.daysOfWeek?.includes(date.getDay()) || false;
-    };
-
-    const last7 = useMemo(() => {
-        const dates: string[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            dates.push(d.toISOString().split('T')[0]);
-        }
-        return dates;
-    }, []);
-
-    const categories = useMemo(() => [...new Set(habits.map(h => h.category).filter(Boolean))], [habits]);
-
-    const filtered = useMemo(() => {
-        let out = habits;
-        if (filterCategory) out = out.filter(h => h.category === filterCategory);
-        if (searchQuery) out = out.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        return out.sort((a, b) => {
-            switch (sortBy) {
-                case 'streak':
-                    return (streaks[b.id!]?.currentStreak ?? 0) - (streaks[a.id!]?.currentStreak ?? 0);
-                case 'completion': {
-                    const ra = calculateCompletionRate(a, habitLogs);
-                    const rb = calculateCompletionRate(b, habitLogs);
-                    return rb - ra;
-                }
-                case 'category':
-                    return (a.category || '').localeCompare(b.category || '');
-                case 'name':
-                default:
-                    return a.name.localeCompare(b.name);
-            }
-        });
-    }, [habits, habitLogs, filterCategory, searchQuery, sortBy, streaks]);
-
-    return (
-        <div className="space-y-6">
-            <div className="bg-secondary p-4 rounded-xl border border-tertiary space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <input type="text" placeholder="Search habits..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary" />
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary">
-                        <option value="name">Sort by Name</option>
-                        <option value="streak">Sort by Streak</option>
-                        <option value="completion">Sort by Completion</option>
-                        <option value="category">Sort by Category</option>
-                    </select>
-                </div>
-                {categories.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => setFilterCategory(null)} className={`px-3 py-1 rounded-full text-sm transition-colors ${filterCategory === null ? 'bg-accent text-white' : 'bg-tertiary text-text-primary hover:bg-accent/20'}`}>All</button>
-                        {categories.map(cat => <button key={cat} onClick={() => setFilterCategory(cat)} className={`px-3 py-1 rounded-full text-sm transition-colors ${filterCategory === cat ? 'bg-accent text-white' : 'bg-tertiary text-text-primary hover:bg-accent/20'}`}>{cat}</button>)}
-                    </div>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filtered.map(h => (
-                    <div key={h.id} className="bg-secondary p-5 rounded-xl border border-tertiary">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h3 className="font-semibold text-lg text-text-primary">{h.name}</h3>
-                                <p className="text-sm text-text-secondary">{h.category || 'Uncategorized'} · Streak {streaks[h.id!]?.currentStreak ?? 0}d · Long {streaks[h.id!]?.longestStreak ?? 0}d · Rate {calculateCompletionRate(h, habitLogs ?? []).toFixed(0)}%</p>
-                            </div>
-                            <button onClick={() => { setSelectedHabitId(h.id!); setView('habitDetail'); }} className="bg-tertiary hover:bg-tertiary/70 text-text-primary py-2 px-3 rounded-lg text-sm">Edit</button>
-                        </div>
-                        <div className="mt-4 grid grid-cols-7 gap-2">
-                            {last7.map(ds => {
-                                const ok = isScheduledOn(h, ds) && (habitLogs ?? []).some(l => l.habitId === h.id && l.date === ds);
-                                return (
-                                    <button key={ds} onClick={() => { if (isScheduledOn(h, ds)) onToggleHabitWithDate(h, ds); }} className={`h-8 rounded-md border text-xs ${isScheduledOn(h, ds) ? (ok ? 'bg-accent border-accent text-white' : 'bg-primary border-tertiary hover:border-accent text-text-secondary') : 'bg-transparent border-tertiary/40 text-transparent cursor-not-allowed'}`} title={ds}>{ok ? '✓' : '•'}</button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 const RoutineGroup: React.FC<{ routine: Routine & { habits: Habit[] }; completedHabitIds: Set<number>, streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; onHabitClick: (id: number) => void; onToggleHabit: (habit: Habit) => void; onStartRoutine: (routine: Routine) => void; }> = ({ routine, completedHabitIds, streaks, onHabitClick, onToggleHabit, onStartRoutine }) => {
     return (
         <div className="bg-secondary p-6 rounded-xl border border-tertiary">
@@ -639,6 +539,17 @@ const ProgressTab: React.FC<{ userProfile?: UserProfile; badges?: Badge[]; userB
                     })}
                 </div>
             </div>
+        </div>
+    );
+};
+
+const AnalyticsAndInsightsTab: React.FC<{ habits?: Habit[]; habitLogs?: HabitLog[]; }> = ({ habits, habitLogs }) => {
+    if (!habits || !habitLogs) return <div className="text-center p-8 text-text-muted">Loading analytics data...</div>;
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0"><h2 className="text-2xl font-bold">Analytics & Insights</h2><div className="flex items-center space-x-2"><button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export CSV</button><button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export PDF</button></div></div>
+            <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} /><HabitPerformanceWidget habits={habits} habitLogs={habitLogs} /></div>
         </div>
     );
 };
@@ -851,58 +762,6 @@ const HabitPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] 
     }, [habits, habitLogs]);
     return (
         <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px] flex flex-col"><h2 className="text-xl font-semibold mb-4">Habit Performance Breakdown</h2><div className="flex-1 overflow-y-auto"><ul className="space-y-3">{data.map(h => (<li key={h.name} className="p-3 bg-primary rounded-lg"> <p className="font-semibold text-text-primary">{h.name}</p><div className="flex justify-between items-center text-sm text-text-secondary mt-1"><span>Current: {h['Current Streak']}d</span><span>Longest: {h['Longest Streak']}d</span><span>Rate: {h['Completion Rate'].toFixed(0)}%</span></div></li>))}</ul></div></div>
-    );
-};
-
-const DailyCompletionsWidget: React.FC<{ habitLogs?: HabitLog[] }> = ({ habitLogs }) => {
-    const data = useMemo(() => {
-        const series: { date: string; count: number }[] = [];
-        for (let i = 13; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const ds = d.toISOString().split('T')[0];
-            const count = (habitLogs ?? []).filter(l => l.date === ds).length;
-            series.push({ date: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), count });
-        }
-        return series;
-    }, [habitLogs]);
-    return (
-        <div className="bg-secondary p-6 rounded-xl border border-tertiary">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Last 14 Days Completions</h3>
-            </div>
-            <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#223047" />
-                        <XAxis dataKey="date" stroke="#8aa0b6" tickLine={false} axisLine={{ stroke: '#223047' }} />
-                        <YAxis stroke="#8aa0b6" allowDecimals={false} tickLine={false} axisLine={{ stroke: '#223047' }} />
-                        <Tooltip contentStyle={{ background: '#121822', border: '1px solid #1c2533' }} />
-                        <Line type="monotone" dataKey="count" stroke="#7c5cff" strokeWidth={2} dot={false} />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
-        </div>
-    );
-};
-
-const AnalyticsAndInsightsTab: React.FC<{ habits?: Habit[]; habitLogs?: HabitLog[]; }> = ({ habits, habitLogs }) => {
-    if (!habits || !habitLogs) return <div className="text-center p-8 text-text-muted">Loading analytics data...</div>;
-    return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <h2 className="text-2xl font-bold">Analytics & Insights</h2>
-                <div className="flex items-center space-x-2">
-                    <button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export CSV</button>
-                    <button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export PDF</button>
-                </div>
-            </div>
-            <DailyCompletionsWidget habitLogs={habitLogs} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} />
-                <HabitPerformanceWidget habits={habits} habitLogs={habitLogs} />
-            </div>
-        </div>
     );
 };
 
