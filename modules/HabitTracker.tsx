@@ -1,30 +1,51 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
-import { Habit, HabitLog, Routine, HealthMetric, HealthLog, UserProfile, Badge, UserBadge } from '../types';
+import { Habit, HabitLog, Routine, UserProfile, Badge, UserBadge, HealthMetric, HealthLog } from '../types';
 import { habitsService, habitLogsService, routinesService, userProfileService, badgesService, userBadgesService } from '../services/dataService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LineChart, Line } from 'recharts';
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import AlertModal from '../components/modals/AlertModal';
 
+type HabitFilter = 'all' | 'active' | 'completed' | 'paused';
+type SortBy = 'name' | 'streak' | 'completion' | 'category';
 type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics' | 'calendar';
-const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights', 'Calendar'];
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 type Toast = { id: number; icon: string; title: string; message: string; };
 type UndoAction = { message: string; onUndo: () => void; };
 
+// --- ICONS ---
+const MenuIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>menu</span>;
+const AddIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>add</span>;
+const CheckCircleIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>check_circle</span>;
+const FireIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>local_fire_department</span>;
+const TrendingUpIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>trending_up</span>;
+const MoreVertIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>more_vert</span>;
+const DeleteIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
+const EditIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>edit</span>;
+const PauseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>pause</span>;
+const PlayIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>play_arrow</span>;
+const SearchIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>search</span>;
+const CloseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>close</span>;
+const ChevronDownIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>expand_more</span>;
+const ChevronRightIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>chevron_right</span>;
+
 const HabitTracker: React.FC = () => {
-    const [view, setView] = useState<View>('dashboard');
     const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
-    const [selectedRoutineId, setSelectedRoutineId] = useState<number | null>(null);
-    const [isSetReminderModalOpen, setIsSetReminderModalOpen] = useState(false);
-    const [selectedHabitForReminder, setSelectedHabitForReminder] = useState<Habit | null>(null);
+    const [habitFilter, setHabitFilter] = useState<HabitFilter>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sortBy, setSortBy] = useState<SortBy>('name');
+    const [filterCategory, setFilterCategory] = useState<string | null>(null);
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
+    const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
+    const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
     const undoTimeoutRef = useRef<number | null>(null);
-    const [focusRoutine, setFocusRoutine] = useState<Routine | null>(null);
-    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
     const habits = useSupabaseQuery<Habit>('habits');
     const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
@@ -35,6 +56,13 @@ const HabitTracker: React.FC = () => {
     const userBadges = useSupabaseQuery<UserBadge>('user_badges');
 
     const streaks = useMemo(() => calculateStreaks(habits ?? [], habitLogs ?? []), [habits, habitLogs]);
+
+    const selectedHabit = useMemo(() => {
+        const habit = habits?.find(h => h.id === selectedHabitId);
+        if (habit) return habit;
+        if (selectedHabitId) setSelectedHabitId(null);
+        return null;
+    }, [habits, selectedHabitId]);
 
     const addToast = (toast: Omit<Toast, 'id'>) => {
         const newToast = { ...toast, id: Date.now() };
@@ -103,74 +131,563 @@ const HabitTracker: React.FC = () => {
         }
     }, [awardXpAndCheckBadges, addToast, habitLogs]);
 
-    if (view === 'habitDetail' && selectedHabitId) {
-        return <HabitDetailView habitId={selectedHabitId} setView={setView} habits={habits} habitLogs={habitLogs} setConfirmModal={setConfirmModal} />;
-    }
-    if (view === 'routineDetail' && selectedRoutineId) {
-        return <RoutineDetailView routineId={selectedRoutineId} setView={setView} habits={habits} routines={routines} />;
-    }
+    const handleNewHabit = async (categoryId?: string) => {
+        const newHabit: Habit = {
+            name: 'New Habit',
+            frequency: 'daily',
+            category: categoryId || 'personal',
+            xp: 10,
+            isFrozen: false,
+            origin: 'user',
+            createdAt: new Date(),
+        };
+        setEditingHabit(newHabit);
+        setIsEditModalOpen(true);
+    };
 
-    const activeTab = view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'calendar' ? 'Calendar' : view === 'reminders' ? 'Reminders' : 'Dashboard';
-    
-    const handleTabClick = (tab: string) => {
-        if (tab === 'Dashboard') setView('dashboard'); else if (tab === 'Progress') setView('progress'); else if (tab === 'Analytics & Insights') setView('analytics'); else if (tab === 'Calendar') setView('calendar'); else if (tab === 'Routines') setView('routinesList'); else if (tab === 'Reminders') setView('reminders');
-    }
+    const handleSelectHabit = (id: number | null) => {
+        setSelectedHabitId(id);
+        setIsSidebarOpen(false);
+    };
 
-    const renderContent = () => {
-        switch (view) {
-            case 'dashboard': return <DashboardTab setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} routines={routines} onToggleHabit={(h) => handleToggleHabit(h, getTodayDateString())} onStartRoutine={setFocusRoutine} streaks={streaks} />;
-            case 'progress': return <ProgressTab userProfile={userProfile} badges={badges} userBadges={userBadges} />;
-            case 'routinesList': return <RoutinesListView setView={setView} setSelectedRoutineId={setSelectedRoutineId} habits={habits} habitLogs={habitLogs} routines={routines} />;
-            case 'reminders': return <RemindersTab habits={habits} onSetReminder={(habit) => { setSelectedHabitForReminder(habit); setIsSetReminderModalOpen(true); }} />;
-            default: return null;
+    const handleSaveHabit = async (habit: Habit) => {
+        try {
+            if (habit.id) {
+                await habitsService.update(habit.id, habit);
+                addToast({ icon: 'check_circle', title: 'Habit Updated', message: `"${habit.name}" has been updated.` });
+            } else {
+                const newHabit = await habitsService.create(habit);
+                if (newHabit && newHabit.id) {
+                    handleSelectHabit(newHabit.id);
+                    addToast({ icon: 'check_circle', title: 'Habit Created', message: `"${habit.name}" has been created.` });
+                }
+            }
+            setIsEditModalOpen(false);
+            setEditingHabit(null);
+        } catch (error) {
+            setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to save habit.', icon: 'error' });
         }
     };
-    
-    const handleNewHabit = async () => {
-        const newHabit = await habitsService.create({ name: 'New Awesome Habit', frequency: 'daily', createdAt: new Date(), xp: 10, isFrozen: false, origin: 'user' });
-        if (newHabit && newHabit.id) {
-            setSelectedHabitId(newHabit.id);
-            setView('habitDetail');
-        }
-    }
+
+    const handleDeleteHabit = async (habitId: number) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Habit',
+            message: 'Are you sure you want to delete this habit? This action cannot be undone.',
+            icon: 'warning',
+            onConfirm: async () => {
+                try {
+                    await habitsService.delete(habitId);
+                    handleSelectHabit(null);
+                    addToast({ icon: 'check_circle', title: 'Habit Deleted', message: 'Habit has been deleted.' });
+                } catch (error) {
+                    setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to delete habit.', icon: 'error' });
+                }
+            },
+        });
+    };
+
+    const filteredHabits = useMemo(() => {
+        let result = habits ?? [];
+
+        // Filter by status
+        if (habitFilter === 'active') result = result.filter(h => !h.isFrozen && h.isActive !== false);
+        if (habitFilter === 'paused') result = result.filter(h => h.isFrozen);
+        if (habitFilter === 'completed') result = result.filter(h => h.isActive === false);
+
+        // Filter by category
+        if (filterCategory) result = result.filter(h => h.category === filterCategory);
+
+        // Filter by search
+        if (searchQuery) result = result.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        // Sort
+        return result.sort((a, b) => {
+            switch (sortBy) {
+                case 'streak':
+                    return (streaks[b.id!]?.currentStreak ?? 0) - (streaks[a.id!]?.currentStreak ?? 0);
+                case 'completion':
+                    return calculateCompletionRate(b, habitLogs ?? []) - calculateCompletionRate(a, habitLogs ?? []);
+                case 'category':
+                    return (a.category || '').localeCompare(b.category || '');
+                case 'name':
+                default:
+                    return a.name.localeCompare(b.name);
+            }
+        });
+    }, [habits, habitLogs, habitFilter, filterCategory, searchQuery, sortBy, streaks]);
+
+    const categories = useMemo(() => [...new Set(habits?.map(h => h.category).filter(Boolean) ?? [])], [habits]);
 
     return (
-        <div className="space-y-8 animate-fade-in">
-            <ToastContainer toasts={toasts} setToasts={setToasts} />
-            {undoAction && <UndoSnackbar message={undoAction.message} onUndo={() => { undoAction.onUndo(); setUndoAction(null); }} onDismiss={() => setUndoAction(null)} />}
-            {focusRoutine && <FocusRoutineView routine={focusRoutine} habits={habits ?? []} logs={habitLogs ?? []} onToggleHabit={handleToggleHabit} onClose={() => setFocusRoutine(null)} />}
+        <div className="flex h-full bg-primary font-sans relative overflow-hidden">
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />
+            )}
 
-            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
-                <h1 className="text-4xl font-bold text-text-primary">Habit Tracker</h1>
-                <div className="space-x-2">
-                    <button onClick={handleNewHabit} className="bg-accent hover:bg-accent-hover text-white font-bold py-3 px-5 rounded-lg text-sm shadow-md transition-transform transform hover:scale-105">+ New Habit</button>
+            {/* Sidebar */}
+            <div className={`fixed md:relative w-64 h-full bg-secondary border-r border-tertiary flex flex-col z-50 transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+                <div className="p-4 border-b border-tertiary flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-text-primary">Habits</h2>
+                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-text-secondary hover:text-text-primary">
+                        <CloseIcon className="text-xl" />
+                    </button>
+                </div>
+
+                {/* New Habit Button */}
+                <button onClick={() => handleNewHabit()} className="m-4 flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                    <AddIcon className="text-lg" />
+                    New Habit
+                </button>
+
+                {/* Search */}
+                <div className="px-4 pb-4">
+                    <div className="relative">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-lg" />
+                        <input
+                            type="text"
+                            placeholder="Search habits..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                        />
+                    </div>
+                </div>
+
+                {/* Filters */}
+                <div className="px-4 pb-4 space-y-2">
+                    <div className="text-xs font-semibold text-text-muted uppercase">Status</div>
+                    {(['all', 'active', 'paused', 'completed'] as const).map(filter => (
+                        <button
+                            key={filter}
+                            onClick={() => setHabitFilter(filter)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${habitFilter === filter ? 'bg-accent text-white' : 'text-text-secondary hover:bg-tertiary'}`}
+                        >
+                            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Categories */}
+                {categories.length > 0 && (
+                    <div className="px-4 pb-4 space-y-2">
+                        <div className="text-xs font-semibold text-text-muted uppercase">Categories</div>
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${filterCategory === cat ? 'bg-accent text-white' : 'text-text-secondary hover:bg-tertiary'}`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Habits List */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="space-y-1 p-4">
+                        {filteredHabits.map(habit => (
+                            <button
+                                key={habit.id}
+                                onClick={() => handleSelectHabit(habit.id!)}
+                                className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center justify-between group ${selectedHabitId === habit.id ? 'bg-accent text-white' : 'text-text-secondary hover:bg-tertiary'}`}
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{habit.name}</div>
+                                    <div className="text-xs opacity-75">{streaks[habit.id!]?.currentStreak ?? 0}d streak</div>
+                                </div>
+                                {habit.isFrozen && <PauseIcon className="text-sm flex-shrink-0 ml-2" />}
+                            </button>
+                        ))}
+                        {filteredHabits.length === 0 && (
+                            <div className="text-center py-8 text-text-muted">
+                                <p className="text-sm">No habits found</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-            
-            <div className="border-b border-tertiary">
-                <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
-                    {TABS.map(tab => <button key={tab} onClick={() => handleTabClick(tab)} className={`${activeTab === tab ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base`}>{tab}</button>)}
-                </nav>
-            </div>
-            
-            <div className="mt-6">{renderContent()}</div>
 
-            {isSetReminderModalOpen && selectedHabitForReminder && <SetReminderModal habit={selectedHabitForReminder} closeModal={() => { setIsSetReminderModalOpen(false); setSelectedHabitForReminder(null); }} />}
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="border-b border-tertiary p-4 flex items-center justify-between bg-secondary">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden text-text-primary hover:text-accent">
+                            <MenuIcon className="text-2xl" />
+                        </button>
+                        <h1 className="text-2xl font-bold text-text-primary">Habit Tracker</h1>
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {selectedHabit ? (
+                        <HabitDetailPanel
+                            habit={selectedHabit}
+                            habitLogs={habitLogs ?? []}
+                            streaks={streaks}
+                            onEdit={() => {
+                                setEditingHabit(selectedHabit);
+                                setIsEditModalOpen(true);
+                            }}
+                            onDelete={() => handleDeleteHabit(selectedHabit.id!)}
+                            onToggle={(date) => handleToggleHabit(selectedHabit, date)}
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <CheckCircleIcon className="text-6xl text-text-muted mb-4" />
+                            <h2 className="text-2xl font-bold text-text-primary mb-2">Select a Habit</h2>
+                            <p className="text-text-secondary mb-6">Choose a habit from the sidebar to view details and track progress</p>
+                            <button onClick={() => handleNewHabit()} className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                                <AddIcon className="text-lg" />
+                                Create Your First Habit
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Modals */}
+            {isEditModalOpen && editingHabit && (
+                <HabitEditModal
+                    habit={editingHabit}
+                    onSave={handleSaveHabit}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setEditingHabit(null);
+                    }}
+                />
+            )}
             {confirmModal && (
                 <ConfirmModal
                     isOpen={confirmModal.isOpen}
                     title={confirmModal.title}
                     message={confirmModal.message}
                     confirmText="Delete"
-                    icon="🗑️"
+                    icon={confirmModal.icon}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
                 />
+            )}
+            {alertModal && (
+                <AlertModal
+                    isOpen={alertModal.isOpen}
+                    title={alertModal.title}
+                    message={alertModal.message}
+                    icon={alertModal.icon}
+                    onClose={() => setAlertModal(null)}
+                />
+            )}
+            <ToastContainer toasts={toasts} setToasts={setToasts} />
+            {undoAction && <UndoSnackbar message={undoAction.message} onUndo={() => { undoAction.onUndo(); setUndoAction(null); }} onDismiss={() => setUndoAction(null)} />}
+        </div>
+    );
+};
+
+// --- HELPER FUNCTIONS ---
+const calculateCompletionRate = (habit: Habit, habitLogs: HabitLog[]): number => {
+    const habitLogs_ = habitLogs.filter(l => l.habitId === habit.id);
+    if (habitLogs_.length === 0) return 0;
+    const firstLogDate = habitLogs_.length > 0 ? new Date(habitLogs_[0].date) : new Date();
+    const sortedLogs = habitLogs_.sort((a: HabitLog, b: HabitLog) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const startDate = new Date(sortedLogs[0]?.date || new Date());
+    const totalDays = Math.floor((new Date().getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+    if (totalDays <= 0) return 0;
+    return (habitLogs_.length / totalDays) * 100;
+};
+
+// --- HABIT DETAIL PANEL ---
+const HabitDetailPanel: React.FC<{
+    habit: Habit;
+    habitLogs: HabitLog[];
+    streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; };
+    onEdit: () => void;
+    onDelete: () => void;
+    onToggle: (date: string) => void;
+}> = ({ habit, habitLogs, streaks, onEdit, onDelete, onToggle }) => {
+    const todayStr = getTodayDateString();
+    const isCompletedToday = habitLogs.some(l => l.habitId === habit.id && l.date === todayStr);
+    const streak = streaks[habit.id!]?.currentStreak ?? 0;
+    const longestStreak = streaks[habit.id!]?.longestStreak ?? 0;
+    const completionRate = calculateCompletionRate(habit, habitLogs);
+
+    // Get last 14 days data
+    const last14Days = useMemo(() => {
+        const data: { date: string; completed: boolean }[] = [];
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const completed = habitLogs.some(l => l.habitId === habit.id && l.date === dateStr);
+            data.push({ date: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), completed });
+        }
+        return data;
+    }, [habitLogs, habit.id]);
+
+    return (
+        <div className="space-y-6 max-w-4xl">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold text-text-primary">{habit.name}</h2>
+                    <p className="text-text-secondary mt-1">{habit.category || 'Uncategorized'} • {habit.frequency}</p>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={onEdit} className="p-2 hover:bg-tertiary rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+                        <EditIcon className="text-xl" />
+                    </button>
+                    <button onClick={onDelete} className="p-2 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors">
+                        <DeleteIcon className="text-xl" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
+                    <div className="text-text-muted text-sm">Current Streak</div>
+                    <div className="text-3xl font-bold text-accent mt-1 flex items-center gap-2">
+                        {streak}
+                        <FireIcon className="text-2xl" />
+                    </div>
+                </div>
+                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
+                    <div className="text-text-muted text-sm">Longest Streak</div>
+                    <div className="text-3xl font-bold text-text-primary mt-1">{longestStreak}</div>
+                </div>
+                <div className="bg-secondary p-4 rounded-lg border border-tertiary">
+                    <div className="text-text-muted text-sm">Completion Rate</div>
+                    <div className="text-3xl font-bold text-text-primary mt-1">{completionRate.toFixed(0)}%</div>
+                </div>
+            </div>
+
+            {/* Today's Status */}
+            <div className="bg-secondary p-6 rounded-lg border border-tertiary">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold text-text-primary">Today's Progress</h3>
+                        <p className="text-text-secondary text-sm mt-1">{isCompletedToday ? 'Completed today' : 'Not completed yet'}</p>
+                    </div>
+                    <button
+                        onClick={() => onToggle(todayStr)}
+                        className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+                            isCompletedToday
+                                ? 'bg-accent text-white hover:bg-accent/90'
+                                : 'bg-tertiary text-text-secondary hover:bg-tertiary/70'
+                        }`}
+                    >
+                        {isCompletedToday ? 'Mark Incomplete' : 'Mark Complete'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Last 14 Days */}
+            <div className="bg-secondary p-6 rounded-lg border border-tertiary">
+                <h3 className="font-semibold text-text-primary mb-4">Last 14 Days</h3>
+                <div className="grid grid-cols-7 gap-2">
+                    {last14Days.map((day, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => {
+                                const d = new Date();
+                                d.setDate(d.getDate() - (13 - idx));
+                                onToggle(d.toISOString().split('T')[0]);
+                            }}
+                            className={`aspect-square rounded-lg border transition-colors ${
+                                day.completed
+                                    ? 'bg-accent border-accent text-white'
+                                    : 'bg-primary border-tertiary hover:border-accent'
+                            }`}
+                            title={day.date}
+                        >
+                            <div className="text-xs font-semibold">{day.completed ? '✓' : '•'}</div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Description */}
+            {habit.description && (
+                <div className="bg-secondary p-6 rounded-lg border border-tertiary">
+                    <h3 className="font-semibold text-text-primary mb-2">Description</h3>
+                    <p className="text-text-secondary">{habit.description}</p>
+                </div>
             )}
         </div>
     );
 };
 
+// --- HABIT EDIT MODAL ---
+const HabitEditModal: React.FC<{
+    habit: Habit;
+    onSave: (habit: Habit) => void;
+    onClose: () => void;
+}> = ({ habit, onSave, onClose }) => {
+    const [formData, setFormData] = useState<Habit>(habit);
+    const [selectedDays, setSelectedDays] = useState<number[]>(habit.daysOfWeek || []);
+
+    const handleChange = (field: keyof Habit, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleDayToggle = (day: number) => {
+        setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort());
+    };
+
+    const handleSubmit = () => {
+        const updatedHabit = { ...formData, daysOfWeek: formData.frequency === 'custom' ? selectedDays : undefined };
+        onSave(updatedHabit);
+    };
+
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-secondary rounded-xl border border-tertiary max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-secondary border-b border-tertiary p-6 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-text-primary">{habit.id ? 'Edit Habit' : 'Create Habit'}</h2>
+                    <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
+                        <CloseIcon className="text-2xl" />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {/* Name */}
+                    <div>
+                        <label className="block text-sm font-semibold text-text-primary mb-2">Habit Name *</label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => handleChange('name', e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                            placeholder="e.g., Morning Meditation"
+                        />
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="block text-sm font-semibold text-text-primary mb-2">Description</label>
+                        <textarea
+                            value={formData.description || ''}
+                            onChange={(e) => handleChange('description', e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                            placeholder="Add notes about this habit..."
+                            rows={3}
+                        />
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-semibold text-text-primary mb-2">Category</label>
+                        <input
+                            type="text"
+                            value={formData.category || ''}
+                            onChange={(e) => handleChange('category', e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                            placeholder="e.g., Health, Work, Personal"
+                        />
+                    </div>
+
+                    {/* Frequency */}
+                    <div>
+                        <label className="block text-sm font-semibold text-text-primary mb-2">Frequency</label>
+                        <div className="flex gap-4">
+                            {(['daily', 'custom'] as const).map(freq => (
+                                <label key={freq} className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="frequency"
+                                        value={freq}
+                                        checked={formData.frequency === freq}
+                                        onChange={(e) => handleChange('frequency', e.target.value)}
+                                        className="w-4 h-4"
+                                    />
+                                    <span className="text-text-primary">{freq === 'daily' ? 'Daily' : 'Custom Days'}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Days of Week (if custom) */}
+                    {formData.frequency === 'custom' && (
+                        <div>
+                            <label className="block text-sm font-semibold text-text-primary mb-2">Select Days</label>
+                            <div className="grid grid-cols-7 gap-2">
+                                {dayLabels.map((label, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleDayToggle(idx)}
+                                        className={`py-2 rounded-lg font-semibold transition-colors ${
+                                            selectedDays.includes(idx)
+                                                ? 'bg-accent text-white'
+                                                : 'bg-primary border border-tertiary text-text-secondary hover:border-accent'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* XP Value */}
+                    <div>
+                        <label className="block text-sm font-semibold text-text-primary mb-2">XP Reward</label>
+                        <input
+                            type="number"
+                            value={formData.xp || 10}
+                            onChange={(e) => handleChange('xp', parseInt(e.target.value))}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                            min="1"
+                            max="100"
+                        />
+                    </div>
+
+                    {/* Reminder */}
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.reminderEnabled || false}
+                                onChange={(e) => handleChange('reminderEnabled', e.target.checked)}
+                                className="w-4 h-4"
+                            />
+                            <span className="text-text-primary font-semibold">Enable Reminder</span>
+                        </label>
+                        {formData.reminderEnabled && (
+                            <input
+                                type="time"
+                                value={formData.reminderTime || '09:00'}
+                                onChange={(e) => handleChange('reminderTime', e.target.value)}
+                                className="mt-2 w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                            />
+                        )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2 rounded-lg border border-tertiary text-text-primary hover:bg-tertiary transition-colors font-semibold"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            className="flex-1 px-4 py-2 rounded-lg bg-accent hover:bg-accent/90 text-white font-semibold transition-colors"
+                        >
+                            {habit.id ? 'Update' : 'Create'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- OLD COMPONENTS (KEPT FOR REFERENCE) ---
 const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; routines?: Routine[]; onToggleHabit: (habit: Habit) => void; onStartRoutine: (routine: Routine) => void; streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; }> = ({ setView, setSelectedHabitId, habits, habitLogs, routines, onToggleHabit, onStartRoutine, streaks }) => {
     const todayStr = getTodayDateString();
     const todayDay = new Date().getDay();
@@ -725,16 +1242,6 @@ const StreakFreezeModal: React.FC<{ habit: Habit, closeModal: () => void }> = ({
 };
 
 // --- UTILITY FUNCTIONS ---
-const calculateCompletionRate = (habit: Habit, logs: HabitLog[]): number => {
-    const habitLogs = logs.filter(l => l.habitId === habit.id);
-    const firstLogDate = habitLogs.length > 0 ? new Date(habitLogs[0].date) : new Date();
-    // FIX: Add explicit string types to sort callback to resolve 'new Date' error.
-    const sortedLogs = habitLogs.sort((a: HabitLog, b: HabitLog) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const startDate = new Date(sortedLogs[0]?.date || new Date());
-    const totalDays = Math.floor((new Date().getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-    if (totalDays <= 0) return 0;
-    return (habitLogs.length / totalDays) * 100;
-};
 const calculateWeekdayData = (habits: Habit[], logs: HabitLog[]): { name: string; rate: number }[] => {
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const data = weekdays.map((name, i) => {
