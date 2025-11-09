@@ -243,7 +243,7 @@ interface SidebarProps {
     isHabitsSidebarOpen: boolean;
     setConfirmModal: (modal: any) => void;
     setAlertModal: (modal: any) => void;
-    streaks: Record<number, number>;
+    streaks: Record<number, { currentStreak: number; longestStreak: number }>;
 }
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
@@ -474,7 +474,7 @@ interface FolderTreeProps {
     newFolderName: string;
     setNewFolderName: (name: string) => void;
     onConfirmRename: (folderId: number, newName: string) => void;
-    streaks: Record<number, number>;
+    streaks: Record<number, { currentStreak: number; longestStreak: number }>;
 }
 
 const FolderTree: React.FC<FolderTreeProps> = (props) => {
@@ -533,7 +533,7 @@ interface FolderNodeProps {
     newFolderName: string;
     setNewFolderName: (name: string) => void;
     onConfirmRename: (folderId: number, newName: string) => void;
-    streaks: Record<number, number>;
+    streaks: Record<number, { currentStreak: number; longestStreak: number }>;
 }
 
 const FolderNode: React.FC<FolderNodeProps> = (props) => {
@@ -675,7 +675,7 @@ const NavItem: React.FC<NavItemProps> = (props) => {
 interface HabitDetailPanelProps {
     habit: Habit;
     habitLogs: HabitLog[];
-    streaks: Record<number, number>;
+    streaks: Record<number, { currentStreak: number; longestStreak: number }>;
     toggleSidebar: () => void;
     onEdit: () => void;
     onDelete: () => void;

@@ -69,21 +69,21 @@ export interface Habit {
     description?: string;
     category?: string;
     frequency: 'daily' | 'custom';
-    targetDays?: number[];
-    daysOfWeek?: number[];
+    targetDays?: number[] | null;
+    daysOfWeek?: number[] | null;
     color?: string;
     icon?: string;
     reminderTime?: string;
     reminderEnabled?: boolean;
     isActive?: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
     origin?: 'user' | 'system' | 'system-islamic';
     xp?: number;
     isFrozen?: boolean;
-    frozenFrom?: Date | string;
-    frozenTo?: Date | string;
-    folderId?: number | null;  // null = root/no folder
+    frozenFrom?: Date | string | null;
+    frozenTo?: Date | string | null;
+    folderId?: number | null;
 }
 
 export interface HabitFolder {
@@ -101,10 +101,10 @@ export interface HabitLog {
     id?: number;
     userId?: string;
     habitId: number;
-    date: Date | string;
+    date: string;
     completed?: boolean;
     notes?: string;
-    createdAt?: Date;
+    createdAt?: Date | string;
 }
 
 export interface Routine {
