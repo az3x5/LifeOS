@@ -325,7 +325,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
 
     return (
         <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="p-3 flex-shrink-0 space-y-3">
+            <div className="px-3 pt-3 pb-0 flex-shrink-0 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                     <h1 className="text-2xl font-bold flex-1">Habits</h1>
                     <button onClick={() => setIsCreatingFolder(true)} title="New folder" className="p-2 rounded-md hover:bg-primary text-text-primary flex-shrink-0">
@@ -372,7 +372,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 )}
             </div>
 
-            <div className="px-3 pb-2 space-y-1 border-b border-tertiary">
+            <div className="px-3 py-2 space-y-1 border-b border-tertiary">
                 <NavItem
                     icon={<FireIcon className="text-base" />}
                     label="All"
@@ -399,7 +399,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto px-3 py-3">
                 {isFilterActive ? (
                     <div className="space-y-1">
                         {filteredHabits.map(habit => (
