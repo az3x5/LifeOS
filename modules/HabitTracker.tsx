@@ -325,26 +325,25 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
 
     return (
         <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="px-3 pt-3 pb-0 flex-shrink-0 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                    <h1 className="text-2xl font-bold flex-1">Habits</h1>
-                    <button onClick={() => setIsCreatingFolder(true)} title="New folder" className="p-2 rounded-md hover:bg-primary text-text-primary flex-shrink-0">
-                        <FolderPlusIcon className="text-lg" />
-                    </button>
-                    <button onClick={() => props.onNewHabit()} title="New habit" className="p-2 rounded-md hover:bg-primary text-text-primary flex-shrink-0">
-                        <PencilIcon className="text-lg" />
-                    </button>
+            <div className="p-3 flex-shrink-0 space-y-3">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold">Habits</h1>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => setIsCreatingFolder(true)} title="New Folder" className="p-2 rounded-md hover:bg-tertiary text-text-primary">
+                            <FolderPlusIcon className="text-xl" />
+                        </button>
+                        <button onClick={() => props.onNewHabit()} title="New Habit" className="p-2 rounded-md hover:bg-tertiary text-text-primary">
+                            <PencilIcon className="text-xl" />
+                        </button>
+                    </div>
                 </div>
-                <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted text-lg" />
-                    <input
-                        type="text"
-                        placeholder="Search habits..."
-                        value={props.searchQuery}
-                        onChange={(e) => props.setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
-                    />
-                </div>
+                <input
+                    type="text"
+                    placeholder="Search habits..."
+                    value={props.searchQuery}
+                    onChange={(e) => props.setSearchQuery(e.target.value)}
+                    className="w-full bg-primary border border-tertiary rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+                />
                 {isCreatingFolder && (
                     <div className="flex gap-2">
                         <input
@@ -372,31 +371,55 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 )}
             </div>
 
-            <div className="px-3 py-2 space-y-1 border-b border-tertiary">
-                <NavItem
-                    icon={<FireIcon className="text-base" />}
-                    label="All"
-                    isActive={props.habitFilter === 'all'}
+            <div className="px-3 pb-2 space-y-1 border-b border-tertiary">
+                <button
                     onClick={() => props.setHabitFilter('all')}
-                />
-                <NavItem
-                    icon={<PlayIcon className="text-base" />}
-                    label="Active"
-                    isActive={props.habitFilter === 'active'}
+                    title="Show All Habits"
+                    className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${
+                        props.habitFilter === 'all'
+                            ? 'bg-accent/30 text-accent'
+                            : 'text-text-primary hover:bg-tertiary'
+                    }`}
+                >
+                    <FireIcon className="text-xl" />
+                    <span>All Habits</span>
+                </button>
+                <button
                     onClick={() => props.setHabitFilter('active')}
-                />
-                <NavItem
-                    icon={<PauseIcon className="text-base" />}
-                    label="Paused"
-                    isActive={props.habitFilter === 'paused'}
+                    title="Show Active"
+                    className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${
+                        props.habitFilter === 'active'
+                            ? 'bg-accent/30 text-accent'
+                            : 'text-text-primary hover:bg-tertiary'
+                    }`}
+                >
+                    <PlayIcon className="text-xl" />
+                    <span>Active</span>
+                </button>
+                <button
                     onClick={() => props.setHabitFilter('paused')}
-                />
-                <NavItem
-                    icon={<TrashIcon className="text-base" />}
-                    label="Archived"
-                    isActive={props.habitFilter === 'archived'}
+                    title="Show Paused"
+                    className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${
+                        props.habitFilter === 'paused'
+                            ? 'bg-accent/30 text-accent'
+                            : 'text-text-primary hover:bg-tertiary'
+                    }`}
+                >
+                    <PauseIcon className="text-xl" />
+                    <span>Paused</span>
+                </button>
+                <button
                     onClick={() => props.setHabitFilter('archived')}
-                />
+                    title="Show Archived"
+                    className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${
+                        props.habitFilter === 'archived'
+                            ? 'bg-accent/30 text-accent'
+                            : 'text-text-primary hover:bg-tertiary'
+                    }`}
+                >
+                    <TrashIcon className="text-xl" />
+                    <span>Archived</span>
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-3">
