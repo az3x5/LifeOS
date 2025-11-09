@@ -250,8 +250,21 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
     const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [newFolderInputValue, setNewFolderInputValue] = useState('');
 
     const isFilterActive = props.searchQuery.length > 0 || props.habitFilter !== 'all';
+
+    const handleCreateFolder = async () => {
+        if (!newFolderInputValue.trim()) return;
+        try {
+            await habitFoldersService.create({ name: newFolderInputValue });
+            setNewFolderInputValue('');
+            setIsCreatingFolder(false);
+        } catch (error) {
+            props.setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to create folder.', icon: 'error' });
+        }
+    };
 
     const filteredHabits = useMemo(() => {
         let result = props.habits ?? [];
@@ -313,16 +326,14 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     return (
         <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-3 flex-shrink-0 space-y-3">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">Habits</h1>
-                    <div className="flex items-center gap-1">
-                        <button onClick={() => props.onNewHabit()} title="New habit" className="p-2 rounded-md hover:bg-primary text-text-primary">
-                            <PencilIcon className="text-xl" />
-                        </button>
-                        <button onClick={() => props.onNewHabit()} title="New folder" className="p-2 rounded-md hover:bg-primary text-text-primary">
-                            <FolderPlusIcon className="text-xl" />
-                        </button>
-                    </div>
+                <div className="flex items-center justify-between gap-2">
+                    <h1 className="text-2xl font-bold flex-1">Habits</h1>
+                    <button onClick={() => setIsCreatingFolder(true)} title="New folder" className="p-2 rounded-md hover:bg-primary text-text-primary flex-shrink-0">
+                        <FolderPlusIcon className="text-lg" />
+                    </button>
+                    <button onClick={() => props.onNewHabit()} title="New habit" className="p-2 rounded-md hover:bg-primary text-text-primary flex-shrink-0">
+                        <PencilIcon className="text-lg" />
+                    </button>
                 </div>
                 <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted text-lg" />
@@ -334,6 +345,31 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                         className="w-full pl-10 pr-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
                     />
                 </div>
+                {isCreatingFolder && (
+                    <div className="flex gap-2">
+                        <input
+                            autoFocus
+                            type="text"
+                            placeholder="Folder name..."
+                            value={newFolderInputValue}
+                            onChange={(e) => setNewFolderInputValue(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleCreateFolder();
+                                if (e.key === 'Escape') {
+                                    setIsCreatingFolder(false);
+                                    setNewFolderInputValue('');
+                                }
+                            }}
+                            className="flex-1 px-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                        />
+                        <button
+                            onClick={handleCreateFolder}
+                            className="px-3 py-2 bg-accent text-accent-foreground rounded-md font-medium hover:opacity-90"
+                        >
+                            Create
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="px-3 pb-2 space-y-1 border-b border-tertiary">
