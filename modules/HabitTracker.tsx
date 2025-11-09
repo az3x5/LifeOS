@@ -1,14 +1,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
-import { Habit, HabitLog, Routine, UserProfile, Badge, UserBadge } from '../types';
+import { Habit, HabitLog, Routine, HealthMetric, HealthLog, UserProfile, Badge, UserBadge } from '../types';
 import { habitsService, habitLogsService, routinesService, userProfileService, badgesService, userBadgesService } from '../services/dataService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 
-type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics';
-type SortBy = 'name' | 'streak' | 'completion' | 'category';
-const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights'];
+type View = 'dashboard' | 'routinesList' | 'habitDetail' | 'routineDetail' | 'reminders' | 'progress' | 'analytics' | 'calendar';
+const TABS = ['Dashboard', 'Progress', 'Routines', 'Reminders', 'Analytics & Insights', 'Calendar'];
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -26,9 +25,6 @@ const HabitTracker: React.FC = () => {
     const undoTimeoutRef = useRef<number | null>(null);
     const [focusRoutine, setFocusRoutine] = useState<Routine | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
-    const [sortBy, setSortBy] = useState<SortBy>('name');
-    const [filterCategory, setFilterCategory] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
 
     const habits = useSupabaseQuery<Habit>('habits');
     const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
@@ -114,19 +110,18 @@ const HabitTracker: React.FC = () => {
         return <RoutineDetailView routineId={selectedRoutineId} setView={setView} habits={habits} routines={routines} />;
     }
 
-    const activeTab = view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'reminders' ? 'Reminders' : 'Dashboard';
-
+    const activeTab = view === 'progress' ? 'Progress' : view === 'routinesList' ? 'Routines' : view === 'analytics' ? 'Analytics & Insights' : view === 'calendar' ? 'Calendar' : view === 'reminders' ? 'Reminders' : 'Dashboard';
+    
     const handleTabClick = (tab: string) => {
-        if (tab === 'Dashboard') setView('dashboard'); else if (tab === 'Progress') setView('progress'); else if (tab === 'Analytics & Insights') setView('analytics'); else if (tab === 'Routines') setView('routinesList'); else if (tab === 'Reminders') setView('reminders');
+        if (tab === 'Dashboard') setView('dashboard'); else if (tab === 'Progress') setView('progress'); else if (tab === 'Analytics & Insights') setView('analytics'); else if (tab === 'Calendar') setView('calendar'); else if (tab === 'Routines') setView('routinesList'); else if (tab === 'Reminders') setView('reminders');
     }
 
     const renderContent = () => {
         switch (view) {
-            case 'dashboard': return <DashboardTab setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} routines={routines} onToggleHabit={(h) => handleToggleHabit(h, getTodayDateString())} onStartRoutine={setFocusRoutine} streaks={streaks} sortBy={sortBy} setSortBy={setSortBy} filterCategory={filterCategory} setFilterCategory={setFilterCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />;
+            case 'dashboard': return <DashboardTab setView={setView} setSelectedHabitId={setSelectedHabitId} habits={habits} habitLogs={habitLogs} routines={routines} onToggleHabit={(h) => handleToggleHabit(h, getTodayDateString())} onStartRoutine={setFocusRoutine} streaks={streaks} />;
             case 'progress': return <ProgressTab userProfile={userProfile} badges={badges} userBadges={userBadges} />;
             case 'routinesList': return <RoutinesListView setView={setView} setSelectedRoutineId={setSelectedRoutineId} habits={habits} habitLogs={habitLogs} routines={routines} />;
             case 'reminders': return <RemindersTab habits={habits} onSetReminder={(habit) => { setSelectedHabitForReminder(habit); setIsSetReminderModalOpen(true); }} />;
-            case 'analytics': return <AnalyticsAndInsightsTab habits={habits} habitLogs={habitLogs} />;
             default: return null;
         }
     };
@@ -176,41 +171,12 @@ const HabitTracker: React.FC = () => {
     );
 };
 
-const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; routines?: Routine[]; onToggleHabit: (habit: Habit) => void; onStartRoutine: (routine: Routine) => void; streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; sortBy: SortBy; setSortBy: (sort: SortBy) => void; filterCategory: string | null; setFilterCategory: (cat: string | null) => void; searchQuery: string; setSearchQuery: (q: string) => void; }> = ({ setView, setSelectedHabitId, habits, habitLogs, routines, onToggleHabit, onStartRoutine, streaks, sortBy, setSortBy, filterCategory, setFilterCategory, searchQuery, setSearchQuery }) => {
+const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; routines?: Routine[]; onToggleHabit: (habit: Habit) => void; onStartRoutine: (routine: Routine) => void; streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; }> = ({ setView, setSelectedHabitId, habits, habitLogs, routines, onToggleHabit, onStartRoutine, streaks }) => {
     const todayStr = getTodayDateString();
     const todayDay = new Date().getDay();
     const completedHabitIds = useMemo(() => new Set(habitLogs?.filter(l => l.date === todayStr).map(l => l.habitId) ?? []), [habitLogs, todayStr]);
-
-    const todaysHabits = useMemo(() => {
-        let filtered = habits?.filter(h => h.frequency === 'daily' || h.daysOfWeek?.includes(todayDay)) ?? [];
-
-        // Apply category filter
-        if (filterCategory) {
-            filtered = filtered.filter(h => h.category === filterCategory);
-        }
-
-        // Apply search query
-        if (searchQuery) {
-            filtered = filtered.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-
-        // Apply sorting
-        return filtered.sort((a, b) => {
-            switch (sortBy) {
-                case 'streak':
-                    return (streaks[b.id!]?.currentStreak ?? 0) - (streaks[a.id!]?.currentStreak ?? 0);
-                case 'completion':
-                    const aCompleted = completedHabitIds.has(a.id!);
-                    const bCompleted = completedHabitIds.has(b.id!);
-                    return (bCompleted ? 1 : 0) - (aCompleted ? 1 : 0);
-                case 'category':
-                    return (a.category || '').localeCompare(b.category || '');
-                case 'name':
-                default:
-                    return a.name.localeCompare(b.name);
-            }
-        });
-    }, [habits, todayDay, filterCategory, searchQuery, sortBy, streaks, completedHabitIds]);
+    
+    const todaysHabits = useMemo(() => habits?.filter(h => h.frequency === 'daily' || h.daysOfWeek?.includes(todayDay)) ?? [], [habits, todayDay]);
 
     const dashboardData = useMemo(() => {
         const totalCompletions = completedHabitIds.size;
@@ -246,8 +212,6 @@ const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId
         }} />;
     }
 
-    const categories = useMemo(() => [...new Set(habits?.map(h => h.category).filter(Boolean) ?? [])], [habits]);
-
     return (
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -255,49 +219,6 @@ const DashboardTab: React.FC<{ setView: (view: View) => void; setSelectedHabitId
                 <StatCard title="Active Streaks" value={dashboardData.activeStreaks.toString()} />
                 <StatCard title="Longest Streak" value={`${dashboardData.longestStreak} days`} />
             </div>
-
-            {/* Filter & Sort Controls */}
-            <div className="bg-secondary p-4 rounded-xl border border-tertiary space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <input
-                        type="text"
-                        placeholder="Search habits..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
-                    />
-                    <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortBy)}
-                        className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
-                    >
-                        <option value="name">Sort by Name</option>
-                        <option value="streak">Sort by Streak</option>
-                        <option value="completion">Sort by Completion</option>
-                        <option value="category">Sort by Category</option>
-                    </select>
-                </div>
-                {categories.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => setFilterCategory(null)}
-                            className={`px-3 py-1 rounded-full text-sm transition-colors ${filterCategory === null ? 'bg-accent text-white' : 'bg-tertiary text-text-primary hover:bg-accent/20'}`}
-                        >
-                            All
-                        </button>
-                        {categories.map(cat => (
-                            <button
-                                key={cat}
-                                onClick={() => setFilterCategory(cat)}
-                                className={`px-3 py-1 rounded-full text-sm transition-colors ${filterCategory === cat ? 'bg-accent text-white' : 'bg-tertiary text-text-primary hover:bg-accent/20'}`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
-
             <div className="space-y-6">
                 {routinesWithHabits.map(routine => <RoutineGroup key={routine.id} routine={routine} completedHabitIds={completedHabitIds} onHabitClick={(id) => { setSelectedHabitId(id); setView('habitDetail'); }} onToggleHabit={onToggleHabit} onStartRoutine={onStartRoutine} streaks={streaks} />)}
                 {standaloneHabits.length > 0 && (
@@ -550,6 +471,7 @@ const AnalyticsAndInsightsTab: React.FC<{ habits?: Habit[]; habitLogs?: HabitLog
             <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0"><h2 className="text-2xl font-bold">Analytics & Insights</h2><div className="flex items-center space-x-2"><button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export CSV</button><button className="bg-tertiary text-sm py-2 px-3 rounded-lg hover:bg-opacity-80 disabled:opacity-50" disabled>Export PDF</button></div></div>
             <AIInsightsWidget habits={habits} habitLogs={habitLogs} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><WeekdayPerformanceWidget habits={habits} habitLogs={habitLogs} /><HabitPerformanceWidget habits={habits} habitLogs={habitLogs} /></div>
+            <CorrelationEngineWidget habits={habits} habitLogs={habitLogs} />
         </div>
     );
 };
@@ -762,6 +684,32 @@ const HabitPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] 
     }, [habits, habitLogs]);
     return (
         <div className="bg-secondary p-6 rounded-xl border border-tertiary h-[400px] flex flex-col"><h2 className="text-xl font-semibold mb-4">Habit Performance Breakdown</h2><div className="flex-1 overflow-y-auto"><ul className="space-y-3">{data.map(h => (<li key={h.name} className="p-3 bg-primary rounded-lg"> <p className="font-semibold text-text-primary">{h.name}</p><div className="flex justify-between items-center text-sm text-text-secondary mt-1"><span>Current: {h['Current Streak']}d</span><span>Longest: {h['Longest Streak']}d</span><span>Rate: {h['Completion Rate'].toFixed(0)}%</span></div></li>))}</ul></div></div>
+    );
+};
+const CorrelationEngineWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[] }> = ({ habits, habitLogs }) => {
+    const healthMetrics = useSupabaseQuery<HealthMetric>('health_metrics');
+    const healthLogs = useSupabaseQuery<HealthLog>('health_logs');
+    const [habitId, setHabitId] = useState<string>(''); const [metricId, setMetricId] = useState<string>('');
+    const correlation = useMemo(() => {
+        if (!habitId || !metricId || !healthLogs) return { text: "Select a habit and a health metric to see their correlation.", value: 0 };
+        const habitLogsForHabit = new Set(habitLogs.filter(l => l.habitId === Number(habitId)).map(l => l.date));
+        const relevantHealthLogs = healthLogs.filter(l => l.metricId === Number(metricId));
+        if (habitLogsForHabit.size === 0 || relevantHealthLogs.length === 0) return { text: "Not enough data to find a correlation.", value: 0 };
+        const withHabitValues: number[] = []; const withoutHabitValues: number[] = [];
+        relevantHealthLogs.forEach(log => {
+            const dateStr = new Date(log.date).toISOString().split('T')[0];
+            if (habitLogsForHabit.has(dateStr)) withHabitValues.push(log.value); else withoutHabitValues.push(log.value);
+        });
+        if (withHabitValues.length < 2 || withoutHabitValues.length < 2) return { text: "Not enough overlapping data.", value: 0 };
+        const avgWith = withHabitValues.reduce((a, b) => a + b, 0) / withHabitValues.length;
+        const avgWithout = withoutHabitValues.reduce((a, b) => a + b, 0) / withoutHabitValues.length;
+        const diff = avgWith - avgWithout;
+        const selectedHabit = habits.find(h => h.id === Number(habitId));
+        const selectedMetric = healthMetrics?.find(m => m.id === Number(metricId));
+        return { text: `On days you **'${selectedHabit?.name}'**, your average **'${selectedMetric?.name}'** was **${diff.toFixed(2)} ${selectedMetric?.unit} ${diff > 0 ? 'higher' : 'lower'}**.`, value: diff };
+    }, [habitId, metricId, habits, habitLogs, healthMetrics, healthLogs]);
+    return (
+        <div className="bg-secondary p-6 rounded-xl border border-tertiary"><h2 className="text-xl font-semibold mb-4">Correlation Engine</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><select value={habitId} onChange={e => setHabitId(e.target.value)} className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent"><option value="">Select a Habit</option>{habits.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select><select value={metricId} onChange={e => setMetricId(e.target.value)} className="bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-1 focus:ring-accent"><option value="">Select a Health Metric</option>{healthMetrics?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div className="mt-4 p-4 bg-primary rounded-lg min-h-[60px]"><p className="text-text-secondary" dangerouslySetInnerHTML={{ __html: correlation.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p></div></div>
     );
 };
 
