@@ -194,10 +194,10 @@ export const dailyReflectionsService = {
 
 export const remindersService = {
     getAll: () => fetchFromSupabase<Reminder>('reminders'),
-    getById: (id: string) => fetchFromSupabase<Reminder>('reminders', { id }),
+    getById: (id: number) => fetchFromSupabase<Reminder>('reminders', { id }),
     create: (data: Reminder) => insertToSupabase('reminders', data),
-    update: (id: string, data: Partial<Reminder>) => updateInSupabase('reminders', id, data),
-    delete: (id: string) => deleteFromSupabase('reminders', id),
+    update: (id: number, data: Partial<Reminder>) => updateInSupabase('reminders', id, data),
+    delete: (id: number) => deleteFromSupabase('reminders', id),
 };
 
 export const reminderFoldersService = {

@@ -270,7 +270,7 @@ export interface AppNotification {
 
 // Reminders types
 export interface Reminder {
-    id?: string;
+    id?: number;
     userId?: string;
     title: string;
     description?: string;
