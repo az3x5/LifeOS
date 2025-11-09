@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Comprehensive Habit Tracker (Responsive, HTML-only demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0b0f14;--panel:#121822;--panel-2:#0f1520;--text:#e6edf3;--muted:#97a3b6;--accent:#7c5cff;--success:#16c784;--danger:#ff7373;--border:#1c2533}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:linear-gradient(180deg,#0a0e14,#0b111a);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+header{position:sticky;top:0;z-index:40;background:rgba(15,21,32,.8);backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border)}
+nav{display:flex;gap:8px;flex-wrap:wrap;padding:10px}
+.tab{appearance:none;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
+.tab.active{background:var(--accent);border-color:transparent}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.toolbar input,.toolbar select{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:8px 10px;border-radius:10px}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 12px;cursor:pointer}
+.btn.ghost{background:var(--panel);border:1px solid var(--border);color:var(--text)}
+.grid{display:grid;gap:12px}
+.cards{grid-template-columns:repeat(1,1fr)}@media(min-width:720px){.cards{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+.stat{display:flex;align-items:center;justify-content:space-between}
+.badge{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--border);color:var(--muted);padding:4px 8px;border-radius:999px;font-size:12px}
+.habit-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px;border:1px solid var(--border);background:var(--panel-2);border-radius:12px}
+.habit-left{display:flex;align-items:center;gap:10px}
+.check{width:22px;height:22px;border-radius:6px;border:1px solid var(--border);display:inline-grid;place-items:center;background:#0b1220;cursor:pointer}
+.check.done{background:var(--success);border-color:transparent}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:8px}
+.hidden{display:none}
+.views>section{display:none}.views>section.active{display:block}
+.modal{position:fixed;inset:0;background:rgba(8,12,18,.65);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+.modal .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;max-width:560px;width:100%}
+.row{display:grid;gap:8px}
+.row.cols{grid-template-columns:1fr 1fr}
+.toast{position:fixed;right:12px;bottom:12px;display:grid;gap:8px}
+.toast .t{background:var(--panel);border:1px solid var(--border);padding:10px 12px;border-radius:12px}
+.hr{height:1px;background:var(--border);margin:10px 0}
+small.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <nav class="container">
+    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="habits">Habits</button>
+    <button class="tab" data-tab="routines">Routines</button>
+    <button class="tab" data-tab="analytics">Analytics</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+</header>
+<main class="container views">
+  <section id="dashboard" class="active">
+    <div class="grid cards">
+      <div class="card stat"><div><div>Today's Completion</div><strong id="stat-completion">0%</strong></div><span class="badge">XP <span id="stat-xp">0</span></span></div>
+      <div class="card stat"><div>Active Streaks</div><strong id="stat-active">0</strong></div>
+      <div class="card stat"><div>Longest Streak</div><strong id="stat-longest">0d</strong></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Today's Habits</h3><div class="toolbar"><input id="searchToday" placeholder="Search..."/><button class="btn" id="addHabitFromDash">+ New Habit</button></div></div>
+      <div id="todayList" class="grid" style="margin-top:10px"></div>
+    </div>
+  </section>
+  <section id="habits">
+    <div class="card">
+      <div class="toolbar" style="justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div class="toolbar" style="flex:1 1 auto"><input id="searchAll" placeholder="Search habits..." style="flex:1"/><select id="filterCategory"><option value="">All categories</option></select><select id="sortBy"><option value="name">Sort: Name</option><option value="streak">Sort: Streak</option><option value="completion">Sort: Completion</option><option value="category">Sort: Category</option></select></div>
+        <div class="toolbar"><button class="btn" id="addHabitBtn">+ New Habit</button></div>
+      </div>
+    </div>
+    <div class="grid" id="habitList" style="margin-top:12px"></div>
+  </section>
+  <section id="routines">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">Routines</h3><button class="btn" id="addRoutineBtn">+ New Routine</button></div>
+      <div id="routineList" class="grid" style="margin-top:10px"></div>
+    </div>
+  </section>
+  <section id="analytics">
+    <div class="card"><h3 style="margin:0 0 8px">Last 14 Days - Completions</h3><canvas id="chart14"></canvas></div>
+    <div class="grid cards" style="margin-top:12px">
+      <div class="card"><h4 style="margin:0 0 8px">Top Streaks</h4><div id="topStreaks" class="grid"></div></div>
+      <div class="card"><h4 style="margin:0 0 8px">Category Breakdown</h4><div id="catBreakdown" class="grid"></div></div>
+      <div class="card"><h4 style="margin:0 0 8px">Badges</h4><div id="badgeList" class="grid"></div></div>
+    </div>
+  </section>
+  <section id="settings">
+    <div class="card"><h3 style="margin:0 0 8px">Data</h3>
+      <div class="toolbar"><button class="btn" id="exportBtn">Export JSON</button><input type="file" id="importFile" accept="application/json"/><button class="btn ghost" id="resetBtn">Reset Demo Data</button></div>
+      <div class="hr"></div>
+      <h3 style="margin:0 0 8px">Reminders</h3>
+      <div class="kv"><label>Enable Notifications</label><div><button class="btn" id="notifBtn">Request Permission</button> <small class="muted">Uses browser notifications; otherwise shows in-app toast.</small></div></div>
+    </div>
+  </section>
+</main>
+
+<!-- Habit Modal -->
+<div id="habitModal" class="modal hidden"><div class="panel">
+  <h3 id="habitModalTitle" style="margin:0 0 8px">New Habit</h3>
+  <div class="row"><label>Name</label><input id="hName" placeholder="e.g. Drink Water"/></div>
+  <div class="row cols"><div class="row"><label>Category</label><input id="hCategory" placeholder="Wellness"/></div><div class="row"><label>Reminder (HH:MM)</label><input id="hRem" placeholder="07:30"/></div></div>
+  <div class="row"><label>Frequency</label><div><label><input type="radio" name="freq" value="daily" checked/> Daily</label> &nbsp; <label><input type="radio" name="freq" value="weekly"/> Weekly (choose days)</label></div></div>
+  <div id="daysRow" class="row hidden"><div class="toolbar">Days:&nbsp;<label><input type="checkbox" value="0"/>Sun</label><label><input type="checkbox" value="1"/>Mon</label><label><input type="checkbox" value="2"/>Tue</label><label><input type="checkbox" value="3"/>Wed</label><label><input type="checkbox" value="4"/>Thu</label><label><input type="checkbox" value="5"/>Fri</label><label><input type="checkbox" value="6"/>Sat</label></div></div>
+  <div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn ghost" id="habitCancel">Cancel</button><div style="display:flex;gap:8px"><button class="btn danger btnDel hidden" id="habitDelete" style="background:var(--danger)">Delete</button><button class="btn" id="habitSave">Save</button></div></div>
+</div></div>
+
+<!-- Routine Modal -->
+<div id="routineModal" class="modal hidden"><div class="panel">
+  <h3 id="routineModalTitle" style="margin:0 0 8px">New Routine</h3>
+  <div class="row"><label>Name</label><input id="rName" placeholder="Morning"/></div>
+  <div class="row"><label>Add Habits</label><div id="rHabitChoices" class="grid"></div></div>
+  <div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn ghost" id="routineCancel">Cancel</button><div style="display:flex;gap:8px"><button class="btn danger btnDel hidden" id="routineDelete" style="background:var(--danger)">Delete</button><button class="btn" id="routineSave">Save</button></div></div>
+</div></div>
+
+<div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(()=>{
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const LS_KEY='habitAppData_v1', LS_REM='habitRemShown_v1';
+const todayStr=()=>new Date().toISOString().split('T')[0];
+const fmt=(d)=>new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const range=(n)=>Array.from({length:n},(_,i)=>i);
+let state={habits:[],logs:[],routines:[],profile:{xp:0,badges:[]}};let editId=null, editRoutineId=null, chart=null;
+const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
+const load=()=>{const x=localStorage.getItem(LS_KEY);if(x){state=JSON.parse(x)}else{seed();save()}};
+const seed=()=>{state={habits:[{id:1,name:'Drink Water',category:'Wellness',frequency:'daily',daysOfWeek:[],reminder:'08:00'},{id:2,name:'Walk 5k',category:'Fitness',frequency:'weekly',daysOfWeek:[1,3,5],reminder:'18:00'},{id:3,name:'Read 20m',category:'Growth',frequency:'daily',daysOfWeek:[],reminder:''}],logs:[],routines:[{id:1,name:'Morning',habitIds:[1,3]}],profile:{xp:0,badges:[]}}};
+const isScheduled=(h,d)=>h.frequency==='daily'||(h.daysOfWeek||[]).includes(new Date(d).getDay());
+const hasLog=(hid,d)=>state.logs.some(l=>l.habitId===hid&&l.date===d);
+const addLog=(hid,d)=>{if(hasLog(hid,d))return;state.logs.push({habitId:hid,date:d});state.profile.xp+=10;badgeCheck();save()};
+const delLog=(hid,d)=>{const i=state.logs.findIndex(l=>l.habitId===hid&&l.date===d);if(i>-1){state.logs.splice(i,1);state.profile.xp=Math.max(0,state.profile.xp-10);save()}};
+const toggle=(hid,d)=>{hasLog(hid,d)?delLog(hid,d):addLog(hid,d);render();toast('Saved');};
+const streakOf=(h)=>{let cur=0,long=0;for(let i=0;i<365;i++){const dt=addDays(new Date, -i), ds=dt.toISOString().split('T')[0];const sched=isScheduled(h,ds);if(!sched) continue; if(hasLog(h.id,ds)){cur+=1;long=Math.max(long,cur);} else { if(i===0) break; else cur=0; }}return {current:cur,longest:long}};
+const completionRate=(h,days=30)=>{let sched=0,done=0;for(let i=0;i<days;i++){const ds=addDays(new Date,-i).toISOString().split('T')[0];if(isScheduled(h,ds)){sched++;if(hasLog(h.id,ds))done++;}}return sched?Math.round(done/sched*100):0};
+const dashStats=()=>{const th=state.habits.filter(h=>isScheduled(h,todayStr()));const done=new Set(state.logs.filter(l=>l.date===todayStr()).map(l=>l.habitId));const cr=th.length?Math.round(done.size/th.length*100):0;const streaks=state.habits.map(streakOf);const active=streaks.filter(s=>s.current>0).length;const longest=Math.max(0,...streaks.map(s=>s.longest));return{cr,active,longest}};
+const badgeCheck=()=>{const have=new Set(state.profile.badges);const add=b=>{if(!have.has(b)){state.profile.badges.push(b)}};if(state.profile.xp>=10)add('First Step');if(state.profile.xp>=100)add('100 XP');if(state.habits.some(h=>streakOf(h).current>=7))add('7-Day Streak');if(state.habits.some(h=>completionRate(h,30)>=80))add('Consistency 30');save()};
+const categories=()=>Array.from(new Set(state.habits.map(h=>h.category).filter(Boolean))).sort();
+
+// Renderers
+const render=()=>{renderDash();renderHabits();renderRoutines();renderAnalytics();updateFilters()};
+const renderDash=()=>{const s=dashStats();$('#stat-completion').textContent=s.cr+'%';$('#stat-active').textContent=s.active;$('#stat-longest').textContent=s.longest+'d';const q=$('#searchToday').value.toLowerCase();const list=$('#todayList');list.innerHTML='';state.habits.filter(h=>isScheduled(h,todayStr())&&(!q||h.name.toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name)).forEach(h=>{const s=streakOf(h);const el=document.createElement('div');el.className='habit-row';el.innerHTML=`<div class="habit-left"><div class="check ${hasLog(h.id,todayStr())?'done':''}" data-id="${h.id}">✓</div><div><div><strong>${h.name}</strong> <small class="muted">${h.category||''}</small></div><small class="muted">Streak ${s.current}d • Long ${s.longest}d • Rate ${completionRate(h)}%</small></div></div><div><button class="btn ghost" data-edit="${h.id}">Edit</button></div>`;list.appendChild(el);});}
+const renderHabits=()=>{const q=$('#searchAll').value.toLowerCase();const cat=$('#filterCategory').value;const sort=$('#sortBy').value;const wrap=$('#habitList');wrap.innerHTML='';let arr=state.habits.filter(h=>(!q||h.name.toLowerCase().includes(q))&&(!cat||h.category===cat));arr.sort((a,b)=>{if(sort==='name')return a.name.localeCompare(b.name);if(sort==='category')return (a.category||'').localeCompare(b.category||'');if(sort==='streak')return streakOf(b).current-streakOf(a).current; if(sort==='completion')return completionRate(b)-completionRate(a);return 0});arr.forEach(h=>{const s=streakOf(h);const card=document.createElement('div');card.className='card';card.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><strong>${h.name}</strong><div><small class="muted">${h.category||''}</small></div></div><div><button class="btn ghost" data-edit="${h.id}">Edit</button></div></div><div class="hr"></div><div class="grid" style="grid-template-columns:repeat(7,1fr);gap:6px">${range(7).map(i=>{const d=addDays(new Date,-i).toISOString().split('T')[0];const ok=isScheduled(h,d)&&hasLog(h.id,d);return `<div class="check ${ok?'done':''}" data-t="${d}" data-id="${h.id}">${ok?'✓':''}</div>`}).join('')}</div><small class="muted">Streak ${s.current}d • Long ${s.longest}d • Rate ${completionRate(h)}%</small>`;wrap.appendChild(card)});}
+const renderRoutines=()=>{const box=$('#routineList');box.innerHTML='';state.routines.forEach(r=>{const card=document.createElement('div');card.className='card';const hs=r.habitIds.map(id=>state.habits.find(h=>h.id===id)).filter(Boolean);card.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><strong>${r.name}</strong><div><small class="muted">${hs.map(h=>h.name).join(', ')||'No habits yet'}</small></div></div><div><button class="btn ghost" data-edit-r="${r.id}">Edit</button> <button class="btn" data-start="${r.id}">Start</button></div></div>`;box.appendChild(card)});}
+const renderAnalytics=()=>{const days=range(14).map(i=>addDays(new Date,-(13-i)));const labels=days.map(d=>fmt(d));const counts=days.map(d=>{const ds=d.toISOString().split('T')[0];return state.logs.filter(l=>l.date===ds).length});const ctx=$('#chart14');if(chart)chart.destroy();chart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Completions',data:counts,borderColor:varGet('--accent'),tension:.25}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{color:varGet('--muted')}},x:{ticks:{color:varGet('--muted')}}}});const streaks=state.habits.map(h=>({name:h.name,s:streakOf(h).current})).sort((a,b)=>b.s-a.s).slice(0,6);$('#topStreaks').innerHTML=streaks.map(s=>`<div class="habit-row"><div>${s.name}</div><div><strong>${s.s}d</strong></div></div>`).join('');const cats={};state.habits.forEach(h=>cats[h.category||'Uncategorized']=(cats[h.category||'Uncategorized']||0)+1);$('#catBreakdown').innerHTML=Object.entries(cats).map(([k,v])=>`<div class="habit-row"><div>${k}</div><div><strong>${v}</strong></div></div>`).join('');$('#badgeList').innerHTML=state.profile.badges.map(b=>`<span class="badge">🏅 ${b}</span>`).join(' ')}
+const updateFilters=()=>{const sel=$('#filterCategory');const cur=sel.value;const opts=['',...categories()];sel.innerHTML=opts.map(x=>`<option value="${x}">${x||'All categories'}</option>`).join('');sel.value=cur}
+
+// Modal helpers
+const openHabitModal=(id=null)=>{editId=id;const isEdit=!!id;$('#habitModalTitle').textContent=isEdit?'Edit Habit':'New Habit';$('.btnDel').classList.toggle('hidden',!isEdit);const h=isEdit?state.habits.find(x=>x.id===id):{name:'',category:'',frequency:'daily',daysOfWeek:[],reminder:''};$('#hName').value=h.name||'';$('#hCategory').value=h.category||'';$('#hRem').value=h.reminder||'';$$('input[name="freq"]').forEach(r=>r.checked=r.value===h.frequency);$('#daysRow').classList.toggle('hidden',h.frequency!=='weekly');$$('#daysRow input[type="checkbox"]').forEach(c=>c.checked=h.daysOfWeek?.includes(Number(c.value)));$('#habitModal').classList.remove('hidden')};
+const saveHabit=()=>{const name=$('#hName').value.trim();if(!name)return toast('Name required');const cat=$('#hCategory').value.trim();const rem=$('#hRem').value.trim();const freq=$$('input[name="freq"]').find(r=>r.checked).value;const days=freq==='weekly'?$$('#daysRow input[type="checkbox"]').filter(c=>c.checked).map(c=>Number(c.value)):[];if(editId){const h=state.habits.find(x=>x.id===editId);Object.assign(h,{name:changeCase(name),category:cat,frequency:freq,daysOfWeek:days,reminder:rem});}else{const id=(Math.max(0,...state.habits.map(h=>h.id||0))+1)||1;state.habits.push({id,name:changeCase(name),category:cat,frequency:freq,daysOfWeek:days,reminder:rem})}save();closeHabitModal();render();toast('Saved')};
+const deleteHabit=()=>{if(!editId)return;state.habits=state.habits.filter(h=>h.id!==editId);state.logs=state.logs.filter(l=>l.habitId!==editId);state.routines.forEach(r=>r.habitIds=r.habitIds.filter(id=>id!==editId));save();closeHabitModal();render();toast('Deleted')};
+const closeHabitModal=()=>$('#habitModal').classList.add('hidden');
+
+const openRoutineModal=(id=null)=>{editRoutineId=id;const isEdit=!!id;$('#routineModalTitle').textContent=isEdit?'Edit Routine':'New Routine';$('.btnDel').classList.toggle('hidden',!isEdit);const r=isEdit?state.routines.find(x=>x.id===id):{name:'',habitIds:[]};$('#rName').value=r.name||'';const box=$('#rHabitChoices');box.innerHTML=state.habits.map(h=>`<label class="habit-row"><div><input type="checkbox" value="${h.id}" ${r.habitIds.includes(h.id)?'checked':''}/> ${h.name}</div></label>`).join('');$('#routineModal').classList.remove('hidden')};
+const saveRoutine=()=>{const name=$('#rName').value.trim();if(!name)return toast('Name required');const habitIds=$$('#rHabitChoices input[type="checkbox"]').filter(c=>c.checked).map(c=>Number(c.value));if(editRoutineId){const r=state.routines.find(x=>x.id===editRoutineId);Object.assign(r,{name,habitIds});}else{const id=(Math.max(0,...state.routines.map(r=>r.id||0))+1)||1;state.routines.push({id,name,habitIds})}save();closeRoutineModal();render();toast('Saved')};
+const deleteRoutine=()=>{if(!editRoutineId)return;state.routines=state.routines.filter(r=>r.id!==editRoutineId);save();closeRoutineModal();render();toast('Deleted')};
+const closeRoutineModal=()=>$('#routineModal').classList.add('hidden');
+
+// Reminders (in-app + optional Notification API)
+const remShown=()=>JSON.parse(localStorage.getItem(LS_REM)||'{}');
+const setRemShown=(hid,ds)=>{const m=remShown();m[hid]=ds;localStorage.setItem(LS_REM,JSON.stringify(m))};
+const checkReminders=()=>{const now=new Date();const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0'), ds=todayStr();state.habits.forEach(h=>{if(!h.reminder)return; if(remShown()[h.id]===ds)return; const [rh,rm]=h.reminder.split(':').map(Number);if(now.getHours()>rh||(now.getHours()===rh&&now.getMinutes()>=rm)){setRemShown(h.id,ds);notify(`Reminder: ${h.name}`,`It's ${hh}:${mm}. Time for your habit.`);}})};
+const notify=(title,body)=>{if('Notification'in window&&Notification.permission==='granted'){new Notification(title,{body})} else {toast(title+" — "+body)}};
+
+// Events
+$$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.views>section').forEach(s=>s.classList.toggle('active',s.id===b.dataset.tab));if(b.dataset.tab==='analytics')renderAnalytics()});
+$('#addHabitBtn').onclick=()=>openHabitModal();$('#addHabitFromDash').onclick=()=>openHabitModal();
+$('#habitCancel').onclick=closeHabitModal;$('#habitSave').onclick=saveHabit;$('#habitDelete').onclick=deleteHabit;
+$('#addRoutineBtn').onclick=()=>openRoutineModal();$('#routineCancel').onclick=closeRoutineModal;$('#routineSave').onclick=saveRoutine;$('#routineDelete').onclick=deleteRoutine;
+$('#searchToday').oninput=renderDash;$('#searchAll').oninput=renderHabits;$('#filterCategory').onchange=renderHabits;$('#sortBy').onchange=renderHabits;
+$('#notifBtn').onclick=()=>{'Notification'in window?Notification.requestPermission().then(p=>toast('Permission: '+p)):toast('Notifications not supported')};
+$('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='habits.json';a.click();URL.revokeObjectURL(url)};
+$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.habits&&d.logs&&d.routines&&d.profile){state=d;save();render();toast('Imported')}else toast('Invalid file')}catch{toast('Invalid JSON')}};r.readAsText(f)};
+$('#resetBtn').onclick=()=>{seed();save();render();toast('Demo data reset')};
+
+// Delegated clicks (toggle, edit, start)
+document.body.addEventListener('click',e=>{const t=e.target;if(t.matches('.check[data-id]')&&t.dataset.t){toggle(Number(t.dataset.id),t.dataset.t)};if(t.matches('.check[data-id]')&&!t.dataset.t){toggle(Number(t.dataset.id),todayStr())};if(t.matches('button[data-edit]'))openHabitModal(Number(t.dataset.edit));if(t.matches('button[data-edit-r]'))openRoutineModal(Number(t.dataset.editR));if(t.matches('button[data-start]')){const rid=Number(t.dataset.start);const r=state.routines.find(x=>x.id===rid);if(!r)return;const ids=new Set(r.habitIds);$$('#todayList .habit-row').forEach(row=>row.classList.toggle('hidden',!ids.has(Number(row.querySelector('.check').dataset.id))));toast('Focus mode: '+r.name)}});
+
+// Small utils
+const varGet=(n)=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const toast=(msg)=>{const box=$('#toast');const el=document.createElement('div');el.className='t';el.textContent=msg;box.appendChild(el);setTimeout(()=>{el.remove()},2500)};
+const changeCase=s=>s.replace(/\s+/g,' ').replace(/^\w|\s\w/g,m=>m.toUpperCase());
+$$('input[name="freq"]').forEach(r=>r.onchange=()=>{$('#daysRow').classList.toggle('hidden',r.value!=='weekly')});
+
+// Init
+load();badgeCheck();render();setInterval(checkReminders,60000);checkReminders();
+})();
+</script>
+</body>
+</html>
