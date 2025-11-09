@@ -270,11 +270,11 @@ export interface AppNotification {
 
 // Reminders types
 export interface Reminder {
-    id?: number;
+    id?: string;
     userId?: string;
     title: string;
     description?: string;
-    dueDate: Date;
+    dueDate: Date | string;
     dueTime?: string;
     priority: 'low' | 'medium' | 'high';
     category: 'personal' | 'work' | 'health' | 'finance' | 'other' | string;
@@ -284,9 +284,9 @@ export interface Reminder {
     notificationEnabled?: boolean;
     notificationTime?: number;
     tags?: string[];
-    createdAt?: Date;
-    updatedAt?: Date;
-    completedAt?: Date;
+    createdAt?: Date | string;
+    updatedAt?: Date | string;
+    completedAt?: Date | string;
     completed?: boolean;
     folderId?: number | null;  // null = root/no folder
 }

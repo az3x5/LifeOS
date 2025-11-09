@@ -35,7 +35,7 @@ const Reminders: React.FC = () => {
     const allReminders = useSupabaseQuery<Reminder>('reminders');
     const reminderFolders = useSupabaseQuery<ReminderFolder>('reminder_folders');
 
-    const [selectedReminderId, setSelectedReminderId] = useState<number | null>(null);
+    const [selectedReminderId, setSelectedReminderId] = useState<string | null>(null);
     const [reminderFilter, setReminderFilter] = useState<ReminderFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isRemindersSidebarOpen, setIsRemindersSidebarOpen] = useState(false);
@@ -62,35 +62,50 @@ const Reminders: React.FC = () => {
 
     const handleNewReminder = async (folderId?: number) => {
         try {
-            const newReminder = await remindersService.create({
+            console.log('Creating new reminder...');
+            const now = new Date();
+            const reminderData = {
                 title: 'Untitled Reminder',
                 description: '',
-                dueDate: new Date(),
-                priority: 'medium',
-                category: 'personal',
-                status: 'pending',
-                recurring: 'none',
+                dueDate: now,
+                dueTime: '',
+                priority: 'medium' as const,
+                category: 'personal' as const,
+                status: 'pending' as const,
+                recurring: 'none' as const,
                 notificationEnabled: true,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                folderId: folderId,
-            } as Reminder);
-            setReminderFilter('all');
+                notificationTime: 9,
+                createdAt: now,
+                updatedAt: now,
+                folderId: folderId || null,
+            };
+            console.log('Reminder data:', reminderData);
+            const newReminder = await remindersService.create(reminderData as Reminder);
+            console.log('Created reminder:', newReminder);
+
             if (newReminder && newReminder.id) {
-                handleSelectReminder(newReminder.id);
+                setReminderFilter('all');
+                handleSelectReminder(newReminder.id as any);
+            } else {
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Error',
+                    message: 'Failed to create reminder. Please try again.',
+                    icon: '⚠️'
+                });
             }
         } catch (error) {
             console.error('Error creating reminder:', error);
             setAlertModal({
                 isOpen: true,
                 title: 'Error',
-                message: 'Failed to create reminder. Please try again.',
+                message: `Failed to create reminder: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 icon: '⚠️'
             });
         }
     };
 
-    const handleSelectReminder = (id: number | null) => {
+    const handleSelectReminder = (id: string | null) => {
         setSelectedReminderId(id);
         setIsRemindersSidebarOpen(false);
     };
@@ -185,14 +200,14 @@ const Reminders: React.FC = () => {
 
 const Sidebar: React.FC<{
     reminderFolders?: ReminderFolder[]; reminders?: Reminder[]; reminderFilter: ReminderFilter; setReminderFilter: (f: ReminderFilter) => void;
-    selectedReminderId: number | null; setSelectedReminderId: (id: number | null) => void;
+    selectedReminderId: string | null; setSelectedReminderId: (id: string | null) => void;
     onNewReminder: (folderId?: number) => void;
     searchQuery: string; setSearchQuery: (q: string) => void;
     isRemindersSidebarOpen: boolean;
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
     setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void;
 }> = (props) => {
-    const [renamingReminderId, setRenamingReminderId] = useState<number|null>(null);
+    const [renamingReminderId, setRenamingReminderId] = useState<string|null>(null);
     const [movingReminder, setMovingReminder] = useState<Reminder|null>(null);
     const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
     const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
