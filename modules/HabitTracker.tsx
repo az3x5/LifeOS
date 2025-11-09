@@ -371,13 +371,15 @@ const StreakBadge: React.FC<{ streak: number }> = ({ streak }) => (
 );
 
 const HabitsListView: React.FC<{ setView: (view: View) => void; setSelectedHabitId: (id: number) => void; habits?: Habit[]; habitLogs?: HabitLog[]; onToggleHabitWithDate: (habit: Habit, date: string) => void; sortBy: SortBy; setSortBy: (sort: SortBy) => void; filterCategory: string | null; setFilterCategory: (cat: string | null) => void; searchQuery: string; setSearchQuery: (q: string) => void; streaks: { [id: number]: { currentStreak: number; longestStreak: number; }; }; }> = ({ setView, setSelectedHabitId, habits, habitLogs, onToggleHabitWithDate, sortBy, setSortBy, filterCategory, setFilterCategory, searchQuery, setSearchQuery, streaks }) => {
+    if (!habits || !habitLogs) return <div className="text-center p-8 text-text-muted">Loading habits...</div>;
+
     const isScheduledOn = (habit: Habit, dateStr: string) => {
         const date = new Date(dateStr);
         return habit.frequency === 'daily' || habit.daysOfWeek?.includes(date.getDay()) || false;
     };
 
     const last7 = useMemo(() => {
-        const dates = [];
+        const dates: string[] = [];
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
@@ -386,10 +388,10 @@ const HabitsListView: React.FC<{ setView: (view: View) => void; setSelectedHabit
         return dates;
     }, []);
 
-    const categories = useMemo(() => [...new Set(habits?.map(h => h.category).filter(Boolean) ?? [])], [habits]);
+    const categories = useMemo(() => [...new Set(habits.map(h => h.category).filter(Boolean))], [habits]);
 
     const filtered = useMemo(() => {
-        let out = habits ?? [];
+        let out = habits;
         if (filterCategory) out = out.filter(h => h.category === filterCategory);
         if (searchQuery) out = out.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
         return out.sort((a, b) => {
@@ -397,8 +399,8 @@ const HabitsListView: React.FC<{ setView: (view: View) => void; setSelectedHabit
                 case 'streak':
                     return (streaks[b.id!]?.currentStreak ?? 0) - (streaks[a.id!]?.currentStreak ?? 0);
                 case 'completion': {
-                    const ra = calculateCompletionRate(a, habitLogs ?? []);
-                    const rb = calculateCompletionRate(b, habitLogs ?? []);
+                    const ra = calculateCompletionRate(a, habitLogs);
+                    const rb = calculateCompletionRate(b, habitLogs);
                     return rb - ra;
                 }
                 case 'category':
