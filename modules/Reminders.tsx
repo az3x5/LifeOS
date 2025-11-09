@@ -138,6 +138,10 @@ const Reminders: React.FC = () => {
                 selectedReminderId={selectedReminderId}
                 setSelectedReminderId={handleSelectReminder}
                 onNewReminder={handleNewReminder}
+                onEditReminder={(reminder) => {
+                    setEditingReminder(reminder);
+                    setIsEditModalOpen(true);
+                }}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 isRemindersSidebarOpen={isRemindersSidebarOpen}
@@ -223,7 +227,7 @@ const Reminders: React.FC = () => {
 const Sidebar: React.FC<{
     reminderFolders?: ReminderFolder[]; reminders?: Reminder[]; reminderFilter: ReminderFilter; setReminderFilter: (f: ReminderFilter) => void;
     selectedReminderId: number | null; setSelectedReminderId: (id: number | null) => void;
-    onNewReminder: (folderId?: number) => void;
+    onNewReminder: (folderId?: number) => void; onEditReminder?: (reminder: Reminder) => void;
     searchQuery: string; setSearchQuery: (q: string) => void;
     isRemindersSidebarOpen: boolean;
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
@@ -316,6 +320,7 @@ const Sidebar: React.FC<{
                                 isSelected={props.selectedReminderId === reminder.id}
                                 isRenaming={renamingReminderId === reminder.id}
                                 onSelect={() => props.setSelectedReminderId(reminder.id!)}
+                                onEdit={() => props.onEditReminder?.(reminder)}
                                 onRename={handleRenameReminder}
                                 onStartRename={() => setRenamingReminderId(reminder.id!)}
                                 onCancelRename={() => setRenamingReminderId(null)}
@@ -331,6 +336,7 @@ const Sidebar: React.FC<{
                         selectedReminderId={props.selectedReminderId}
                         setSelectedReminderId={props.setSelectedReminderId}
                         onNewReminder={props.onNewReminder}
+                        onEditReminder={props.onEditReminder}
                         renamingReminderId={renamingReminderId}
                         setRenamingReminderId={setRenamingReminderId}
                         onRenameReminder={handleRenameReminder}
@@ -439,7 +445,7 @@ const ReminderCard: React.FC<{
 const FolderTree: React.FC<{
     reminderFolders?: ReminderFolder[]; reminders?: Reminder[]; parentId?: number | null; level?: number;
     selectedReminderId: number | null; setSelectedReminderId: (id: number | null) => void;
-    onNewReminder: (folderId?: number) => void; renamingReminderId: number | null; setRenamingReminderId: (id: number | null) => void;
+    onNewReminder: (folderId?: number) => void; onEditReminder?: (reminder: Reminder) => void; renamingReminderId: number | null; setRenamingReminderId: (id: number | null) => void;
     onRenameReminder: (reminder: Reminder, newName: string) => void; onMoveReminder: (reminder: Reminder) => void;
     expandedFolders: Set<number>; toggleFolder: (folderId: number) => void;
     renamingFolderId: number | null; setRenamingFolderId: (id: number | null) => void;
@@ -447,7 +453,7 @@ const FolderTree: React.FC<{
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
     setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void;
 }> = (props) => {
-    const { reminderFolders, reminders, parentId = null, level = 0, selectedReminderId, setSelectedReminderId, onNewReminder, renamingReminderId, setRenamingReminderId, onRenameReminder, onMoveReminder, expandedFolders, toggleFolder, renamingFolderId, setRenamingFolderId, onNewFolder } = props;
+    const { reminderFolders, reminders, parentId = null, level = 0, selectedReminderId, setSelectedReminderId, onNewReminder, onEditReminder, renamingReminderId, setRenamingReminderId, onRenameReminder, onMoveReminder, expandedFolders, toggleFolder, renamingFolderId, setRenamingFolderId, onNewFolder } = props;
 
     const [customizingFolder, setCustomizingFolder] = useState<ReminderFolder|null>(null);
 
@@ -533,7 +539,7 @@ const FolderTree: React.FC<{
 
             <div className="border-l border-tertiary/50" style={{ marginLeft: '7px' }}>
                 {childReminders.map(reminder => (
-                    <ReminderItem key={reminder.id} reminder={reminder} level={level} isSelected={selectedReminderId === reminder.id} isRenaming={renamingReminderId === reminder.id} onSelect={() => setSelectedReminderId(reminder.id!)} onRename={onRenameReminder} onStartRename={() => setRenamingReminderId(reminder.id!)} onCancelRename={()=> setRenamingReminderId(null)} onMove={() => onMoveReminder(reminder)} setConfirmModal={props.setConfirmModal} />
+                    <ReminderItem key={reminder.id} reminder={reminder} level={level} isSelected={selectedReminderId === reminder.id} isRenaming={renamingReminderId === reminder.id} onSelect={() => setSelectedReminderId(reminder.id!)} onEdit={() => { props.onEditReminder?.(reminder); }} onRename={onRenameReminder} onStartRename={() => setRenamingReminderId(reminder.id!)} onCancelRename={()=> setRenamingReminderId(null)} onMove={() => onMoveReminder(reminder)} setConfirmModal={props.setConfirmModal} />
                 ))}
             </div>
             {customizingFolder && <FolderCustomizationModal folder={customizingFolder} onClose={() => setCustomizingFolder(null)} icons={FOLDER_ICONS} colors={COLOR_CLASSES} />}
@@ -543,10 +549,10 @@ const FolderTree: React.FC<{
 
 const ReminderItem: React.FC<{
     reminder: Reminder; level?: number; isSelected: boolean; isRenaming: boolean;
-    onSelect: () => void; onRename: (reminder: Reminder, newName: string) => void;
+    onSelect: () => void; onEdit: () => void; onRename: (reminder: Reminder, newName: string) => void;
     onStartRename: () => void; onCancelRename: () => void; onMove: () => void;
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
-}> = ({ reminder, level=0, isSelected, isRenaming, onSelect, onRename, onStartRename, onCancelRename, onMove, setConfirmModal }) => {
+}> = ({ reminder, level=0, isSelected, isRenaming, onSelect, onEdit, onRename, onStartRename, onCancelRename, onMove, setConfirmModal }) => {
     if (isRenaming) {
         return (
             <div style={{ paddingLeft: `${(level * 16) + 16}px`}} className="py-1">
@@ -568,7 +574,7 @@ const ReminderItem: React.FC<{
                 <span className={`truncate ${isSelected ? 'text-accent' : 'text-text-primary'}`}>{reminder.title}</span>
             </button>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <ReminderActions reminder={reminder} onMove={onMove} onRename={onStartRename} setConfirmModal={setConfirmModal} />
+                <ReminderActions reminder={reminder} onEdit={onEdit} onMove={onMove} onRename={onStartRename} setConfirmModal={setConfirmModal} />
             </div>
         </div>
     )
@@ -792,10 +798,11 @@ const DropdownMenuSeparator: React.FC = () => <div className="border-t border-pr
 
 const ReminderActions: React.FC<{
     reminder: Reminder,
+    onEdit: () => void,
     onMove: () => void,
     onRename: () => void,
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
-}> = ({reminder, onMove, onRename, setConfirmModal}) => {
+}> = ({reminder, onEdit, onMove, onRename, setConfirmModal}) => {
     const handleDelete = async () => {
         setConfirmModal({
             isOpen: true,
@@ -811,6 +818,7 @@ const ReminderActions: React.FC<{
 
     return (
         <DropdownMenu trigger={<button title="More reminder options" className="p-1 rounded-full bg-secondary/80 hover:bg-tertiary"><MoreVertIcon className="text-text-muted text-xl" /></button>}>
+            <DropdownMenuItem icon={<PencilIcon className="text-base"/>} onClick={onEdit}>Edit</DropdownMenuItem>
             <DropdownMenuItem icon={<PencilIcon className="text-base"/>} onClick={onRename}>Rename</DropdownMenuItem>
             <DropdownMenuItem icon={<MoveIcon className="text-base"/>} onClick={onMove}>Move to...</DropdownMenuItem>
             <DropdownMenuSeparator />
