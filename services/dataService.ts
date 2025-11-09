@@ -8,7 +8,7 @@ import {
 } from './supabaseService';
 import {
     Account, Transaction, Category, Budget, SavingsGoal,
-    Habit, HabitLog, Routine, UserProfile, Badge, UserBadge,
+    Habit, HabitLog, Routine, UserProfile, Badge, UserBadge, HabitFolder,
     HealthMetric, HealthLog, HealthGoal,
     Note, Folder,
     FastingLog, PrayerLog, LearningMaterial, LearningLog, Bookmark,
@@ -77,6 +77,14 @@ export const routinesService = {
     create: (data: Routine) => insertToSupabase('routines', data),
     update: (id: number, data: Partial<Routine>) => updateInSupabase('routines', id, data),
     delete: (id: number) => deleteFromSupabase('routines', id),
+};
+
+export const habitFoldersService = {
+    getAll: () => fetchFromSupabase<HabitFolder>('habit_folders'),
+    getById: (id: number) => fetchFromSupabase<HabitFolder>('habit_folders', { id }),
+    create: (data: HabitFolder) => insertToSupabase('habit_folders', data),
+    update: (id: number, data: Partial<HabitFolder>) => updateInSupabase('habit_folders', id, data),
+    delete: (id: number) => deleteFromSupabase('habit_folders', id),
 };
 
 export const userProfileService = {

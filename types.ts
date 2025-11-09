@@ -83,6 +83,18 @@ export interface Habit {
     isFrozen?: boolean;
     frozenFrom?: Date | string;
     frozenTo?: Date | string;
+    folderId?: number | null;  // null = root/no folder
+}
+
+export interface HabitFolder {
+    id?: number;
+    userId?: string;
+    name: string;
+    parentId?: number | null;  // null = root folder
+    createdAt?: Date;
+    updatedAt?: Date;
+    icon?: string;
+    color?: string;
 }
 
 export interface HabitLog {
