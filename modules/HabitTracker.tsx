@@ -422,7 +422,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className="flex-1 overflow-y-auto p-3">
                 {isFilterActive ? (
                     <div className="space-y-1">
                         {filteredHabits.map(habit => (
@@ -627,7 +627,7 @@ const HabitItem: React.FC<HabitItemProps> = (props) => {
     return (
         <button
             onClick={props.onClick}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+            className={`w-full flex items-center gap-2 px-2 py-2 rounded-md transition-colors ${
                 props.isSelected ? 'bg-accent text-accent-foreground' : 'text-text-primary hover:bg-primary'
             }`}
         >
