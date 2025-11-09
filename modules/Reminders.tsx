@@ -63,11 +63,10 @@ const Reminders: React.FC = () => {
     const handleNewReminder = async (folderId?: number) => {
         try {
             console.log('Creating new reminder...');
-            const now = new Date();
             const reminderData = {
                 title: 'Untitled Reminder',
                 description: '',
-                dueDate: now,
+                dueDate: new Date().toISOString(),
                 dueTime: '',
                 priority: 'medium' as const,
                 category: 'personal' as const,
@@ -75,8 +74,6 @@ const Reminders: React.FC = () => {
                 recurring: 'none' as const,
                 notificationEnabled: true,
                 notificationTime: 9,
-                createdAt: now,
-                updatedAt: now,
                 folderId: folderId || null,
             };
             console.log('Reminder data:', reminderData);
@@ -84,9 +81,11 @@ const Reminders: React.FC = () => {
             console.log('Created reminder:', newReminder);
 
             if (newReminder && newReminder.id) {
+                console.log('Reminder created successfully with ID:', newReminder.id);
                 setReminderFilter('all');
-                handleSelectReminder(newReminder.id as any);
+                handleSelectReminder(newReminder.id);
             } else {
+                console.error('No reminder ID returned');
                 setAlertModal({
                     isOpen: true,
                     title: 'Error',
