@@ -61,22 +61,32 @@ const Reminders: React.FC = () => {
     }, [allReminders, selectedReminderId]);
 
     const handleNewReminder = async (folderId?: number) => {
-        const newReminder = await remindersService.create({
-            title: 'Untitled Reminder',
-            description: '',
-            dueDate: new Date(),
-            priority: 'medium',
-            category: 'personal',
-            status: 'pending',
-            recurring: 'none',
-            notificationEnabled: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            folderId: folderId,
-        } as Reminder);
-        setReminderFilter('all');
-        if (newReminder && newReminder.id) {
-            handleSelectReminder(newReminder.id);
+        try {
+            const newReminder = await remindersService.create({
+                title: 'Untitled Reminder',
+                description: '',
+                dueDate: new Date(),
+                priority: 'medium',
+                category: 'personal',
+                status: 'pending',
+                recurring: 'none',
+                notificationEnabled: true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                folderId: folderId,
+            } as Reminder);
+            setReminderFilter('all');
+            if (newReminder && newReminder.id) {
+                handleSelectReminder(newReminder.id);
+            }
+        } catch (error) {
+            console.error('Error creating reminder:', error);
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to create reminder. Please try again.',
+                icon: '⚠️'
+            });
         }
     };
 
@@ -120,16 +130,11 @@ const Reminders: React.FC = () => {
                 setAlertModal={setAlertModal}
             />
             <main className="flex-1 flex flex-col min-w-0 bg-primary">
-                <div className="p-4 border-b border-tertiary flex-shrink-0 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setIsRemindersSidebarOpen(true)} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
-                            <MenuIcon className="text-2xl" />
-                        </button>
-                        <h1 className="text-2xl font-bold">Reminders</h1>
-                    </div>
-                    <button onClick={() => handleNewReminder()} title="Create new reminder" className="p-2 rounded-lg hover:bg-tertiary text-accent">
-                        <AddIcon className="text-2xl" />
+                <div className="p-4 border-b border-tertiary flex-shrink-0 flex items-center gap-2">
+                    <button onClick={() => setIsRemindersSidebarOpen(true)} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
+                        <MenuIcon className="text-2xl" />
                     </button>
+                    <h1 className="text-2xl font-bold">Reminders</h1>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
@@ -245,11 +250,11 @@ const Sidebar: React.FC<{
             <div className="p-3 flex-shrink-0 space-y-3">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Reminders</h1>
-                    <div className="flex items-center">
-                        <button onClick={() => handleNewFolder(null)} title="New Folder" className="p-2 rounded-md hover:bg-tertiary">
+                    <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNewFolder(null); }} title="New Folder" className="p-2 rounded-md hover:bg-tertiary text-text-primary">
                             <FolderPlusIcon className="text-xl" />
                         </button>
-                        <button onClick={() => props.onNewReminder()} title="New Reminder" className="p-2 rounded-md hover:bg-tertiary">
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); props.onNewReminder(); }} title="New Reminder" className="p-2 rounded-md hover:bg-tertiary text-text-primary">
                             <PencilIcon className="text-xl" />
                         </button>
                     </div>
