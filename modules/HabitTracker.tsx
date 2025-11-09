@@ -132,10 +132,10 @@ const HabitTracker: React.FC = () => {
 
         if (log) {
             await habitLogsService.delete(log.id!);
-            const undoFunc = async () => { await habitLogsService.create({ habitId: habit.id!, date }); };
+            const undoFunc = async () => { await habitLogsService.create({ habitId: habit.id!, date, completed: true }); };
             setUndoAction({ message: `"${habit.name}" marked incomplete.`, onUndo: undoFunc });
         } else {
-            const newLog = await habitLogsService.create({ habitId: habit.id!, date });
+            const newLog = await habitLogsService.create({ habitId: habit.id!, date, completed: true });
             const undoFunc = async () => { if (newLog && newLog.id) await habitLogsService.delete(newLog.id); };
             setUndoAction({ message: `"${habit.name}" completed!`, onUndo: undoFunc });
         }
@@ -695,7 +695,7 @@ const HabitDetailPanel: React.FC<HabitDetailPanelProps> = (props) => {
 
     const completionData = useMemo(() => {
         return last14Days.map(date => {
-            const isCompleted = props.habitLogs.some(log => log.habitId === props.habit.id && log.date === date && log.completed);
+            const isCompleted = props.habitLogs.some(log => log.habitId === props.habit.id && log.date === date && (log.completed !== false));
             return { date, completed: isCompleted };
         });
     }, [last14Days, props.habitLogs, props.habit.id]);
