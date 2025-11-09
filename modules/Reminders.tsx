@@ -41,6 +41,8 @@ const Reminders: React.FC = () => {
     const [isRemindersSidebarOpen, setIsRemindersSidebarOpen] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
+    const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Update overdue status
     useMemo(() => {
@@ -60,54 +62,52 @@ const Reminders: React.FC = () => {
         return null;
     }, [allReminders, selectedReminderId]);
 
-    const handleNewReminder = async (folderId?: number) => {
-        try {
-            console.log('Creating new reminder...');
-            // Don't include id - let database auto-generate it
-            const reminderData: Partial<Reminder> = {
-                title: 'Untitled Reminder',
-                description: '',
-                dueDate: new Date().toISOString(),
-                dueTime: '',
-                priority: 'medium',
-                category: 'personal',
-                status: 'pending',
-                recurring: 'none',
-                notificationEnabled: true,
-                notificationTime: 9,
-                folderId: folderId || null,
-            };
-            console.log('Reminder data:', reminderData);
-            const newReminder = await remindersService.create(reminderData as Reminder);
-            console.log('Created reminder:', newReminder);
-
-            if (newReminder && newReminder.id) {
-                console.log('Reminder created successfully with ID:', newReminder.id);
-                setReminderFilter('all');
-                handleSelectReminder(newReminder.id);
-            } else {
-                console.error('No reminder ID returned');
-                setAlertModal({
-                    isOpen: true,
-                    title: 'Error',
-                    message: 'Failed to create reminder. Please try again.',
-                    icon: '⚠️'
-                });
-            }
-        } catch (error) {
-            console.error('Error creating reminder:', error);
-            setAlertModal({
-                isOpen: true,
-                title: 'Error',
-                message: `Failed to create reminder: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                icon: '⚠️'
-            });
-        }
+    const handleNewReminder = (folderId?: number) => {
+        // Open edit modal with empty reminder
+        const newReminder: Reminder = {
+            title: 'Untitled Reminder',
+            description: '',
+            dueDate: new Date().toISOString(),
+            dueTime: '',
+            priority: 'medium',
+            category: 'personal',
+            status: 'pending',
+            recurring: 'none',
+            notificationEnabled: true,
+            notificationTime: 9,
+            folderId: folderId || null,
+        };
+        setEditingReminder(newReminder);
+        setIsEditModalOpen(true);
     };
 
     const handleSelectReminder = (id: number | null) => {
         setSelectedReminderId(id);
         setIsRemindersSidebarOpen(false);
+    };
+
+    const handleSaveReminder = async (reminder: Reminder) => {
+        try {
+            if (reminder.id) {
+                // Update existing reminder
+                await remindersService.update(reminder.id, reminder);
+            } else {
+                // Create new reminder
+                const newReminder = await remindersService.create(reminder);
+                if (newReminder && newReminder.id) {
+                    setReminderFilter('all');
+                    handleSelectReminder(newReminder.id);
+                }
+            }
+        } catch (error) {
+            console.error('Error saving reminder:', error);
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: `Failed to save reminder: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                icon: '⚠️'
+            });
+        }
     };
 
     const displayReminders = useMemo(() => {
@@ -192,6 +192,17 @@ const Reminders: React.FC = () => {
                     message={alertModal.message}
                     icon={alertModal.icon || "⚠️"}
                     onClose={() => setAlertModal(null)}
+                />
+            )}
+            {editingReminder && (
+                <ReminderEditModal
+                    reminder={editingReminder}
+                    isOpen={isEditModalOpen}
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setEditingReminder(null);
+                    }}
+                    onSave={handleSaveReminder}
                 />
             )}
         </div>
@@ -884,6 +895,166 @@ const FolderCustomizationModal: React.FC<{ folder: ReminderFolder, onClose: () =
             </div>
         </div>
     )
+};
+
+const ReminderEditModal: React.FC<{
+    reminder: Reminder;
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (reminder: Reminder) => Promise<void>;
+}> = ({ reminder, isOpen, onClose, onSave }) => {
+    const [formData, setFormData] = useState<Reminder>(reminder);
+    const [isSaving, setIsSaving] = useState(false);
+
+    React.useEffect(() => {
+        setFormData(reminder);
+    }, [reminder]);
+
+    const handleSave = async () => {
+        try {
+            setIsSaving(true);
+            await onSave(formData);
+            onClose();
+        } catch (error) {
+            console.error('Error saving reminder:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-secondary rounded-2xl p-8 w-full max-w-2xl shadow-2xl border border-tertiary max-h-[90vh] overflow-y-auto">
+                <h2 className="text-2xl font-bold mb-6">{reminder.id ? 'Edit Reminder' : 'Create New Reminder'}</h2>
+
+                <div className="space-y-4">
+                    {/* Title */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Title</label>
+                        <input
+                            type="text"
+                            value={formData.title}
+                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                            placeholder="Reminder title"
+                        />
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                        <textarea
+                            value={formData.description || ''}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary resize-none"
+                            placeholder="Add details..."
+                            rows={4}
+                        />
+                    </div>
+
+                    {/* Due Date */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-2">Due Date</label>
+                            <input
+                                type="date"
+                                value={new Date(formData.dueDate).toISOString().split('T')[0]}
+                                onChange={(e) => {
+                                    const date = new Date(e.target.value);
+                                    setFormData({ ...formData, dueDate: date.toISOString() });
+                                }}
+                                className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-2">Due Time</label>
+                            <input
+                                type="time"
+                                value={formData.dueTime || ''}
+                                onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
+                                className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Priority */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
+                        <select
+                            value={formData.priority}
+                            onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'low' | 'medium' | 'high' })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Category</label>
+                        <select
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                        >
+                            <option value="personal">Personal</option>
+                            <option value="work">Work</option>
+                            <option value="health">Health</option>
+                            <option value="finance">Finance</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Status</label>
+                        <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value as 'pending' | 'completed' | 'overdue' })}
+                            className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary"
+                        >
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="overdue">Overdue</option>
+                        </select>
+                    </div>
+
+                    {/* Notification */}
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="checkbox"
+                            checked={formData.notificationEnabled || false}
+                            onChange={(e) => setFormData({ ...formData, notificationEnabled: e.target.checked })}
+                            className="w-4 h-4 rounded"
+                        />
+                        <label className="text-sm font-medium text-text-secondary">Enable notification</label>
+                    </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-4 pt-6 border-t border-tertiary mt-6">
+                    <button
+                        onClick={onClose}
+                        disabled={isSaving}
+                        className="bg-tertiary hover:bg-opacity-80 text-text-secondary py-2 px-6 rounded-lg disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50"
+                    >
+                        {isSaving ? 'Saving...' : 'Save Reminder'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default Reminders;
