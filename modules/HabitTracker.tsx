@@ -431,7 +431,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                                 habit={habit}
                                 isSelected={props.selectedHabitId === habit.id}
                                 onClick={() => props.setSelectedHabitId(habit.id!)}
-                                streak={props.streaks[habit.id!] ?? 0}
+                                streak={props.streaks[habit.id!]?.currentStreak ?? 0}
                             />
                         ))}
                     </div>
@@ -509,7 +509,7 @@ const FolderTree: React.FC<FolderTreeProps> = (props) => {
                     habit={habit}
                     isSelected={props.selectedHabitId === habit.id}
                     onClick={() => props.onSelectHabit(habit.id!)}
-                    streak={props.streaks[habit.id!] ?? 0}
+                    streak={props.streaks[habit.id!]?.currentStreak ?? 0}
                 />
             ))}
         </div>
@@ -605,7 +605,7 @@ const FolderNode: React.FC<FolderNodeProps> = (props) => {
                             habit={habit}
                             isSelected={props.selectedHabitId === habit.id}
                             onClick={() => props.onSelectHabit(habit.id!)}
-                            streak={props.streaks[habit.id!] ?? 0}
+                            streak={props.streaks[habit.id!]?.currentStreak ?? 0}
                         />
                     ))}
                 </div>
@@ -733,7 +733,7 @@ const HabitDetailPanel: React.FC<HabitDetailPanelProps> = (props) => {
                         <div className="text-text-muted text-sm">Current Streak</div>
                         <div className="text-3xl font-bold flex items-center gap-2 mt-2">
                             <FireIcon className="text-2xl text-orange-500" />
-                            {props.streaks[props.habit.id!] ?? 0}
+                            {props.streaks[props.habit.id!]?.currentStreak ?? 0}
                         </div>
                     </div>
                     <div className="bg-secondary rounded-lg p-4 border border-tertiary">
