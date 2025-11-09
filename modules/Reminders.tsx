@@ -30,6 +30,11 @@ const HeartIcon = ({ className }: { className?: string }) => <span className={`m
 const BriefcaseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>work</span>;
 const SchoolIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>school</span>;
 const HomeIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>home</span>;
+const GridViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>grid_view</span>;
+const ListViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>list</span>;
+const ImageIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>image</span>;
+const LocationIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>location_on</span>;
+const FormatListIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>format_list_bulleted</span>;
 
 const Reminders: React.FC = () => {
     const allReminders = useSupabaseQuery<Reminder>('reminders');
@@ -43,6 +48,7 @@ const Reminders: React.FC = () => {
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
     const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid');
 
     // Update overdue status
     useMemo(() => {
@@ -149,11 +155,29 @@ const Reminders: React.FC = () => {
                 setAlertModal={setAlertModal}
             />
             <main className="flex-1 flex flex-col min-w-0 bg-primary">
-                <div className="p-4 border-b border-tertiary flex-shrink-0 flex items-center gap-2">
-                    <button onClick={() => setIsRemindersSidebarOpen(true)} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
-                        <MenuIcon className="text-2xl" />
-                    </button>
-                    <h1 className="text-2xl font-bold">Reminders</h1>
+                <div className="p-4 border-b border-tertiary flex-shrink-0 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setIsRemindersSidebarOpen(true)} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
+                            <MenuIcon className="text-2xl" />
+                        </button>
+                        <h1 className="text-2xl font-bold">Reminders</h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setViewStyle('grid')}
+                            title="Grid view"
+                            className={`p-2 rounded-md ${viewStyle === 'grid' ? 'bg-accent text-white' : 'bg-secondary text-text-primary border border-tertiary hover:bg-tertiary'}`}
+                        >
+                            <GridViewIcon className="text-xl" />
+                        </button>
+                        <button
+                            onClick={() => setViewStyle('list')}
+                            title="List view"
+                            className={`p-2 rounded-md ${viewStyle === 'list' ? 'bg-accent text-white' : 'bg-secondary text-text-primary border border-tertiary hover:bg-tertiary'}`}
+                        >
+                            <ListViewIcon className="text-xl" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
@@ -168,10 +192,26 @@ const Reminders: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-                    ) : (
+                    ) : viewStyle === 'grid' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {displayReminders.map(reminder => (
                                 <ReminderCard
+                                    key={reminder.id}
+                                    reminder={reminder}
+                                    isSelected={selectedReminderId === reminder.id}
+                                    onSelect={() => handleSelectReminder(reminder.id!)}
+                                    onEdit={() => {
+                                        setEditingReminder(reminder);
+                                        setIsEditModalOpen(true);
+                                    }}
+                                    setConfirmModal={setConfirmModal}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {displayReminders.map(reminder => (
+                                <ReminderListItem
                                     key={reminder.id}
                                     reminder={reminder}
                                     isSelected={selectedReminderId === reminder.id}
@@ -436,6 +476,78 @@ const ReminderCard: React.FC<{
                     <span className="text-xs px-2 py-1 rounded bg-tertiary text-text-secondary">
                         {new Date(reminder.dueDate).toLocaleDateString()}
                     </span>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ReminderListItem: React.FC<{
+    reminder: Reminder;
+    isSelected: boolean;
+    onSelect: () => void;
+    onEdit: () => void;
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+}> = ({ reminder, isSelected, onSelect, onEdit, setConfirmModal }) => {
+    const [showMenu, setShowMenu] = useState(false);
+    const priorityColors = { high: 'text-red-400', medium: 'text-yellow-400', low: 'text-green-400' };
+    const statusColors = { pending: 'text-blue-400', overdue: 'text-red-400', completed: 'text-green-400' };
+
+    const handleDelete = async () => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Reminder',
+            message: `Are you sure you want to delete "${reminder.title}"?`,
+            icon: '🗑️',
+            onConfirm: async () => {
+                await remindersService.delete(reminder.id!);
+                setConfirmModal(null);
+            }
+        });
+    };
+
+    const handleToggleComplete = async () => {
+        const newStatus = reminder.status === 'completed' ? 'pending' : 'completed';
+        await remindersService.update(reminder.id!, {
+            status: newStatus,
+            completedAt: newStatus === 'completed' ? new Date() : undefined,
+        });
+    };
+
+    return (
+        <div onClick={onSelect} className={`bg-secondary border rounded-lg p-3 cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-accent bg-accent/10' : 'border-tertiary hover:border-accent/50'}`}>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                    <h3 className={`font-medium flex-1 truncate ${reminder.status === 'completed' ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
+                        {reminder.title}
+                    </h3>
+                    <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${priorityColors[reminder.priority as keyof typeof priorityColors]}`}>
+                        {reminder.priority}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${statusColors[reminder.status as keyof typeof statusColors]}`}>
+                        {reminder.status}
+                    </span>
+                </div>
+                {reminder.description && (
+                    <p className="text-xs text-text-secondary mt-1 truncate">{reminder.description}</p>
+                )}
+            </div>
+            <div className="relative flex-shrink-0 ml-2">
+                <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                    <MoreVertIcon className="text-lg" />
+                </button>
+                {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                            <PencilIcon className="text-lg" /> Edit
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleToggleComplete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                            <CheckCircleIcon className="text-lg" /> {reminder.status === 'completed' ? 'Mark Pending' : 'Mark Complete'}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                            <TrashIcon className="text-lg" /> Delete
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
@@ -977,7 +1089,35 @@ const ReminderEditModal: React.FC<{
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-text-secondary">Description</label>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, description: (formData.description || '') + '\n• ' })}
+                                    title="Add list item"
+                                    className="p-1.5 rounded hover:bg-tertiary text-text-secondary hover:text-accent transition-colors"
+                                >
+                                    <FormatListIcon className="text-lg" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, description: (formData.description || '') + '\n[Photo]' })}
+                                    title="Add photo placeholder"
+                                    className="p-1.5 rounded hover:bg-tertiary text-text-secondary hover:text-accent transition-colors"
+                                >
+                                    <ImageIcon className="text-lg" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, description: (formData.description || '') + '\n📍 Location: ' })}
+                                    title="Add location"
+                                    className="p-1.5 rounded hover:bg-tertiary text-text-secondary hover:text-accent transition-colors"
+                                >
+                                    <LocationIcon className="text-lg" />
+                                </button>
+                            </div>
+                        </div>
                         <textarea
                             value={formData.description || ''}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
