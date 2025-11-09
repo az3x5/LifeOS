@@ -1,12 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
-import { Reminder } from '../types';
-import { remindersService } from '../services/dataService';
+import { Reminder, ReminderFolder } from '../types';
+import { remindersService, reminderFoldersService } from '../services/dataService';
 import ConfirmModal from '../components/modals/ConfirmModal';
+import AlertModal from '../components/modals/AlertModal';
 
 type ReminderFilter = 'all' | 'pending' | 'completed' | 'overdue';
-type ReminderSort = 'dueDate' | 'priority' | 'created';
-type ViewMode = 'list' | 'grid' | 'kanban';
 
 // --- ICONS ---
 const MenuIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>menu</span>;
@@ -17,73 +16,53 @@ const AlertIcon = ({ className }: { className?: string }) => <span className={`m
 const MoreVertIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>more_vert</span>;
 const DeleteIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
 const AddIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>add</span>;
-const ViewListIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>view_list</span>;
-const ViewAgendaIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>view_agenda</span>;
-const ViewWeekIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>view_week</span>;
+const FolderIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>folder</span>;
+const FolderPlusIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>create_new_folder</span>;
+const ChevronRightIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>chevron_right</span>;
+const PencilIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>note_add</span>;
+const MoveIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>drive_file_move</span>;
+const PaletteIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>palette</span>;
+const TrashIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
+const BookIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>menu_book</span>;
+const ProjectIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>view_kanban</span>;
+const BrainIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>psychology</span>;
+const HeartIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>favorite</span>;
+const BriefcaseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>work</span>;
+const SchoolIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>school</span>;
+const HomeIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>home</span>;
 
 const Reminders: React.FC = () => {
-    const reminders = useSupabaseQuery<Reminder>('reminders');
+    const allReminders = useSupabaseQuery<Reminder>('reminders');
+    const reminderFolders = useSupabaseQuery<ReminderFolder>('reminder_folders');
+
+    const [selectedReminderId, setSelectedReminderId] = useState<number | null>(null);
     const [reminderFilter, setReminderFilter] = useState<ReminderFilter>('all');
-    const [reminderSort, setReminderSort] = useState<ReminderSort>('dueDate');
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>('list');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isRemindersSidebarOpen, setIsRemindersSidebarOpen] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
+    const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
 
     // Update overdue status
     useMemo(() => {
-        if (!reminders) return;
+        if (!allReminders) return;
         const now = new Date();
-        reminders.forEach(async (reminder) => {
+        allReminders.forEach(async (reminder) => {
             if (reminder.status === 'pending' && new Date(reminder.dueDate) < now) {
                 await remindersService.update(reminder.id!, { status: 'overdue' });
             }
         });
-    }, [reminders]);
+    }, [allReminders]);
 
-    const filteredReminders = useMemo(() => {
-        let tempReminders = reminders ?? [];
+    const selectedReminder = useMemo(() => {
+        const reminder = allReminders?.find(r => r.id === selectedReminderId);
+        if (reminder) return reminder;
+        if (selectedReminderId) setSelectedReminderId(null);
+        return null;
+    }, [allReminders, selectedReminderId]);
 
-        switch (reminderFilter) {
-            case 'pending':
-                tempReminders = tempReminders.filter(r => r.status === 'pending');
-                break;
-            case 'completed':
-                tempReminders = tempReminders.filter(r => r.status === 'completed');
-                break;
-            case 'overdue':
-                tempReminders = tempReminders.filter(r => r.status === 'overdue');
-                break;
-        }
-
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            tempReminders = tempReminders.filter(r =>
-                r.title.toLowerCase().includes(q) ||
-                r.description?.toLowerCase().includes(q)
-            );
-        }
-
-        // Sort
-        tempReminders.sort((a, b) => {
-            switch (reminderSort) {
-                case 'priority':
-                    const priorityOrder = { high: 0, medium: 1, low: 2 };
-                    return priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
-                case 'created':
-                    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-                case 'dueDate':
-                default:
-                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-            }
-        });
-
-        return tempReminders;
-    }, [reminders, reminderFilter, reminderSort, searchQuery]);
-
-    const handleNewReminder = async () => {
+    const handleNewReminder = async (folderId?: number) => {
         const newReminder = await remindersService.create({
-            title: 'New Reminder',
+            title: 'Untitled Reminder',
             description: '',
             dueDate: new Date(),
             priority: 'medium',
@@ -93,88 +72,53 @@ const Reminders: React.FC = () => {
             notificationEnabled: true,
             createdAt: new Date(),
             updatedAt: new Date(),
+            folderId: folderId,
         } as Reminder);
+        setReminderFilter('all');
+        if (newReminder && newReminder.id) {
+            handleSelectReminder(newReminder.id);
+        }
     };
 
-    const handleDeleteReminder = async (reminder: Reminder) => {
-        setConfirmModal({
-            isOpen: true,
-            title: 'Delete Reminder',
-            message: `Are you sure you want to delete "${reminder.title}"?`,
-            icon: '🗑️',
-            onConfirm: async () => {
-                await remindersService.delete(reminder.id!);
-                setConfirmModal(null);
-            }
-        });
-    };
-
-    const handleToggleComplete = async (reminder: Reminder) => {
-        const newStatus = reminder.status === 'completed' ? 'pending' : 'completed';
-        await remindersService.update(reminder.id!, {
-            status: newStatus,
-            completedAt: newStatus === 'completed' ? new Date() : undefined,
-        });
+    const handleSelectReminder = (id: number | null) => {
+        setSelectedReminderId(id);
+        setIsRemindersSidebarOpen(false);
     };
 
     return (
         <div className="flex h-full bg-primary font-sans relative overflow-hidden">
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />
+            {isRemindersSidebarOpen && (
+                <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsRemindersSidebarOpen(false)} />
             )}
-            <FilterSidebar
+            <Sidebar
+                reminderFolders={reminderFolders}
+                reminders={allReminders}
                 reminderFilter={reminderFilter}
                 setReminderFilter={setReminderFilter}
-                reminderSort={reminderSort}
-                setReminderSort={setReminderSort}
+                selectedReminderId={selectedReminderId}
+                setSelectedReminderId={handleSelectReminder}
+                onNewReminder={handleNewReminder}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                isSidebarOpen={isSidebarOpen}
-                setIsSidebarOpen={setIsSidebarOpen}
+                isRemindersSidebarOpen={isRemindersSidebarOpen}
+                setConfirmModal={setConfirmModal}
+                setAlertModal={setAlertModal}
             />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b border-tertiary flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setIsSidebarOpen(true)} title="Toggle filters" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
+            <main className="flex-1 flex flex-col min-w-0">
+                {selectedReminder ? (
+                    <EditorPanel key={selectedReminder.id} reminder={selectedReminder} toggleSidebar={() => setIsRemindersSidebarOpen(p => !p)} setConfirmModal={setConfirmModal} />
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-text-muted bg-primary relative">
+                        <button onClick={() => setIsRemindersSidebarOpen(true)} title="Open reminders list" className="md:hidden absolute top-4 left-4 p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
                             <MenuIcon className="text-2xl" />
                         </button>
-                        <h1 className="text-2xl font-bold">Reminders</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleNewReminder} title="New Reminder" className="p-2 rounded-md hover:bg-tertiary text-accent">
-                            <AddIcon className="text-2xl" />
-                        </button>
-                        <div className="flex gap-1 bg-secondary rounded-lg p-1">
-                            <button onClick={() => setViewMode('list')} title="List View" className={`p-2 rounded ${viewMode === 'list' ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:text-text-primary'}`}>
-                                <ViewListIcon className="text-xl" />
-                            </button>
-                            <button onClick={() => setViewMode('grid')} title="Grid View" className={`p-2 rounded ${viewMode === 'grid' ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:text-text-primary'}`}>
-                                <ViewAgendaIcon className="text-xl" />
-                            </button>
-                            <button onClick={() => setViewMode('kanban')} title="Kanban View" className={`p-2 rounded ${viewMode === 'kanban' ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:text-text-primary'}`}>
-                                <ViewWeekIcon className="text-xl" />
-                            </button>
+                        <div className="text-center">
+                            <BellIcon className="text-6xl mx-auto text-tertiary" />
+                            <h2 className="mt-4 text-xl font-semibold">Select a reminder</h2>
+                            <p>Choose a reminder from the list to view or edit it.</p>
                         </div>
                     </div>
-                </div>
-
-                <div className="flex-1 overflow-auto p-6">
-                    {filteredReminders.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-text-muted">
-                            <div className="text-center">
-                                <BellIcon className="text-6xl mx-auto text-tertiary mb-4" />
-                                <h2 className="text-xl font-semibold">No reminders found</h2>
-                                <p>Create a new reminder to get started</p>
-                            </div>
-                        </div>
-                    ) : viewMode === 'list' ? (
-                        <ListView reminders={filteredReminders} onDelete={handleDeleteReminder} onToggleComplete={handleToggleComplete} />
-                    ) : viewMode === 'grid' ? (
-                        <GridView reminders={filteredReminders} onDelete={handleDeleteReminder} onToggleComplete={handleToggleComplete} />
-                    ) : (
-                        <KanbanView reminders={filteredReminders} onDelete={handleDeleteReminder} onToggleComplete={handleToggleComplete} />
-                    )}
-                </div>
+                )}
             </main>
 
             {confirmModal && (
@@ -188,180 +132,469 @@ const Reminders: React.FC = () => {
                     onCancel={() => setConfirmModal(null)}
                 />
             )}
-        </div>
-    );
-};
-
-const FilterSidebar: React.FC<{
-    reminderFilter: ReminderFilter;
-    setReminderFilter: (f: ReminderFilter) => void;
-    reminderSort: ReminderSort;
-    setReminderSort: (s: ReminderSort) => void;
-    searchQuery: string;
-    setSearchQuery: (q: string) => void;
-    isSidebarOpen: boolean;
-    setIsSidebarOpen: (open: boolean) => void;
-}> = (props) => {
-    return (
-        <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="p-4 flex-shrink-0 space-y-4 border-b border-tertiary">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold">Filters</h2>
-                    <button onClick={() => props.setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-tertiary rounded">
-                        <span className="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <input
-                    type="text"
-                    placeholder="Search reminders..."
-                    value={props.searchQuery}
-                    onChange={e => props.setSearchQuery(e.target.value)}
-                    className="w-full bg-primary border border-tertiary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
+            {alertModal && (
+                <AlertModal
+                    isOpen={alertModal.isOpen}
+                    title={alertModal.title}
+                    message={alertModal.message}
+                    icon={alertModal.icon || "⚠️"}
+                    onClose={() => setAlertModal(null)}
                 />
+            )}
+        </div>
+    );
+};
+
+const Sidebar: React.FC<{
+    reminderFolders?: ReminderFolder[]; reminders?: Reminder[]; reminderFilter: ReminderFilter; setReminderFilter: (f: ReminderFilter) => void;
+    selectedReminderId: number | null; setSelectedReminderId: (id: number | null) => void;
+    onNewReminder: (folderId?: number) => void;
+    searchQuery: string; setSearchQuery: (q: string) => void;
+    isRemindersSidebarOpen: boolean;
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+    setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void;
+}> = (props) => {
+    const [renamingReminderId, setRenamingReminderId] = useState<number|null>(null);
+    const [movingReminder, setMovingReminder] = useState<Reminder|null>(null);
+    const [renamingFolderId, setRenamingFolderId] = useState<number | null>(null);
+    const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+
+    const filteredReminders = useMemo(() => {
+        let tempReminders = props.reminders ?? [];
+        switch(props.reminderFilter) {
+            case 'pending': tempReminders = tempReminders.filter(r => r.status === 'pending'); break;
+            case 'completed': tempReminders = tempReminders.filter(r => r.status === 'completed'); break;
+            case 'overdue': tempReminders = tempReminders.filter(r => r.status === 'overdue'); break;
+            default: tempReminders = tempReminders.filter(r => r.status !== 'completed');
+        }
+        if (props.searchQuery) {
+            const q = props.searchQuery.toLowerCase();
+            tempReminders = tempReminders.filter(r => r.title.toLowerCase().includes(q) || r.description?.toLowerCase().includes(q));
+        }
+        return tempReminders;
+    }, [props.reminders, props.reminderFilter, props.searchQuery]);
+
+    const handleRenameReminder = async (reminder: Reminder, newName: string) => {
+        if (renamingReminderId !== reminder.id) return;
+        setRenamingReminderId(null);
+        if (newName.trim() && newName.trim() !== reminder.title) {
+            await remindersService.update(reminder.id!, { title: newName.trim(), updatedAt: new Date() });
+        }
+    };
+
+    const handleNewFolder = async (parentId: number | null = null) => {
+        const newFolder = await reminderFoldersService.create({
+            name: 'Untitled Folder',
+            parentId,
+            createdAt: new Date(),
+        });
+        if (parentId) {
+            setExpandedFolders(prev => new Set(prev).add(parentId));
+        }
+        if (newFolder && newFolder.id) {
+            setRenamingFolderId(newFolder.id);
+        }
+    };
+
+    const toggleFolder = (folderId: number) => {
+        setExpandedFolders(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(folderId)) newSet.delete(folderId);
+            else newSet.add(folderId);
+            return newSet;
+        });
+    };
+
+    const isFilterActive = props.searchQuery.length > 0 || props.reminderFilter !== 'all';
+
+    return (
+        <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isRemindersSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-3 flex-shrink-0 space-y-3">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold">Reminders</h1>
+                    <div className="flex items-center">
+                        <button onClick={() => handleNewFolder(null)} title="New Folder" className="p-2 rounded-md hover:bg-tertiary">
+                            <FolderPlusIcon className="text-xl" />
+                        </button>
+                        <button onClick={() => props.onNewReminder()} title="New Reminder" className="p-2 rounded-md hover:bg-tertiary">
+                            <PencilIcon className="text-xl" />
+                        </button>
+                    </div>
+                </div>
+                <input type="text" placeholder="Search reminders..." value={props.searchQuery} onChange={e => props.setSearchQuery(e.target.value)}
+                    className="w-full bg-primary border border-tertiary rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent" />
             </div>
-
-            <div className="px-4 py-3 space-y-2 border-b border-tertiary">
-                <p className="text-xs font-semibold text-text-secondary uppercase">Status</p>
-                <NavItem icon={<BellIcon className="text-lg" />} label="All" isActive={props.reminderFilter === 'all'} onClick={() => props.setReminderFilter('all')} />
-                <NavItem icon={<ClockIcon className="text-lg" />} label="Pending" isActive={props.reminderFilter === 'pending'} onClick={() => props.setReminderFilter('pending')} />
-                <NavItem icon={<CheckCircleIcon className="text-lg" />} label="Completed" isActive={props.reminderFilter === 'completed'} onClick={() => props.setReminderFilter('completed')} />
-                <NavItem icon={<AlertIcon className="text-lg" />} label="Overdue" isActive={props.reminderFilter === 'overdue'} onClick={() => props.setReminderFilter('overdue')} />
+            <div className="px-3 pb-2 space-y-1 border-b border-tertiary">
+                <NavItem icon={<BellIcon className="text-xl"/>} label="All Reminders" isActive={props.reminderFilter === 'all'} onClick={() => props.setReminderFilter('all')} />
+                <NavItem icon={<ClockIcon className="text-xl"/>} label="Pending" isActive={props.reminderFilter === 'pending'} onClick={() => props.setReminderFilter('pending')} />
+                <NavItem icon={<CheckCircleIcon className="text-xl"/>} label="Completed" isActive={props.reminderFilter === 'completed'} onClick={() => props.setReminderFilter('completed')} />
+                <NavItem icon={<AlertIcon className="text-xl"/>} label="Overdue" isActive={props.reminderFilter === 'overdue'} onClick={() => props.setReminderFilter('overdue')} />
             </div>
-
-            <div className="px-4 py-3 border-b border-tertiary">
-                <label className="block text-xs font-semibold text-text-secondary uppercase mb-2">Sort by</label>
-                <select
-                    value={props.reminderSort}
-                    onChange={e => props.setReminderSort(e.target.value as ReminderSort)}
-                    className="w-full bg-primary border border-tertiary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                    <option value="dueDate">Due Date</option>
-                    <option value="priority">Priority</option>
-                    <option value="created">Created</option>
-                </select>
-            </div>
-        </div>
-    );
-};
-
-const ListView: React.FC<{
-    reminders: Reminder[];
-    onDelete: (reminder: Reminder) => void;
-    onToggleComplete: (reminder: Reminder) => void;
-}> = ({ reminders, onDelete, onToggleComplete }) => {
-    return (
-        <div className="space-y-2">
-            {reminders.map(reminder => (
-                <ReminderCard key={reminder.id} reminder={reminder} onDelete={onDelete} onToggleComplete={onToggleComplete} />
-            ))}
-        </div>
-    );
-};
-
-const GridView: React.FC<{
-    reminders: Reminder[];
-    onDelete: (reminder: Reminder) => void;
-    onToggleComplete: (reminder: Reminder) => void;
-}> = ({ reminders, onDelete, onToggleComplete }) => {
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reminders.map(reminder => (
-                <ReminderCard key={reminder.id} reminder={reminder} onDelete={onDelete} onToggleComplete={onToggleComplete} />
-            ))}
-        </div>
-    );
-};
-
-const KanbanView: React.FC<{
-    reminders: Reminder[];
-    onDelete: (reminder: Reminder) => void;
-    onToggleComplete: (reminder: Reminder) => void;
-}> = ({ reminders, onDelete, onToggleComplete }) => {
-    const pending = reminders.filter(r => r.status === 'pending');
-    const overdue = reminders.filter(r => r.status === 'overdue');
-    const completed = reminders.filter(r => r.status === 'completed');
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
-            <KanbanColumn title="Pending" reminders={pending} onDelete={onDelete} onToggleComplete={onToggleComplete} />
-            <KanbanColumn title="Overdue" reminders={overdue} onDelete={onDelete} onToggleComplete={onToggleComplete} />
-            <KanbanColumn title="Completed" reminders={completed} onDelete={onDelete} onToggleComplete={onToggleComplete} />
-        </div>
-    );
-};
-
-const KanbanColumn: React.FC<{
-    title: string;
-    reminders: Reminder[];
-    onDelete: (reminder: Reminder) => void;
-    onToggleComplete: (reminder: Reminder) => void;
-}> = ({ title, reminders, onDelete, onToggleComplete }) => {
-    return (
-        <div className="bg-secondary rounded-lg border border-tertiary p-4 flex flex-col">
-            <h3 className="font-semibold mb-4 text-text-primary">{title} ({reminders.length})</h3>
-            <div className="flex-1 space-y-2 overflow-y-auto">
-                {reminders.length === 0 ? (
-                    <div className="text-center text-text-muted py-8">
-                        <p className="text-sm">No reminders</p>
+            <div className="flex-1 overflow-y-auto p-3">
+                {isFilterActive ? (
+                    <div className="space-y-1">
+                        <h2 className="px-2 text-sm font-semibold text-text-secondary mb-2">{filteredReminders.length} Result(s)</h2>
+                        {filteredReminders.map(reminder => (
+                            <ReminderItem
+                                key={reminder.id}
+                                reminder={reminder}
+                                isSelected={props.selectedReminderId === reminder.id}
+                                isRenaming={renamingReminderId === reminder.id}
+                                onSelect={() => props.setSelectedReminderId(reminder.id!)}
+                                onRename={handleRenameReminder}
+                                onStartRename={() => setRenamingReminderId(reminder.id!)}
+                                onCancelRename={() => setRenamingReminderId(null)}
+                                onMove={() => setMovingReminder(reminder)}
+                                setConfirmModal={props.setConfirmModal}
+                            />
+                        ))}
                     </div>
                 ) : (
-                    reminders.map(reminder => (
-                        <ReminderCard key={reminder.id} reminder={reminder} onDelete={onDelete} onToggleComplete={onToggleComplete} compact />
-                    ))
+                    <FolderTree
+                        reminderFolders={props.reminderFolders}
+                        reminders={props.reminders}
+                        selectedReminderId={props.selectedReminderId}
+                        setSelectedReminderId={props.setSelectedReminderId}
+                        onNewReminder={props.onNewReminder}
+                        renamingReminderId={renamingReminderId}
+                        setRenamingReminderId={setRenamingReminderId}
+                        onRenameReminder={handleRenameReminder}
+                        onMoveReminder={(reminder) => setMovingReminder(reminder)}
+                        expandedFolders={expandedFolders}
+                        toggleFolder={toggleFolder}
+                        renamingFolderId={renamingFolderId}
+                        setRenamingFolderId={setRenamingFolderId}
+                        onNewFolder={handleNewFolder}
+                        setConfirmModal={props.setConfirmModal}
+                        setAlertModal={props.setAlertModal}
+                    />
                 )}
             </div>
+            {movingReminder && <MoveReminderModal reminder={movingReminder} reminderFolders={props.reminderFolders} onClose={() => setMovingReminder(null)} />}
         </div>
     );
 };
 
-const ReminderCard: React.FC<{
-    reminder: Reminder;
-    onDelete: (reminder: Reminder) => void;
-    onToggleComplete: (reminder: Reminder) => void;
-    compact?: boolean;
-}> = ({ reminder, onDelete, onToggleComplete, compact }) => {
-    const [showMenu, setShowMenu] = useState(false);
-    const priorityColors = { high: 'bg-red-500/20 text-red-400', medium: 'bg-yellow-500/20 text-yellow-400', low: 'bg-green-500/20 text-green-400' };
-    const statusColors = { pending: 'bg-blue-500/20 text-blue-400', overdue: 'bg-red-500/20 text-red-400', completed: 'bg-green-500/20 text-green-400' };
+const NavItem: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+    <button onClick={onClick} title={`Show ${label}`} className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${isActive ? 'bg-accent/30 text-accent' : 'text-text-primary hover:bg-tertiary'}`}>
+        {icon}
+        <span>{label}</span>
+    </button>
+);
+
+const FolderTree: React.FC<{
+    reminderFolders?: ReminderFolder[]; reminders?: Reminder[]; parentId?: number | null; level?: number;
+    selectedReminderId: number | null; setSelectedReminderId: (id: number | null) => void;
+    onNewReminder: (folderId?: number) => void; renamingReminderId: number | null; setRenamingReminderId: (id: number | null) => void;
+    onRenameReminder: (reminder: Reminder, newName: string) => void; onMoveReminder: (reminder: Reminder) => void;
+    expandedFolders: Set<number>; toggleFolder: (folderId: number) => void;
+    renamingFolderId: number | null; setRenamingFolderId: (id: number | null) => void;
+    onNewFolder: (parentId: number | null) => void;
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+    setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void;
+}> = (props) => {
+    const { reminderFolders, reminders, parentId = null, level = 0, selectedReminderId, setSelectedReminderId, onNewReminder, renamingReminderId, setRenamingReminderId, onRenameReminder, onMoveReminder, expandedFolders, toggleFolder, renamingFolderId, setRenamingFolderId, onNewFolder } = props;
+
+    const [customizingFolder, setCustomizingFolder] = useState<ReminderFolder|null>(null);
+
+    const childFolders = useMemo(() => reminderFolders?.filter(f => f.parentId === parentId) ?? [], [reminderFolders, parentId]);
+    const childReminders = useMemo(() => reminders?.filter(r => r.folderId === (parentId || undefined) && r.status !== 'completed').sort((a,b) => a.title.localeCompare(b.title)) ?? [], [reminders, parentId]);
+
+    const handleRenameFolder = async (folder: ReminderFolder, newName: string) => {
+        if (renamingFolderId !== folder.id) return;
+        setRenamingFolderId(null);
+        if(newName.trim() && newName.trim() !== folder.name) {
+            await reminderFoldersService.update(folder.id!, { name: newName.trim() });
+        }
+    }
+
+    const handleDeleteFolder = async (folder: ReminderFolder) => {
+        const childRemindersCount = (props.reminders?.filter(r => r.folderId === folder.id) || []).length;
+        const childFoldersCount = (props.reminderFolders?.filter(f => f.parentId === folder.id) || []).length;
+        if (childRemindersCount > 0 || childFoldersCount > 0) {
+            props.setAlertModal({
+                isOpen: true,
+                title: 'Cannot Delete Folder',
+                message: "Cannot delete a non-empty folder.",
+                icon: '📁'
+            });
+            return;
+        }
+        props.setConfirmModal({
+            isOpen: true,
+            title: 'Delete Folder',
+            message: `Are you sure you want to delete the folder "${folder.name}"?`,
+            icon: '📁',
+            onConfirm: async () => {
+                await reminderFoldersService.delete(folder.id!);
+                props.setConfirmModal(null);
+            }
+        });
+    };
+
+    const FOLDER_ICONS: { [key: string]: React.ComponentType<{ className?: string }> } = {
+        default: FolderIcon, book: BookIcon, project: ProjectIcon, knowledge: BrainIcon, personal: HeartIcon, work: BriefcaseIcon, studies: SchoolIcon, home: HomeIcon,
+    };
+    const COLOR_CLASSES: { [key: string]: string } = {
+        accent: 'text-accent', red: 'text-red-400', orange: 'text-orange-400', yellow: 'text-yellow-400', green: 'text-green-400', teal: 'text-teal-400', blue: 'text-blue-400', indigo: 'text-indigo-400', purple: 'text-purple-400', pink: 'text-pink-400', gray: 'text-gray-400'
+    };
+
+    const FolderDisplayIcon = ({ folder }: { folder: ReminderFolder }) => {
+        const Icon = FOLDER_ICONS[folder.icon || 'default'] || FolderIcon;
+        return <Icon className={`text-lg mr-2 ${COLOR_CLASSES[folder.color || 'default'] || 'text-text-secondary'}`} />;
+    };
 
     return (
-        <div className={`bg-primary border border-tertiary rounded-lg p-3 hover:border-accent/50 transition-colors ${compact ? '' : ''}`}>
-            <div className="flex items-start gap-3">
-                <button
-                    onClick={() => onToggleComplete(reminder)}
-                    className={`flex-shrink-0 mt-1 ${reminder.status === 'completed' ? 'text-accent' : 'text-tertiary hover:text-accent'}`}
-                >
-                    <CheckCircleIcon className="text-xl" />
-                </button>
-                <div className="flex-1 min-w-0">
-                    <h3 className={`font-semibold ${reminder.status === 'completed' ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
-                        {reminder.title}
-                    </h3>
-                    {!compact && reminder.description && (
-                        <p className="text-sm text-text-secondary mt-1 line-clamp-2">{reminder.description}</p>
+        <div style={{ marginLeft: level > 0 ? `16px` : `0px` }}>
+            {childFolders.map(folder => (
+                <div key={folder.id}>
+                    {renamingFolderId === folder.id ? (
+                        <div className="py-1">
+                            <input type="text" defaultValue={folder.name} autoFocus
+                                onBlur={(e) => handleRenameFolder(folder, e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenameFolder(folder, e.currentTarget.value);
+                                    if (e.key === 'Escape') setRenamingFolderId(null);
+                                }}
+                                className="w-full bg-primary border border-accent rounded-md py-1 px-2 text-sm"
+                            />
+                        </div>
+                    ) : (
+                        <div className="w-full text-left flex items-center pr-1 rounded-md text-sm group" >
+                            <button onClick={() => toggleFolder(folder.id!)} title={expandedFolders.has(folder.id!) ? 'Collapse folder' : 'Expand folder'} className={`flex-1 flex items-center p-1 rounded-md text-text-primary hover:bg-tertiary`}>
+                                <ChevronRightIcon className={`transition-transform text-lg ${expandedFolders.has(folder.id!) ? 'rotate-90' : ''}`} />
+                                <FolderDisplayIcon folder={folder} />
+                                <span className="truncate">{folder.name}</span>
+                            </button>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <FolderActions folder={folder} onNewReminder={() => onNewReminder(folder.id)} onNewSubfolder={() => onNewFolder(folder.id!)} onRename={() => setRenamingFolderId(folder.id!)} onDelete={() => handleDeleteFolder(folder)} onCustomize={() => setCustomizingFolder(folder)} />
+                            </div>
+                        </div>
                     )}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                        <span className={`text-xs px-2 py-1 rounded ${priorityColors[reminder.priority as keyof typeof priorityColors]}`}>
-                            {reminder.priority}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded ${statusColors[reminder.status as keyof typeof statusColors]}`}>
-                            {reminder.status}
-                        </span>
-                        <span className="text-xs px-2 py-1 rounded bg-tertiary text-text-secondary">
-                            {new Date(reminder.dueDate).toLocaleDateString()}
-                        </span>
+                    {expandedFolders.has(folder.id!) && (
+                        <FolderTree {...props} parentId={folder.id} level={level + 1} />
+                    )}
+                </div>
+            ))}
+
+            <div className="border-l border-tertiary/50" style={{ marginLeft: '7px' }}>
+                {childReminders.map(reminder => (
+                    <ReminderItem key={reminder.id} reminder={reminder} level={level} isSelected={selectedReminderId === reminder.id} isRenaming={renamingReminderId === reminder.id} onSelect={() => setSelectedReminderId(reminder.id!)} onRename={onRenameReminder} onStartRename={() => setRenamingReminderId(reminder.id!)} onCancelRename={()=> setRenamingReminderId(null)} onMove={() => onMoveReminder(reminder)} setConfirmModal={props.setConfirmModal} />
+                ))}
+            </div>
+            {customizingFolder && <FolderCustomizationModal folder={customizingFolder} onClose={() => setCustomizingFolder(null)} icons={FOLDER_ICONS} colors={COLOR_CLASSES} />}
+        </div>
+    );
+};
+
+const ReminderItem: React.FC<{
+    reminder: Reminder; level?: number; isSelected: boolean; isRenaming: boolean;
+    onSelect: () => void; onRename: (reminder: Reminder, newName: string) => void;
+    onStartRename: () => void; onCancelRename: () => void; onMove: () => void;
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+}> = ({ reminder, level=0, isSelected, isRenaming, onSelect, onRename, onStartRename, onCancelRename, onMove, setConfirmModal }) => {
+    if (isRenaming) {
+        return (
+            <div style={{ paddingLeft: `${(level * 16) + 16}px`}} className="py-1">
+                <input type="text" defaultValue={reminder.title} autoFocus
+                    onBlur={(e) => onRename(reminder, e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') onRename(reminder, e.currentTarget.value);
+                        if (e.key === 'Escape') onCancelRename();
+                    }}
+                    className="w-full bg-primary border border-accent rounded-md py-1 px-2 text-sm"
+                />
+            </div>
+        )
+    }
+    return (
+        <div className="w-full text-left flex items-center pr-1 rounded-md text-sm group" style={{ paddingLeft: `${level * 16}px`}}>
+            <button onClick={onSelect} title={reminder.title} className={`flex-1 flex items-center p-1 rounded-md truncate ${isSelected ? 'bg-accent/30' : 'hover:bg-tertiary'}`}>
+                <BellIcon className={`text-lg mr-2 flex-shrink-0 ${isSelected ? 'text-accent' : 'text-text-secondary'}`} />
+                <span className={`truncate ${isSelected ? 'text-accent' : 'text-text-primary'}`}>{reminder.title}</span>
+            </button>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <ReminderActions reminder={reminder} onMove={onMove} onRename={onStartRename} setConfirmModal={setConfirmModal} />
+            </div>
+        </div>
+    )
+}
+
+const EditorPanel: React.FC<{
+    reminder: Reminder;
+    toggleSidebar: () => void;
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+}> = ({ reminder: initialReminder, toggleSidebar, setConfirmModal }) => {
+    const [title, setTitle] = useState(initialReminder.title);
+    const [description, setDescription] = useState(initialReminder.description || '');
+    const [dueDate, setDueDate] = useState(initialReminder.dueDate instanceof Date ? initialReminder.dueDate.toISOString().split('T')[0] : '');
+    const [dueTime, setDueTime] = useState(initialReminder.dueTime || '');
+    const [priority, setPriority] = useState(initialReminder.priority);
+    const [category, setCategory] = useState(initialReminder.category);
+    const [recurring, setRecurring] = useState(initialReminder.recurring || 'none');
+    const [notificationEnabled, setNotificationEnabled] = useState(initialReminder.notificationEnabled ?? true);
+    const [notificationTime, setNotificationTime] = useState(initialReminder.notificationTime || 15);
+
+    const handleSave = useCallback(async () => {
+        if (!title.trim()) return;
+        await remindersService.update(initialReminder.id!, {
+            title,
+            description,
+            dueDate: new Date(dueDate),
+            dueTime,
+            priority: priority as 'low' | 'medium' | 'high',
+            category,
+            recurring,
+            notificationEnabled,
+            notificationTime,
+            updatedAt: new Date(),
+        });
+    }, [title, description, dueDate, dueTime, priority, category, recurring, notificationEnabled, notificationTime, initialReminder]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            handleSave();
+        }, 1000);
+        return () => clearTimeout(handler);
+    }, [title, description, dueDate, dueTime, priority, category, recurring, notificationEnabled, notificationTime, handleSave]);
+
+    const handleToggleComplete = async () => {
+        const newStatus = initialReminder.status === 'completed' ? 'pending' : 'completed';
+        await remindersService.update(initialReminder.id!, {
+            status: newStatus,
+            completedAt: newStatus === 'completed' ? new Date() : undefined,
+        });
+    };
+
+    const handleDelete = async () => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Reminder',
+            message: `Are you sure you want to delete "${initialReminder.title}"?`,
+            icon: '🗑️',
+            onConfirm: async () => {
+                await remindersService.delete(initialReminder.id!);
+                setConfirmModal(null);
+            }
+        });
+    };
+
+    return (
+        <div className="flex-1 flex flex-col min-h-0 bg-primary">
+            <div className="p-3 border-b border-tertiary flex-shrink-0 flex items-center justify-between gap-2">
+                <button onClick={toggleSidebar} title="Toggle sidebar" className="p-2 -ml-2 rounded-lg text-text-muted hover:bg-tertiary md:hidden">
+                    <MenuIcon className="text-2xl" />
+                </button>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                    className={`w-full bg-transparent text-2xl font-bold focus:outline-none text-text-primary`} />
+                <div className="flex items-center space-x-2">
+                    <button onClick={handleToggleComplete} title={initialReminder.status === 'completed' ? "Mark as pending" : "Mark as completed"} className={`p-2 rounded-lg text-text-muted hover:bg-tertiary ${initialReminder.status === 'completed' ? 'text-accent' : ''}`}>
+                        <CheckCircleIcon className="text-xl"/>
+                    </button>
+                    <button onClick={handleDelete} title="Delete reminder" className="p-2 rounded-lg text-text-muted hover:text-red-500 hover:bg-tertiary">
+                        <TrashIcon className="text-xl"/>
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                    <textarea
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        className="w-full bg-primary border border-tertiary rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+                        rows={4}
+                        placeholder="Add details..."
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Due Date</label>
+                        <input
+                            type="date"
+                            value={dueDate}
+                            onChange={e => setDueDate(e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Time</label>
+                        <input
+                            type="time"
+                            value={dueTime}
+                            onChange={e => setDueTime(e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        />
                     </div>
                 </div>
-                <div className="relative flex-shrink-0">
-                    <button onClick={() => setShowMenu(!showMenu)} className="p-1 hover:bg-tertiary rounded">
-                        <MoreVertIcon className="text-lg" />
-                    </button>
-                    {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 bg-secondary border border-tertiary rounded-lg shadow-lg z-50">
-                            <button onClick={() => { onDelete(reminder); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-tertiary flex items-center gap-2 text-red-400">
-                                <DeleteIcon className="text-lg" /> Delete
-                            </button>
-                        </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Priority</label>
+                        <select
+                            value={priority}
+                            onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Category</label>
+                        <select
+                            value={category}
+                            onChange={e => setCategory(e.target.value)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value="personal">Personal</option>
+                            <option value="work">Work</option>
+                            <option value="health">Health</option>
+                            <option value="finance">Finance</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Recurring</label>
+                    <select
+                        value={recurring}
+                        onChange={e => setRecurring(e.target.value)}
+                        className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={notificationEnabled}
+                            onChange={e => setNotificationEnabled(e.target.checked)}
+                            className="w-4 h-4 rounded border-tertiary"
+                        />
+                        <span className="text-sm font-medium text-text-primary">Enable Notification</span>
+                    </label>
+                    {notificationEnabled && (
+                        <select
+                            value={notificationTime}
+                            onChange={e => setNotificationTime(parseInt(e.target.value))}
+                            className="bg-primary border border-tertiary rounded-lg px-3 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value={5}>5 min before</option>
+                            <option value={15}>15 min before</option>
+                            <option value={30}>30 min before</option>
+                            <option value={60}>1 hour before</option>
+                            <option value={1440}>1 day before</option>
+                        </select>
                     )}
                 </div>
             </div>
@@ -369,15 +602,161 @@ const ReminderCard: React.FC<{
     );
 };
 
-const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:bg-tertiary'}`}
-    >
+// --- MODALS & ACTION COMPONENTS ---
+const DropdownMenu: React.FC<{ trigger: React.ReactNode, children: React.ReactNode }> = ({ trigger, children }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsOpen(false);
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={menuRef}>
+            <div onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}>{trigger}</div>
+            {isOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-tertiary rounded-md shadow-lg z-10 border border-primary" onClick={() => setIsOpen(false)}>
+                    <div className="py-1">{children}</div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const DropdownMenuItem: React.FC<{ icon: React.ReactNode; children: React.ReactNode; onClick: (e: React.MouseEvent) => void }> = ({ icon, children, onClick }) => (
+    <button onClick={onClick} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-primary hover:bg-accent hover:text-white">
         {icon}
-        <span className="font-medium">{label}</span>
+        <span>{children}</span>
     </button>
 );
+
+const DropdownMenuSeparator: React.FC = () => <div className="border-t border-primary my-1"></div>;
+
+const ReminderActions: React.FC<{
+    reminder: Reminder,
+    onMove: () => void,
+    onRename: () => void,
+    setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
+}> = ({reminder, onMove, onRename, setConfirmModal}) => {
+    const handleDelete = async () => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Reminder',
+            message: `Are you sure you want to delete "${reminder.title}"?`,
+            icon: '🗑️',
+            onConfirm: async () => {
+                await remindersService.delete(reminder.id!);
+                setConfirmModal(null);
+            }
+        });
+    };
+
+    return (
+        <DropdownMenu trigger={<button title="More reminder options" className="p-1 rounded-full bg-secondary/80 hover:bg-tertiary"><MoreVertIcon className="text-text-muted text-xl" /></button>}>
+            <DropdownMenuItem icon={<PencilIcon className="text-base"/>} onClick={onRename}>Rename</DropdownMenuItem>
+            <DropdownMenuItem icon={<MoveIcon className="text-base"/>} onClick={onMove}>Move to...</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem icon={<TrashIcon className="text-base"/>} onClick={handleDelete}>Delete</DropdownMenuItem>
+        </DropdownMenu>
+    );
+};
+
+const FolderActions: React.FC<{folder: ReminderFolder; onNewReminder: () => void; onNewSubfolder: () => void; onRename: () => void; onDelete: () => void; onCustomize: () => void;}> = (props) => {
+    return (
+        <DropdownMenu trigger={<button title="More folder options" className="p-1 rounded-full hover:bg-primary"><MoreVertIcon className="text-xl" /></button>}>
+            <DropdownMenuItem icon={<BellIcon className="text-base"/>} onClick={props.onNewReminder}>New Reminder</DropdownMenuItem>
+            <DropdownMenuItem icon={<FolderIcon className="text-base"/>} onClick={props.onNewSubfolder}>New Subfolder</DropdownMenuItem>
+            <DropdownMenuItem icon={<PencilIcon className="text-base"/>} onClick={props.onRename}>Rename</DropdownMenuItem>
+            <DropdownMenuItem icon={<PaletteIcon className="text-base"/>} onClick={props.onCustomize}>Customize</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem icon={<TrashIcon className="text-base"/>} onClick={props.onDelete}>Delete Folder</DropdownMenuItem>
+        </DropdownMenu>
+    );
+};
+
+const MoveReminderModal: React.FC<{reminder: Reminder; reminderFolders?: ReminderFolder[]; onClose: () => void;}> = ({ reminder, reminderFolders, onClose }) => {
+    const [targetFolderId, setTargetFolderId] = useState<string>(String(reminder.folderId ?? ''));
+
+    const handleMove = async () => {
+        const newFolderId = targetFolderId === '' ? undefined : Number(targetFolderId);
+        await remindersService.update(reminder.id!, { folderId: newFolderId });
+        onClose();
+    };
+
+    const renderFolderOptions = (parentId: number | null = null, level = 0) => {
+        return reminderFolders?.filter(f => f.parentId === parentId).map(folder => (
+            <React.Fragment key={folder.id}>
+                <option value={folder.id} style={{ paddingLeft: `${level * 20}px` }}>{folder.name}</option>
+                {renderFolderOptions(folder.id, level + 1)}
+            </React.Fragment>
+        ));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-secondary rounded-2xl p-8 w-full max-w-md shadow-2xl border border-tertiary">
+                <h2 className="text-2xl font-bold mb-4">Move "{reminder.title}"</h2>
+                <select value={targetFolderId} onChange={e => setTargetFolderId(e.target.value)} className="w-full bg-primary border border-tertiary rounded-lg py-3 px-3 focus:outline-none focus:ring-2 focus:ring-accent text-text-primary">
+                    <option value="">(No folder)</option>
+                    {renderFolderOptions()}
+                </select>
+                <div className="flex justify-end space-x-4 pt-6">
+                    <button onClick={onClose} title="Cancel move" className="bg-tertiary hover:bg-opacity-80 text-text-secondary py-2 px-6 rounded-lg">Cancel</button>
+                    <button onClick={handleMove} title="Move reminder" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg">Move</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const FolderCustomizationModal: React.FC<{ folder: ReminderFolder, onClose: () => void; icons: {[key: string]: React.ComponentType<{className?: string}>}, colors: {[key: string]: string} }> = ({ folder, onClose, icons, colors }) => {
+
+    const handleSetIcon = async (icon: string) => {
+        await reminderFoldersService.update(folder.id!, { icon });
+    };
+
+    const handleSetColor = async (color: string) => {
+        await reminderFoldersService.update(folder.id!, { color });
+    };
+
+    const availableIcons = { default: icons.default, book: icons.book, project: icons.project, knowledge: icons.knowledge, personal: icons.personal, work: icons.work, studies: icons.studies, home: icons.home };
+    const availableColors = { accent: 'bg-accent', red: 'bg-red-400', orange: 'bg-orange-400', yellow: 'bg-yellow-400', green: 'bg-green-400', teal: 'bg-teal-400', blue: 'bg-blue-400', indigo: 'bg-indigo-400', purple: 'bg-purple-400', pink: 'bg-pink-400', gray: 'bg-gray-400' };
+
+    return (
+        <div className="fixed inset-0 bg-primary bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-secondary rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-tertiary">
+                <h2 className="text-2xl font-bold mb-6">Customize "{folder.name}"</h2>
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-sm font-medium text-text-secondary mb-3">Icon</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.entries(availableIcons).map(([key, Icon]) => (
+                                <button key={key} title={`Set icon to ${key}`} onClick={() => handleSetIcon(key)} className={`p-3 rounded-lg border-2 ${folder.icon === key || (!folder.icon && key === 'default') ? 'border-accent bg-accent/20' : 'border-tertiary hover:bg-tertiary'}`}>
+                                    <Icon className="text-2xl" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-medium text-text-secondary mb-3">Color</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {Object.entries(availableColors).map(([key, className]) => (
+                                <button key={key} title={`Set color to ${key}`} onClick={() => handleSetColor(key)} className={`w-9 h-9 rounded-full border-2 ${className} ${folder.color === key ? 'border-white' : 'border-transparent'}`} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex justify-end pt-8">
+                    <button onClick={onClose} title="Finish customizing" className="bg-accent hover:bg-accent-hover text-white font-bold py-2 px-6 rounded-lg">Done</button>
+                </div>
+            </div>
+        </div>
+    )
+};
 
 export default Reminders;
 

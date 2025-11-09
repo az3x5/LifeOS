@@ -12,7 +12,7 @@ import {
     HealthMetric, HealthLog, HealthGoal,
     Note, Folder,
     FastingLog, PrayerLog, LearningMaterial, LearningLog, Bookmark,
-    IslamicEvent, DailyReflection, Setting, SmartInsight, AppNotification, Reminder
+    IslamicEvent, DailyReflection, Setting, SmartInsight, AppNotification, Reminder, ReminderFolder
 } from '../types';
 
 // ============ FINANCE ============
@@ -198,6 +198,14 @@ export const remindersService = {
     create: (data: Reminder) => insertToSupabase('reminders', data),
     update: (id: number, data: Partial<Reminder>) => updateInSupabase('reminders', id, data),
     delete: (id: number) => deleteFromSupabase('reminders', id),
+};
+
+export const reminderFoldersService = {
+    getAll: () => fetchFromSupabase<ReminderFolder>('reminder_folders'),
+    getById: (id: number) => fetchFromSupabase<ReminderFolder>('reminder_folders', { id }),
+    create: (data: ReminderFolder) => insertToSupabase('reminder_folders', data),
+    update: (id: number, data: Partial<ReminderFolder>) => updateInSupabase('reminder_folders', id, data),
+    delete: (id: number) => deleteFromSupabase('reminder_folders', id),
 };
 
 // ============ INSIGHTS ============
