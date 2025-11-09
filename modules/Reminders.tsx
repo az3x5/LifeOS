@@ -63,15 +63,16 @@ const Reminders: React.FC = () => {
     const handleNewReminder = async (folderId?: number) => {
         try {
             console.log('Creating new reminder...');
-            const reminderData = {
+            // Don't include id - let database auto-generate it
+            const reminderData: Partial<Reminder> = {
                 title: 'Untitled Reminder',
                 description: '',
                 dueDate: new Date().toISOString(),
                 dueTime: '',
-                priority: 'medium' as const,
-                category: 'personal' as const,
-                status: 'pending' as const,
-                recurring: 'none' as const,
+                priority: 'medium',
+                category: 'personal',
+                status: 'pending',
+                recurring: 'none',
                 notificationEnabled: true,
                 notificationTime: 9,
                 folderId: folderId || null,
