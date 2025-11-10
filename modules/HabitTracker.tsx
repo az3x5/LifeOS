@@ -26,6 +26,7 @@ const MoreVertIcon = ({ className }: { className?: string }) => <span className=
 const TrendingUpIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>trending_up</span>;
 const GridViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>grid_view</span>;
 const ListViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>list</span>;
+const CloseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>close</span>;
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -152,6 +153,14 @@ const HabitTracker: React.FC = () => {
                         <h1 className="text-2xl font-bold">Habits</h1>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleNewHabit()}
+                            title="Create new habit"
+                            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-md hover:bg-accent/90 font-medium text-sm"
+                        >
+                            <AddIcon className="text-lg" />
+                            <span>New Habit</span>
+                        </button>
                         <button
                             onClick={() => setViewStyle('grid')}
                             title="Grid view"
@@ -430,29 +439,58 @@ const HabitCard: React.FC<{
         await habitsService.update(habit.id!, { isActive: !habit.isActive });
     };
 
+    const handleToggleCompletion = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const today = getTodayDateString();
+        if (isCompleted) {
+            const log = await habitLogsService.getAll();
+            const todayLog = log?.find(l => l.habitId === habit.id && l.date === today);
+            if (todayLog?.id) {
+                await habitLogsService.delete(todayLog.id);
+            }
+        } else {
+            await habitLogsService.create({
+                habitId: habit.id!,
+                date: today,
+                completedAt: new Date(),
+            });
+        }
+    };
+
     return (
         <div onClick={onSelect} className={`bg-secondary border-2 rounded-lg p-4 cursor-pointer transition-all ${isSelected ? 'border-accent bg-accent/10' : 'border-tertiary hover:border-accent/50'}`}>
             <div className="flex items-start justify-between gap-2 mb-3">
                 <h3 className={`font-semibold flex-1 ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                     {habit.name}
                 </h3>
-                <div className="relative flex-shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
-                        <MoreVertIcon className="text-lg" />
-                    </button>
-                    {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
-                            <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
-                                <PencilIcon className="text-lg" /> Edit
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
-                                {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
-                                <TrashIcon className="text-lg" /> Delete
-                            </button>
-                        </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                    {habit.isActive && (
+                        <button
+                            onClick={handleToggleCompletion}
+                            title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                            className={`p-2 rounded transition-all ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
+                        >
+                            <CheckCircleIcon className="text-lg" />
+                        </button>
                     )}
+                    <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                            <MoreVertIcon className="text-lg" />
+                        </button>
+                        {showMenu && (
+                            <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
+                                <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                    <PencilIcon className="text-lg" /> Edit
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                    {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                                    <TrashIcon className="text-lg" /> Delete
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -507,6 +545,24 @@ const HabitListItem: React.FC<{
         await habitsService.update(habit.id!, { isActive: !habit.isActive });
     };
 
+    const handleToggleCompletion = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const today = getTodayDateString();
+        if (isCompleted) {
+            const log = await habitLogsService.getAll();
+            const todayLog = log?.find(l => l.habitId === habit.id && l.date === today);
+            if (todayLog?.id) {
+                await habitLogsService.delete(todayLog.id);
+            }
+        } else {
+            await habitLogsService.create({
+                habitId: habit.id!,
+                date: today,
+                completedAt: new Date(),
+            });
+        }
+    };
+
     return (
         <div onClick={onSelect} className={`bg-secondary border rounded-lg p-3 cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-accent bg-accent/10' : 'border-tertiary hover:border-accent/50'}`}>
             <div className="flex-1 min-w-0">
@@ -524,23 +580,34 @@ const HabitListItem: React.FC<{
                     <p className="text-xs text-text-secondary mt-1 truncate">{habit.description}</p>
                 )}
             </div>
-            <div className="relative flex-shrink-0 ml-2">
-                <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
-                    <MoreVertIcon className="text-lg" />
-                </button>
-                {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
-                            <PencilIcon className="text-lg" /> Edit
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
-                            {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
-                            <TrashIcon className="text-lg" /> Delete
-                        </button>
-                    </div>
+            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                {habit.isActive && (
+                    <button
+                        onClick={handleToggleCompletion}
+                        title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                        className={`p-2 rounded transition-all ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
+                    >
+                        <CheckCircleIcon className="text-lg" />
+                    </button>
                 )}
+                <div className="relative">
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                        <MoreVertIcon className="text-lg" />
+                    </button>
+                    {showMenu && (
+                        <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                <PencilIcon className="text-lg" /> Edit
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                                <TrashIcon className="text-lg" /> Delete
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -715,19 +782,24 @@ const HabitEditModal: React.FC<{
 
     const handleSave = useCallback(async () => {
         if (!name.trim()) return;
-        await onSave({
-            ...habit,
-            name,
-            description,
-            frequency: frequency as 'daily' | 'custom',
-            daysOfWeek: frequency === 'custom' ? daysOfWeek : undefined,
-            category,
-            xp,
-            isActive,
-            folderId,
-            updatedAt: new Date(),
-        });
-    }, [name, description, frequency, daysOfWeek, category, xp, isActive, folderId, habit, onSave]);
+        try {
+            await onSave({
+                ...habit,
+                name,
+                description,
+                frequency: frequency as 'daily' | 'custom',
+                daysOfWeek: frequency === 'custom' ? daysOfWeek : undefined,
+                category,
+                xp,
+                isActive,
+                folderId,
+                updatedAt: new Date(),
+            });
+            onClose();
+        } catch (error) {
+            console.error('Error saving habit:', error);
+        }
+    }, [name, description, frequency, daysOfWeek, category, xp, isActive, folderId, habit, onSave, onClose]);
 
     if (!isOpen) return null;
 
