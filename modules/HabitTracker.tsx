@@ -536,10 +536,17 @@ const HabitCard: React.FC<{
     };
 
     return (
-        <div onClick={onSelect} className={`bg-secondary border-2 rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-300 hover:shadow-lg ${isSelected ? 'border-accent bg-accent/10 shadow-lg' : 'border-tertiary hover:border-accent/50 hover:shadow-md'}`}>
+        <div
+            onClick={(e) => {
+                // Only trigger select if clicking on the card itself, not on buttons
+                if ((e.target as HTMLElement).closest('button')) return;
+                onSelect();
+            }}
+            className={`bg-secondary border-2 rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-300 hover:shadow-lg ${isSelected ? 'border-accent bg-accent/10 shadow-lg' : 'border-tertiary hover:border-accent/50 hover:shadow-md'}`}
+        >
             {/* Header with title and actions */}
             <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
                     <h3 className={`font-semibold text-base md:text-lg truncate ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                         {habit.name}
                     </h3>
@@ -657,8 +664,15 @@ const HabitListItem: React.FC<{
     };
 
     return (
-        <div onClick={onSelect} className={`bg-secondary border-2 rounded-2xl p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:shadow-md ${isSelected ? 'border-accent bg-accent/10 shadow-md' : 'border-tertiary hover:border-accent/50'}`}>
-            <div className="flex-1 min-w-0 flex items-center gap-4">
+        <div
+            onClick={(e) => {
+                // Only trigger select if clicking on the card itself, not on buttons
+                if ((e.target as HTMLElement).closest('button')) return;
+                onSelect();
+            }}
+            className={`bg-secondary border-2 rounded-2xl p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:shadow-md ${isSelected ? 'border-accent bg-accent/10 shadow-md' : 'border-tertiary hover:border-accent/50'}`}
+        >
+            <div className="flex-1 min-w-0 flex items-center gap-4 cursor-pointer" onClick={onSelect}>
                 {/* Completion indicator */}
                 <div className={`flex-shrink-0 w-1 h-12 rounded-full transition-all ${isCompleted ? 'bg-green-500' : 'bg-tertiary'}`} />
 
@@ -872,15 +886,37 @@ const HabitDetailPanel: React.FC<{
     onEdit: () => void;
     onToggleCompletion: () => void;
 }> = ({ habit, streak, isCompleted, habitLogs, onClose, onEdit, onToggleCompletion }) => {
+    const [isToggling, setIsToggling] = useState(false);
+
     if (!habit) return null;
 
     const today = getTodayDateString();
-    const completionRate = habitLogs ? (habitLogs.filter(l => l.habitId === habit.id).length / 30) * 100 : 0;
+    // Calculate completion rate from last 30 days
+    const last30Days = habitLogs?.filter(l => l.habitId === habit.id).length ?? 0;
+    const completionRate = Math.min((last30Days / 30) * 100, 100);
+
+    const handleToggleCompletion = async () => {
+        setIsToggling(true);
+        try {
+            await onToggleCompletion();
+        } finally {
+            setIsToggling(false);
+        }
+    };
+
+    const handleEdit = () => {
+        onEdit();
+        // Close detail panel after a short delay to allow modal to open
+        setTimeout(() => onClose(), 100);
+    };
 
     return (
         <>
-            {/* Mobile Modal Overlay */}
+            {/* Mobile Modal Overlay - Only on mobile */}
             <div className="fixed inset-0 bg-black/50 md:hidden z-40" onClick={onClose} />
+
+            {/* Desktop Overlay - Click outside to close */}
+            <div className="hidden md:fixed md:inset-0 md:z-40" onClick={onClose} />
 
             {/* Detail Panel - Desktop Side Panel / Mobile Modal */}
             <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-secondary border-l border-tertiary shadow-2xl z-50 flex flex-col md:rounded-l-2xl overflow-hidden">
@@ -988,18 +1024,19 @@ const HabitDetailPanel: React.FC<{
                 <div className="border-t border-tertiary p-4 md:p-6 space-y-3">
                     {habit.isActive && (
                         <button
-                            onClick={onToggleCompletion}
-                            className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
+                            onClick={handleToggleCompletion}
+                            disabled={isToggling}
+                            className={`w-full py-3 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                                 isCompleted
                                     ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                                     : 'bg-accent text-white hover:bg-accent/90'
                             }`}
                         >
-                            {isCompleted ? '✓ Completed Today' : 'Mark as Complete'}
+                            {isToggling ? 'Updating...' : (isCompleted ? '✓ Completed Today' : 'Mark as Complete')}
                         </button>
                     )}
                     <button
-                        onClick={onEdit}
+                        onClick={handleEdit}
                         className="w-full py-3 bg-tertiary text-text-primary rounded-lg font-medium hover:bg-tertiary/80 transition-all duration-200 flex items-center justify-center gap-2"
                     >
                         <EditIcon className="text-lg" /> Edit Habit
