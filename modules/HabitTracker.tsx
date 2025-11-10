@@ -881,12 +881,14 @@ const HabitItem: React.FC<{
 
 // Heatmap Component
 const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ habitId, habitLogs }) => {
+    const [timeRange, setTimeRange] = useState<number>(90);
+
     const heatmapData = useMemo(() => {
         const today = new Date();
         const data: { date: string; count: number }[] = [];
 
-        // Generate last 90 days
-        for (let i = 89; i >= 0; i--) {
+        // Generate last N days based on selected range
+        for (let i = timeRange - 1; i >= 0; i--) {
             const date = new Date(today);
             date.setDate(date.getDate() - i);
             const dateStr = date.toISOString().split('T')[0];
@@ -895,7 +897,7 @@ const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ h
         }
 
         return data;
-    }, [habitId, habitLogs]);
+    }, [habitId, habitLogs, timeRange]);
 
     // Group by weeks
     const weeks = useMemo(() => {
@@ -906,27 +908,71 @@ const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ h
         return result;
     }, [heatmapData]);
 
+    // Calculate stats
+    const stats = useMemo(() => {
+        const completed = heatmapData.filter(d => d.count > 0).length;
+        const total = heatmapData.length;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+        return { completed, total, percentage };
+    }, [heatmapData]);
+
+    const timeRangeOptions = [
+        { value: 15, label: '15 Days' },
+        { value: 30, label: '30 Days' },
+        { value: 60, label: '60 Days' },
+        { value: 90, label: '90 Days' },
+        { value: 180, label: '6 Months' },
+        { value: 365, label: '1 Year' },
+    ];
+
     return (
-        <div className="bg-primary rounded-lg p-4 overflow-x-auto border border-tertiary">
-            <div className="flex gap-1 min-w-max">
-                {weeks.map((week, weekIdx) => (
-                    <div key={weekIdx} className="flex flex-col gap-1">
-                        {week.map((day) => {
-                            return (
-                                <div
-                                    key={day.date}
-                                    title={`${day.date} - ${day.count > 0 ? 'Completed' : 'Not completed'}`}
-                                    className={`w-4 h-4 rounded-sm transition-all duration-200 hover:scale-125 cursor-pointer ${
-                                        day.count > 0
-                                            ? 'bg-green-500 hover:bg-green-400'
-                                            : 'bg-tertiary hover:bg-tertiary/70'
-                                    }`}
-                                />
-                            );
-                        })}
-                    </div>
-                ))}
+        <div className="bg-primary rounded-lg p-4 border border-tertiary">
+            {/* Header with time range selector */}
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <div className="text-sm text-text-secondary">
+                    <span className="font-semibold text-accent">{stats.completed}</span> of {stats.total} days ({stats.percentage}%)
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                    {timeRangeOptions.map(option => (
+                        <button
+                            key={option.value}
+                            onClick={() => setTimeRange(option.value)}
+                            className={`px-2.5 py-1 text-xs rounded-lg transition-all duration-200 font-medium ${
+                                timeRange === option.value
+                                    ? 'bg-accent text-white'
+                                    : 'bg-tertiary text-text-secondary hover:bg-tertiary/70'
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
             </div>
+
+            {/* Heatmap grid */}
+            <div className="overflow-x-auto">
+                <div className="flex gap-1 min-w-max">
+                    {weeks.map((week, weekIdx) => (
+                        <div key={weekIdx} className="flex flex-col gap-1">
+                            {week.map((day) => {
+                                return (
+                                    <div
+                                        key={day.date}
+                                        title={`${day.date} - ${day.count > 0 ? 'Completed' : 'Not completed'}`}
+                                        className={`w-4 h-4 rounded-sm transition-all duration-200 hover:scale-125 cursor-pointer ${
+                                            day.count > 0
+                                                ? 'bg-green-500 hover:bg-green-400'
+                                                : 'bg-tertiary hover:bg-tertiary/70'
+                                        }`}
+                                    />
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Legend */}
             <div className="flex items-center gap-2 mt-3 text-xs text-text-secondary">
                 <span>Less</span>
                 <div className="flex gap-1">
@@ -1045,10 +1091,10 @@ const HabitDetailPanel: React.FC<{
                         </div>
                     </div>
 
-                    {/* Heatmap - Last 90 Days */}
+                    {/* Heatmap */}
                     <div>
                         <h4 className="text-sm font-semibold text-text-secondary mb-3 flex items-center gap-2">
-                            <CalendarIcon className="text-lg" /> Activity Heatmap (Last 90 Days)
+                            <CalendarIcon className="text-lg" /> Activity Heatmap
                         </h4>
                         <HabitHeatmap habitId={habit.id!} habitLogs={habitLogs} />
                     </div>
