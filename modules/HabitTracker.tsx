@@ -907,20 +907,16 @@ const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ h
     }, [heatmapData]);
 
     return (
-        <div className="bg-primary rounded-lg p-4 overflow-x-auto">
+        <div className="bg-primary rounded-lg p-4 overflow-x-auto border border-tertiary">
             <div className="flex gap-1 min-w-max">
                 {weeks.map((week, weekIdx) => (
                     <div key={weekIdx} className="flex flex-col gap-1">
-                        {week.map((day, dayIdx) => {
-                            const date = new Date(day.date);
-                            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
-                            const monthDay = date.getDate();
-
+                        {week.map((day) => {
                             return (
                                 <div
                                     key={day.date}
                                     title={`${day.date} - ${day.count > 0 ? 'Completed' : 'Not completed'}`}
-                                    className={`w-3 h-3 rounded-sm transition-all duration-200 hover:scale-125 ${
+                                    className={`w-4 h-4 rounded-sm transition-all duration-200 hover:scale-125 cursor-pointer ${
                                         day.count > 0
                                             ? 'bg-green-500 hover:bg-green-400'
                                             : 'bg-tertiary hover:bg-tertiary/70'
@@ -934,10 +930,10 @@ const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ h
             <div className="flex items-center gap-2 mt-3 text-xs text-text-secondary">
                 <span>Less</span>
                 <div className="flex gap-1">
-                    <div className="w-3 h-3 bg-tertiary rounded-sm" />
-                    <div className="w-3 h-3 bg-green-500/30 rounded-sm" />
-                    <div className="w-3 h-3 bg-green-500/60 rounded-sm" />
-                    <div className="w-3 h-3 bg-green-500 rounded-sm" />
+                    <div className="w-4 h-4 bg-tertiary rounded-sm" />
+                    <div className="w-4 h-4 bg-green-500/30 rounded-sm" />
+                    <div className="w-4 h-4 bg-green-500/60 rounded-sm" />
+                    <div className="w-4 h-4 bg-green-500 rounded-sm" />
                 </div>
                 <span>More</span>
             </div>
