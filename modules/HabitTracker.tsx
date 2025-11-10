@@ -6,7 +6,7 @@ import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
-type HabitFilter = 'all' | 'active' | 'paused' | 'today';
+type HabitFilter = 'all' | 'active' | 'paused' | 'today' | 'completed';
 
 // --- ICONS ---
 const MenuIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>menu</span>;
@@ -27,6 +27,10 @@ const TrendingUpIcon = ({ className }: { className?: string }) => <span classNam
 const GridViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>grid_view</span>;
 const ListViewIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>list</span>;
 const CloseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>close</span>;
+const SearchIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>search</span>;
+const SnoozeIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>snooze</span>;
+const CheckIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>check</span>;
+const EmptyIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>inbox</span>;
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -46,6 +50,24 @@ const HabitTracker: React.FC = () => {
     const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid');
 
     const streaks = useMemo(() => calculateStreaks(allHabits ?? [], habitLogs ?? []), [allHabits, habitLogs]);
+    const [scrollY, setScrollY] = useState(0);
+    const [showFAB, setShowFAB] = useState(true);
+
+    // Track scroll for mobile FAB visibility
+    useEffect(() => {
+        const handleScroll = (e: Event) => {
+            const target = e.target as HTMLElement;
+            const currentScroll = target.scrollTop;
+            setShowFAB(currentScroll < 100 || currentScroll < scrollY);
+            setScrollY(currentScroll);
+        };
+
+        const mainContent = document.querySelector('[data-habits-scroll]');
+        if (mainContent) {
+            mainContent.addEventListener('scroll', handleScroll);
+            return () => mainContent.removeEventListener('scroll', handleScroll);
+        }
+    }, [scrollY]);
 
     const selectedHabit = useMemo(() => {
         const habit = allHabits?.find(h => h.id === selectedHabitId);
@@ -97,11 +119,12 @@ const HabitTracker: React.FC = () => {
 
     const displayHabits = useMemo(() => {
         let tempHabits = allHabits ?? [];
+        const today = getTodayDateString();
+
         switch(habitFilter) {
             case 'active': tempHabits = tempHabits.filter(h => h.isActive); break;
             case 'paused': tempHabits = tempHabits.filter(h => !h.isActive); break;
-            case 'today': 
-                const today = getTodayDateString();
+            case 'today':
                 tempHabits = tempHabits.filter(h => {
                     if (!h.isActive) return false;
                     if (h.frequency === 'daily') return true;
@@ -112,6 +135,12 @@ const HabitTracker: React.FC = () => {
                     return false;
                 });
                 break;
+            case 'completed':
+                tempHabits = tempHabits.filter(h => {
+                    const log = habitLogs?.find(l => l.habitId === h.id && l.date === today);
+                    return !!log;
+                });
+                break;
             default: tempHabits = tempHabits.filter(h => h.origin !== 'system-islamic');
         }
         if (searchQuery) {
@@ -119,7 +148,7 @@ const HabitTracker: React.FC = () => {
             tempHabits = tempHabits.filter(h => h.name.toLowerCase().includes(q) || h.description?.toLowerCase().includes(q));
         }
         return tempHabits.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    }, [allHabits, habitFilter, searchQuery]);
+    }, [allHabits, habitFilter, searchQuery, habitLogs]);
 
     return (
         <div className="flex h-full bg-primary font-sans relative overflow-hidden">
@@ -178,20 +207,25 @@ const HabitTracker: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6" data-habits-scroll>
                     {displayHabits.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-text-muted">
-                            <div className="text-center">
-                                <FireIcon className="text-6xl mx-auto text-tertiary mb-4" />
-                                <h2 className="text-xl font-semibold">No habits found</h2>
-                                <p className="text-text-secondary mb-4">Create a new habit to get started</p>
-                                <button onClick={() => handleNewHabit()} className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90">
-                                    Create Habit
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center space-y-4">
+                                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-accent/10">
+                                    <EmptyIcon className="text-5xl text-accent" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-text-primary mb-2">No habits yet</h2>
+                                    <p className="text-text-secondary mb-6 max-w-sm">Start building better habits today. Create your first habit to begin your journey.</p>
+                                </div>
+                                <button onClick={() => handleNewHabit()} className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all duration-200 font-medium">
+                                    <AddIcon className="text-lg" />
+                                    Create Your First Habit
                                 </button>
                             </div>
                         </div>
                     ) : viewStyle === 'grid' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
                             {displayHabits.map(habit => (
                                 <HabitCard
                                     key={habit.id}
@@ -209,7 +243,7 @@ const HabitTracker: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-3 max-w-4xl">
                             {displayHabits.map(habit => (
                                 <HabitListItem
                                     key={habit.id}
@@ -228,6 +262,17 @@ const HabitTracker: React.FC = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Mobile FAB */}
+                {showFAB && displayHabits.length > 0 && (
+                    <button
+                        onClick={() => handleNewHabit()}
+                        className="fixed bottom-6 right-6 md:hidden w-14 h-14 bg-accent text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center z-40"
+                        title="Add new habit"
+                    >
+                        <AddIcon className="text-2xl" />
+                    </button>
+                )}
             </main>
 
             {confirmModal && (
@@ -359,6 +404,7 @@ const Sidebar: React.FC<{
                 <NavItem icon={<PlayIcon className="text-xl"/>} label="Active" isActive={props.habitFilter === 'active'} onClick={() => props.setHabitFilter('active')} />
                 <NavItem icon={<PauseIcon className="text-xl"/>} label="Paused" isActive={props.habitFilter === 'paused'} onClick={() => props.setHabitFilter('paused')} />
                 <NavItem icon={<CheckCircleIcon className="text-xl"/>} label="Today" isActive={props.habitFilter === 'today'} onClick={() => props.setHabitFilter('today')} />
+                <NavItem icon={<CheckIcon className="text-xl"/>} label="Completed" isActive={props.habitFilter === 'completed'} onClick={() => props.setHabitFilter('completed')} />
             </div>
             <div className="flex-1 overflow-y-auto p-3">
                 {isFilterActive ? (
@@ -458,34 +504,40 @@ const HabitCard: React.FC<{
     };
 
     return (
-        <div onClick={onSelect} className={`bg-secondary border-2 rounded-lg p-4 cursor-pointer transition-all ${isSelected ? 'border-accent bg-accent/10' : 'border-tertiary hover:border-accent/50'}`}>
-            <div className="flex items-start justify-between gap-2 mb-3">
-                <h3 className={`font-semibold flex-1 ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
-                    {habit.name}
-                </h3>
+        <div onClick={onSelect} className={`bg-secondary border-2 rounded-2xl p-4 md:p-5 cursor-pointer transition-all duration-300 hover:shadow-lg ${isSelected ? 'border-accent bg-accent/10 shadow-lg' : 'border-tertiary hover:border-accent/50 hover:shadow-md'}`}>
+            {/* Header with title and actions */}
+            <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                    <h3 className={`font-semibold text-base md:text-lg truncate ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
+                        {habit.name}
+                    </h3>
+                    {habit.category && (
+                        <p className="text-xs text-text-secondary mt-1">{habit.category}</p>
+                    )}
+                </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                     {habit.isActive && (
                         <button
                             onClick={handleToggleCompletion}
                             title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
-                            className={`p-2 rounded transition-all ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
+                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
                         >
                             <CheckCircleIcon className="text-lg" />
                         </button>
                     )}
                     <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-2 hover:bg-tertiary rounded-lg transition-colors">
                             <MoreVertIcon className="text-lg" />
                         </button>
                         {showMenu && (
-                            <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
-                                <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                            <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-xl z-50 w-44 overflow-hidden">
+                                <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2 transition-colors">
                                     <PencilIcon className="text-lg" /> Edit
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                                <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2 transition-colors">
                                     {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                                <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2 transition-colors">
                                     <TrashIcon className="text-lg" /> Delete
                                 </button>
                             </div>
@@ -494,22 +546,31 @@ const HabitCard: React.FC<{
                 </div>
             </div>
 
+            {/* Description */}
             {habit.description && (
                 <p className="text-sm text-text-secondary mb-3 line-clamp-2">{habit.description}</p>
             )}
 
+            {/* Progress bar */}
+            <div className="mb-3">
+                <div className="h-2 bg-tertiary rounded-full overflow-hidden">
+                    <div className={`h-full transition-all duration-500 ${isCompleted ? 'bg-gradient-to-r from-green-500 to-green-400 w-full' : 'bg-gradient-to-r from-accent to-indigo-400 w-1/3'}`} />
+                </div>
+            </div>
+
+            {/* Status badges and streak */}
             <div className="flex flex-wrap gap-2">
-                <span className={`text-xs px-2 py-1 rounded ${habit.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${habit.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
                     {habit.isActive ? 'Active' : 'Paused'}
                 </span>
                 {streak > 0 && (
-                    <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-400 flex items-center gap-1">
-                        <FireIcon className="text-xs" /> {streak} day streak
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-400 flex items-center gap-1 font-medium">
+                        <FireIcon className="text-xs" /> {streak}
                     </span>
                 )}
                 {isCompleted && (
-                    <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 flex items-center gap-1">
-                        <CheckCircleIcon className="text-xs" /> Completed today
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center gap-1 font-medium">
+                        <CheckIcon className="text-xs" /> Done
                     </span>
                 )}
             </div>
@@ -564,45 +625,51 @@ const HabitListItem: React.FC<{
     };
 
     return (
-        <div onClick={onSelect} className={`bg-secondary border rounded-lg p-3 cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-accent bg-accent/10' : 'border-tertiary hover:border-accent/50'}`}>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3">
-                    <h3 className={`font-medium flex-1 truncate ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
-                        {habit.name}
-                    </h3>
-                    {streak > 0 && (
-                        <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-400 whitespace-nowrap flex items-center gap-1">
-                            <FireIcon className="text-xs" /> {streak}
-                        </span>
+        <div onClick={onSelect} className={`bg-secondary border-2 rounded-2xl p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:shadow-md ${isSelected ? 'border-accent bg-accent/10 shadow-md' : 'border-tertiary hover:border-accent/50'}`}>
+            <div className="flex-1 min-w-0 flex items-center gap-4">
+                {/* Completion indicator */}
+                <div className={`flex-shrink-0 w-1 h-12 rounded-full transition-all ${isCompleted ? 'bg-green-500' : 'bg-tertiary'}`} />
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                        <h3 className={`font-semibold flex-1 truncate ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
+                            {habit.name}
+                        </h3>
+                        {streak > 0 && (
+                            <span className="text-xs px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-400 whitespace-nowrap flex items-center gap-1 font-medium">
+                                <FireIcon className="text-xs" /> {streak}
+                            </span>
+                        )}
+                    </div>
+                    {habit.description && (
+                        <p className="text-xs text-text-secondary truncate">{habit.description}</p>
                     )}
                 </div>
-                {habit.description && (
-                    <p className="text-xs text-text-secondary mt-1 truncate">{habit.description}</p>
-                )}
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+
+            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                 {habit.isActive && (
                     <button
                         onClick={handleToggleCompletion}
                         title={isCompleted ? 'Mark incomplete' : 'Mark complete'}
-                        className={`p-2 rounded transition-all ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
+                        className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${isCompleted ? 'bg-green-500/20 text-green-400' : 'bg-tertiary text-text-secondary hover:bg-accent/20'}`}
                     >
                         <CheckCircleIcon className="text-lg" />
                     </button>
                 )}
                 <div className="relative">
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 hover:bg-tertiary rounded">
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-2 hover:bg-tertiary rounded-lg transition-colors">
                         <MoreVertIcon className="text-lg" />
                     </button>
                     {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-lg z-50 w-40">
-                            <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                        <div className="absolute right-0 top-full mt-1 bg-tertiary border border-primary rounded-lg shadow-xl z-50 w-44 overflow-hidden">
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2 transition-colors">
                                 <PencilIcon className="text-lg" /> Edit
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); handleToggleActive(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-accent hover:text-white flex items-center gap-2 transition-colors">
                                 {habit.isActive ? <PauseIcon className="text-lg" /> : <PlayIcon className="text-lg" />} {habit.isActive ? 'Pause' : 'Resume'}
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2 transition-colors">
                                 <TrashIcon className="text-lg" /> Delete
                             </button>
                         </div>
