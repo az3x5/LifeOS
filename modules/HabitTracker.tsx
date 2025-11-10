@@ -74,6 +74,7 @@ const HabitTracker: React.FC = () => {
 
     const selectedHabit = useMemo(() => {
         const habit = allHabits?.find(h => h.id === selectedHabitId);
+        console.log('selectedHabit memo:', { selectedHabitId, habit: habit?.name, allHabitsCount: allHabits?.length });
         if (habit) return habit;
         if (selectedHabitId) setSelectedHabitId(null);
         return null;
@@ -94,6 +95,7 @@ const HabitTracker: React.FC = () => {
     };
 
     const handleSelectHabit = (id: number | null) => {
+        console.log('handleSelectHabit called with id:', id);
         setSelectedHabitId(id);
         setIsHabitsSidebarOpen(false);
     };
@@ -1000,6 +1002,8 @@ const HabitDetailPanel: React.FC<{
     onToggleCompletion: () => void;
 }> = ({ habit, streak, isCompleted, habitLogs, onClose, onEdit, onToggleCompletion }) => {
     const [isToggling, setIsToggling] = useState(false);
+
+    console.log('HabitDetailPanel rendering:', { habit: habit?.name, habitId: habit?.id });
 
     if (!habit) return null;
 
