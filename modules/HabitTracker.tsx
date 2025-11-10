@@ -323,7 +323,8 @@ const HabitTracker: React.FC = () => {
                             await habitLogsService.create({
                                 habitId: selectedHabit.id!,
                                 date: today,
-                                completedAt: new Date(),
+                                completed: true,
+                                createdAt: new Date(),
                             });
                         }
                     }}
@@ -532,7 +533,8 @@ const HabitCard: React.FC<{
             await habitLogsService.create({
                 habitId: habit.id!,
                 date: today,
-                completedAt: new Date(),
+                completed: true,
+                createdAt: new Date(),
             });
         }
     };
@@ -660,7 +662,8 @@ const HabitListItem: React.FC<{
             await habitLogsService.create({
                 habitId: habit.id!,
                 date: today,
-                completedAt: new Date(),
+                completed: true,
+                createdAt: new Date(),
             });
         }
     };
