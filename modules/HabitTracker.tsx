@@ -31,6 +31,9 @@ const SearchIcon = ({ className }: { className?: string }) => <span className={`
 const SnoozeIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>snooze</span>;
 const CheckIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>check</span>;
 const EmptyIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>inbox</span>;
+const ChevronLeftIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>chevron_left</span>;
+const CalendarIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>calendar_today</span>;
+const InfoIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>info</span>;
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -293,6 +296,35 @@ const HabitTracker: React.FC = () => {
                     message={alertModal.message}
                     icon={alertModal.icon || "⚠️"}
                     onClose={() => setAlertModal(null)}
+                />
+            )}
+            {selectedHabit && (
+                <HabitDetailPanel
+                    habit={selectedHabit}
+                    streak={streaks[selectedHabit.id!]?.currentStreak ?? 0}
+                    isCompleted={habitLogs?.some(l => l.habitId === selectedHabit.id && l.date === getTodayDateString()) ?? false}
+                    habitLogs={habitLogs}
+                    onClose={() => setSelectedHabitId(null)}
+                    onEdit={() => {
+                        setEditingHabit(selectedHabit);
+                        setIsEditModalOpen(true);
+                    }}
+                    onToggleCompletion={async () => {
+                        const isCompleted = habitLogs?.some(l => l.habitId === selectedHabit.id && l.date === getTodayDateString()) ?? false;
+                        const today = getTodayDateString();
+                        if (isCompleted) {
+                            const log = habitLogs?.find(l => l.habitId === selectedHabit.id && l.date === today);
+                            if (log?.id) {
+                                await habitLogsService.delete(log.id);
+                            }
+                        } else {
+                            await habitLogsService.create({
+                                habitId: selectedHabit.id!,
+                                date: today,
+                                completedAt: new Date(),
+                            });
+                        }
+                    }}
                 />
             )}
             {editingHabit && (
@@ -830,6 +862,159 @@ const HabitItem: React.FC<{
         </div>
     )
 }
+
+const HabitDetailPanel: React.FC<{
+    habit: Habit | null;
+    streak: number;
+    isCompleted: boolean;
+    habitLogs?: HabitLog[];
+    onClose: () => void;
+    onEdit: () => void;
+    onToggleCompletion: () => void;
+}> = ({ habit, streak, isCompleted, habitLogs, onClose, onEdit, onToggleCompletion }) => {
+    if (!habit) return null;
+
+    const today = getTodayDateString();
+    const completionRate = habitLogs ? (habitLogs.filter(l => l.habitId === habit.id).length / 30) * 100 : 0;
+
+    return (
+        <>
+            {/* Mobile Modal Overlay */}
+            <div className="fixed inset-0 bg-black/50 md:hidden z-40" onClick={onClose} />
+
+            {/* Detail Panel - Desktop Side Panel / Mobile Modal */}
+            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-secondary border-l border-tertiary shadow-2xl z-50 flex flex-col md:rounded-l-2xl overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 md:p-6 border-b border-tertiary">
+                    <h2 className="text-xl font-bold text-text-primary">Habit Details</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-tertiary rounded-lg transition-colors"
+                    >
+                        <CloseIcon className="text-xl" />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                    {/* Habit Name */}
+                    <div>
+                        <h3 className={`text-2xl font-bold ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
+                            {habit.name}
+                        </h3>
+                        {habit.category && (
+                            <p className="text-sm text-text-secondary mt-2">{habit.category}</p>
+                        )}
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${habit.isActive ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                            {habit.isActive ? 'Active' : 'Paused'}
+                        </span>
+                        {isCompleted && (
+                            <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-500/20 text-green-400 flex items-center gap-1">
+                                <CheckIcon className="text-sm" /> Done Today
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Description */}
+                    {habit.description && (
+                        <div>
+                            <h4 className="text-sm font-semibold text-text-secondary mb-2">Description</h4>
+                            <p className="text-text-primary">{habit.description}</p>
+                        </div>
+                    )}
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-primary rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <FireIcon className="text-orange-400 text-lg" />
+                                <span className="text-sm text-text-secondary">Current Streak</span>
+                            </div>
+                            <p className="text-2xl font-bold text-text-primary">{streak}</p>
+                        </div>
+                        <div className="bg-primary rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <CheckIcon className="text-green-400 text-lg" />
+                                <span className="text-sm text-text-secondary">Completion</span>
+                            </div>
+                            <p className="text-2xl font-bold text-text-primary">{Math.round(completionRate)}%</p>
+                        </div>
+                    </div>
+
+                    {/* Frequency */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-text-secondary mb-2">Frequency</h4>
+                        <p className="text-text-primary capitalize">{habit.frequency === 'daily' ? 'Every Day' : 'Custom Days'}</p>
+                        {habit.frequency === 'custom' && habit.daysOfWeek && (
+                            <div className="flex gap-2 mt-2">
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                                    <span
+                                        key={idx}
+                                        className={`w-8 h-8 flex items-center justify-center rounded text-xs font-medium ${
+                                            habit.daysOfWeek?.includes(idx)
+                                                ? 'bg-accent text-white'
+                                                : 'bg-tertiary text-text-secondary'
+                                        }`}
+                                    >
+                                        {day}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Created Date */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-text-secondary mb-2 flex items-center gap-2">
+                            <CalendarIcon className="text-lg" /> Created
+                        </h4>
+                        <p className="text-text-primary">
+                            {habit.createdAt ? new Date(habit.createdAt).toLocaleDateString() : 'N/A'}
+                        </p>
+                    </div>
+
+                    {/* XP Reward */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-text-secondary mb-2">XP Reward</h4>
+                        <p className="text-text-primary font-semibold text-lg">{habit.xp} XP</p>
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="border-t border-tertiary p-4 md:p-6 space-y-3">
+                    {habit.isActive && (
+                        <button
+                            onClick={onToggleCompletion}
+                            className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
+                                isCompleted
+                                    ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                                    : 'bg-accent text-white hover:bg-accent/90'
+                            }`}
+                        >
+                            {isCompleted ? '✓ Completed Today' : 'Mark as Complete'}
+                        </button>
+                    )}
+                    <button
+                        onClick={onEdit}
+                        className="w-full py-3 bg-tertiary text-text-primary rounded-lg font-medium hover:bg-tertiary/80 transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                        <EditIcon className="text-lg" /> Edit Habit
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-primary text-text-primary rounded-lg font-medium hover:bg-primary/80 transition-all duration-200"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+};
 
 const HabitEditModal: React.FC<{
     habit: Habit;
