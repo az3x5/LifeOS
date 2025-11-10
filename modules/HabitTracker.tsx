@@ -211,59 +211,61 @@ const HabitTracker: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6" data-habits-scroll>
-                    {displayHabits.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
-                            <div className="text-center space-y-4">
-                                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-accent/10">
-                                    <EmptyIcon className="text-5xl text-accent" />
+                    <div className="max-w-[1600px] mx-auto">
+                        {displayHabits.length === 0 ? (
+                            <div className="flex items-center justify-center h-full min-h-[400px]">
+                                <div className="text-center space-y-4">
+                                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-accent/10">
+                                        <EmptyIcon className="text-5xl text-accent" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-text-primary mb-2">No habits yet</h2>
+                                        <p className="text-text-secondary mb-6 max-w-sm">Start building better habits today. Create your first habit to begin your journey.</p>
+                                    </div>
+                                    <button onClick={() => handleNewHabit()} className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all duration-200 font-medium">
+                                        <AddIcon className="text-lg" />
+                                        Create Your First Habit
+                                    </button>
                                 </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-text-primary mb-2">No habits yet</h2>
-                                    <p className="text-text-secondary mb-6 max-w-sm">Start building better habits today. Create your first habit to begin your journey.</p>
-                                </div>
-                                <button onClick={() => handleNewHabit()} className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all duration-200 font-medium">
-                                    <AddIcon className="text-lg" />
-                                    Create Your First Habit
-                                </button>
                             </div>
-                        </div>
-                    ) : viewStyle === 'grid' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
-                            {displayHabits.map(habit => (
-                                <HabitCard
-                                    key={habit.id}
-                                    habit={habit}
-                                    isSelected={selectedHabitId === habit.id}
-                                    streak={streaks[habit.id!]?.currentStreak ?? 0}
-                                    isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
-                                    onSelect={() => handleSelectHabit(habit.id!)}
-                                    onEdit={() => {
-                                        setEditingHabit(habit);
-                                        setIsEditModalOpen(true);
-                                    }}
-                                    setConfirmModal={setConfirmModal}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="space-y-3 max-w-4xl">
-                            {displayHabits.map(habit => (
-                                <HabitListItem
-                                    key={habit.id}
-                                    habit={habit}
-                                    isSelected={selectedHabitId === habit.id}
-                                    streak={streaks[habit.id!]?.currentStreak ?? 0}
-                                    isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
-                                    onSelect={() => handleSelectHabit(habit.id!)}
-                                    onEdit={() => {
-                                        setEditingHabit(habit);
-                                        setIsEditModalOpen(true);
-                                    }}
-                                    setConfirmModal={setConfirmModal}
-                                />
-                            ))}
-                        </div>
-                    )}
+                        ) : viewStyle === 'grid' ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5">
+                                {displayHabits.map(habit => (
+                                    <HabitCard
+                                        key={habit.id}
+                                        habit={habit}
+                                        isSelected={selectedHabitId === habit.id}
+                                        streak={streaks[habit.id!]?.currentStreak ?? 0}
+                                        isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
+                                        onSelect={() => handleSelectHabit(habit.id!)}
+                                        onEdit={() => {
+                                            setEditingHabit(habit);
+                                            setIsEditModalOpen(true);
+                                        }}
+                                        setConfirmModal={setConfirmModal}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-3 max-w-5xl mx-auto">
+                                {displayHabits.map(habit => (
+                                    <HabitListItem
+                                        key={habit.id}
+                                        habit={habit}
+                                        isSelected={selectedHabitId === habit.id}
+                                        streak={streaks[habit.id!]?.currentStreak ?? 0}
+                                        isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
+                                        onSelect={() => handleSelectHabit(habit.id!)}
+                                        onEdit={() => {
+                                            setEditingHabit(habit);
+                                            setIsEditModalOpen(true);
+                                        }}
+                                        setConfirmModal={setConfirmModal}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Mobile FAB */}
@@ -415,7 +417,7 @@ const Sidebar: React.FC<{
     const isFilterActive = props.searchQuery.length > 0 || props.habitFilter !== 'all';
 
     return (
-        <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`w-72 md:w-80 lg:w-[320px] bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-3 flex-shrink-0 space-y-3">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Habits</h1>
@@ -919,7 +921,7 @@ const HabitDetailPanel: React.FC<{
             <div className="hidden md:fixed md:inset-0 md:z-40" onClick={onClose} />
 
             {/* Detail Panel - Desktop Side Panel / Mobile Modal */}
-            <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-secondary border-l border-tertiary shadow-2xl z-50 flex flex-col md:rounded-l-2xl overflow-hidden">
+            <div className="fixed inset-y-0 right-0 w-full md:w-[400px] lg:w-[450px] bg-secondary border-l border-tertiary shadow-2xl z-50 flex flex-col md:rounded-l-2xl overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-tertiary">
                     <h2 className="text-xl font-bold text-text-primary">Habit Details</h2>
