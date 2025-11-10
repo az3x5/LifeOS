@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
-import { Habit, HabitLog, HabitFolder, UserProfile, Badge, UserBadge } from '../types';
+import { Habit, HabitLog, HabitFolder } from '../types';
 import { habitsService, habitLogsService, habitFoldersService } from '../services/dataService';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
 type HabitFilter = 'all' | 'active' | 'paused' | 'archived';
+type ViewMode = 'list' | 'detail';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -21,16 +21,16 @@ const FolderIcon = ({ className }: { className?: string }) => <span className={`
 const FolderPlusIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>create_new_folder</span>;
 const ChevronRightIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>chevron_right</span>;
 const FireIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>local_fire_department</span>;
-const MoreVertIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>more_vert</span>;
 const DeleteIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
 const EditIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>edit</span>;
 const PauseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>pause</span>;
 const PlayIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>play_arrow</span>;
-const SearchIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>search</span>;
 const CloseIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>close</span>;
 const CheckCircleIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>check_circle</span>;
 const PencilIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>note_add</span>;
 const TrashIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>delete</span>;
+const ArrowBackIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>arrow_back</span>;
+const TrendingUpIcon = ({ className }: { className?: string }) => <span className={`material-symbols-outlined ${className ?? ''}`}>trending_up</span>;
 
 const HabitTracker: React.FC = () => {
     const allHabits = useSupabaseQuery<Habit>('habits');
@@ -40,7 +40,8 @@ const HabitTracker: React.FC = () => {
     const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
     const [habitFilter, setHabitFilter] = useState<HabitFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isHabitsSidebarOpen, setIsHabitsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
     const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -80,7 +81,8 @@ const HabitTracker: React.FC = () => {
 
     const handleSelectHabit = (id: number | null) => {
         setSelectedHabitId(id);
-        setIsHabitsSidebarOpen(false);
+        setViewMode('detail');
+        setIsSidebarOpen(false);
     };
 
     const handleSaveHabit = async (habit: Habit) => {
@@ -112,6 +114,7 @@ const HabitTracker: React.FC = () => {
                 try {
                     await habitsService.delete(habitId);
                     handleSelectHabit(null);
+                    setViewMode('list');
                     addToast({ icon: 'check_circle', title: 'Habit Deleted', message: 'Habit has been deleted.' });
                 } catch (error) {
                     setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to delete habit.', icon: 'error' });
@@ -145,32 +148,38 @@ const HabitTracker: React.FC = () => {
 
     return (
         <div className="flex h-full bg-primary font-sans relative overflow-hidden">
-            {isHabitsSidebarOpen && (
-                <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsHabitsSidebarOpen(false)} />
+            {/* Mobile Overlay */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 bg-black/60 z-20 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
             )}
-            <Sidebar
-                habitFolders={habitFolders}
-                habits={allHabits}
-                habitFilter={habitFilter}
-                setHabitFilter={setHabitFilter}
-                selectedHabitId={selectedHabitId}
-                setSelectedHabitId={handleSelectHabit}
-                onNewHabit={handleNewHabit}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                isHabitsSidebarOpen={isHabitsSidebarOpen}
-                setConfirmModal={setConfirmModal}
-                setAlertModal={setAlertModal}
-                streaks={streaks}
-            />
-            <main className="flex-1 flex flex-col min-w-0">
-                {selectedHabit ? (
+
+            {/* Sidebar - Hidden on mobile, visible on desktop */}
+            <div className={`fixed lg:static inset-y-0 left-0 z-30 lg:z-0 transform transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+                <Sidebar
+                    habitFolders={habitFolders}
+                    habits={allHabits}
+                    habitFilter={habitFilter}
+                    setHabitFilter={setHabitFilter}
+                    selectedHabitId={selectedHabitId}
+                    setSelectedHabitId={handleSelectHabit}
+                    onNewHabit={handleNewHabit}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    setConfirmModal={setConfirmModal}
+                    setAlertModal={setAlertModal}
+                    streaks={streaks}
+                />
+            </div>
+
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {viewMode === 'detail' && selectedHabit ? (
                     <HabitDetailPanel
                         key={selectedHabit.id}
                         habit={selectedHabit}
                         habitLogs={habitLogs ?? []}
                         streaks={streaks}
-                        toggleSidebar={() => setIsHabitsSidebarOpen(p => !p)}
+                        onBack={() => setViewMode('list')}
                         onEdit={() => {
                             setEditingHabit(selectedHabit);
                             setIsEditModalOpen(true);
@@ -179,19 +188,18 @@ const HabitTracker: React.FC = () => {
                         onToggle={handleToggleHabit}
                     />
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-text-muted bg-primary relative">
-                        <button onClick={() => setIsHabitsSidebarOpen(true)} title="Open habits list" className="md:hidden absolute top-4 left-4 p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
-                            <MenuIcon className="text-2xl" />
-                        </button>
-                        <div className="text-center">
-                            <FireIcon className="text-6xl mx-auto text-tertiary" />
-                            <h2 className="mt-4 text-xl font-semibold">Select a habit</h2>
-                            <p>Choose a habit from the list to view or edit it.</p>
-                        </div>
-                    </div>
+                    <HabitListView
+                        habits={allHabits}
+                        habitLogs={habitLogs}
+                        streaks={streaks}
+                        onSelectHabit={handleSelectHabit}
+                        onToggleSidebar={() => setIsSidebarOpen(p => !p)}
+                        onNewHabit={handleNewHabit}
+                    />
                 )}
             </main>
 
+            {/* Modals */}
             {isEditModalOpen && editingHabit && (
                 <HabitEditModal
                     habit={editingHabit}
@@ -228,6 +236,129 @@ const HabitTracker: React.FC = () => {
     );
 };
 
+// ============ HABIT LIST VIEW (Mobile/Responsive) ============
+
+interface HabitListViewProps {
+    habits: Habit[] | null;
+    habitLogs: HabitLog[] | null;
+    streaks: Record<number, { currentStreak: number; longestStreak: number }>;
+    onSelectHabit: (id: number) => void;
+    onToggleSidebar: () => void;
+    onNewHabit: () => void;
+}
+
+const HabitListView: React.FC<HabitListViewProps> = (props) => {
+    const todayStr = getTodayDateString();
+    const todaysHabits = useMemo(() => {
+        if (!props.habits) return [];
+        const todayDay = new Date().getDay();
+        return props.habits.filter(h => h.isActive !== false && (h.frequency === 'daily' || h.daysOfWeek?.includes(todayDay)));
+    }, [props.habits]);
+
+    const completedToday = useMemo(() => {
+        if (!props.habitLogs) return new Set();
+        return new Set(props.habitLogs.filter(l => l.date === todayStr).map(l => l.habitId));
+    }, [props.habitLogs, todayStr]);
+
+    const completionRate = useMemo(() => {
+        if (todaysHabits.length === 0) return 0;
+        return Math.round((completedToday.size / todaysHabits.length) * 100);
+    }, [todaysHabits, completedToday]);
+
+    return (
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex-shrink-0 p-3 sm:p-4 border-b border-tertiary">
+                <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+                    <button onClick={props.onToggleSidebar} className="lg:hidden p-2 rounded-md hover:bg-secondary flex-shrink-0">
+                        <MenuIcon className="text-xl sm:text-2xl" />
+                    </button>
+                    <h1 className="text-xl sm:text-2xl font-bold flex-1">Today's Habits</h1>
+                    <button onClick={props.onNewHabit} className="p-2 rounded-md hover:bg-secondary text-accent flex-shrink-0">
+                        <AddIcon className="text-xl sm:text-2xl" />
+                    </button>
+                </div>
+                <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
+                    <span className="text-text-muted">{completedToday.size} of {todaysHabits.length} completed</span>
+                    <div className="text-base sm:text-lg font-bold text-accent">{completionRate}%</div>
+                </div>
+                <div className="w-full bg-primary rounded-full h-2 mt-2 overflow-hidden">
+                    <div className="bg-accent h-full transition-all duration-300" style={{ width: `${completionRate}%` }} />
+                </div>
+            </div>
+
+            {/* Habits List */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 sm:space-y-3">
+                {!props.habits ? (
+                    <div className="flex flex-col items-center justify-center h-full text-text-muted">
+                        <div className="animate-pulse mb-3">
+                            <FireIcon className="text-4xl sm:text-5xl opacity-50" />
+                        </div>
+                        <p className="text-center text-sm sm:text-base">Loading habits...</p>
+                    </div>
+                ) : todaysHabits.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-text-muted">
+                        <FireIcon className="text-4xl sm:text-5xl mb-3 opacity-50" />
+                        <p className="text-center text-sm sm:text-base px-4">No habits for today. Create one to get started!</p>
+                    </div>
+                ) : (
+                    todaysHabits.map((habit) => (
+                        <HabitCard
+                            key={habit.id}
+                            habit={habit}
+                            isCompleted={completedToday.has(habit.id!)}
+                            streak={props.streaks[habit.id!]?.currentStreak ?? 0}
+                            onClick={() => props.onSelectHabit(habit.id!)}
+                        />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ============ HABIT CARD COMPONENT ============
+
+interface HabitCardProps {
+    habit: Habit;
+    isCompleted: boolean;
+    streak: number;
+    onClick: () => void;
+}
+
+const HabitCard: React.FC<HabitCardProps> = (props) => {
+    return (
+        <button
+            onClick={props.onClick}
+            className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left active:scale-95 ${
+                props.isCompleted
+                    ? 'bg-green-500/10 border-green-500/50 shadow-md'
+                    : 'bg-secondary border-tertiary hover:border-accent hover:shadow-md active:bg-tertiary'
+            }`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base sm:text-lg truncate">{props.habit.name}</h3>
+                    {props.habit.description && <p className="text-xs sm:text-sm text-text-muted mt-1 line-clamp-2">{props.habit.description}</p>}
+                    {props.streak > 0 && (
+                        <div className="flex items-center gap-1 mt-2 text-xs sm:text-sm text-orange-500 animate-pulse">
+                            <FireIcon className="text-sm" />
+                            <span>{props.streak} day streak</span>
+                        </div>
+                    )}
+                </div>
+                <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                    props.isCompleted
+                        ? 'bg-green-500 border-green-500 scale-110'
+                        : 'border-tertiary'
+                }`}>
+                    {props.isCompleted && <CheckCircleIcon className="text-white text-lg" />}
+                </div>
+            </div>
+        </button>
+    );
+};
+
 // ============ SIDEBAR COMPONENT ============
 
 interface SidebarProps {
@@ -240,7 +371,6 @@ interface SidebarProps {
     onNewHabit: (folderId?: number) => void;
     searchQuery: string;
     setSearchQuery: (query: string) => void;
-    isHabitsSidebarOpen: boolean;
     setConfirmModal: (modal: any) => void;
     setAlertModal: (modal: any) => void;
     streaks: Record<number, { currentStreak: number; longestStreak: number }>;
@@ -324,7 +454,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     };
 
     return (
-        <div className={`w-72 md:w-80 bg-secondary border-r border-tertiary flex flex-col transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 fixed inset-y-0 left-0 z-30 ${props.isHabitsSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="w-72 bg-secondary border-r border-tertiary flex flex-col h-full overflow-hidden">
             <div className="p-3 flex-shrink-0 space-y-3">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Habits</h1>
@@ -676,16 +806,16 @@ interface HabitDetailPanelProps {
     habit: Habit;
     habitLogs: HabitLog[];
     streaks: Record<number, { currentStreak: number; longestStreak: number }>;
-    toggleSidebar: () => void;
+    onBack: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onToggle: (habit: Habit, date: string) => void;
 }
 
 const HabitDetailPanel: React.FC<HabitDetailPanelProps> = (props) => {
-    const last14Days = useMemo(() => {
+    const last30Days = useMemo(() => {
         const days = [];
-        for (let i = 13; i >= 0; i--) {
+        for (let i = 29; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
             days.push(date.toISOString().split('T')[0]);
@@ -694,81 +824,81 @@ const HabitDetailPanel: React.FC<HabitDetailPanelProps> = (props) => {
     }, []);
 
     const completionData = useMemo(() => {
-        return last14Days.map(date => {
+        return last30Days.map(date => {
             const isCompleted = props.habitLogs.some(log => log.habitId === props.habit.id && log.date === date && (log.completed !== false));
             return { date, completed: isCompleted };
         });
-    }, [last14Days, props.habitLogs, props.habit.id]);
+    }, [last30Days, props.habitLogs, props.habit.id]);
 
     const completionRate = useMemo(() => {
         const completed = completionData.filter(d => d.completed).length;
         return Math.round((completed / completionData.length) * 100);
     }, [completionData]);
 
+    const currentStreak = props.streaks[props.habit.id!]?.currentStreak ?? 0;
+    const longestStreak = props.streaks[props.habit.id!]?.longestStreak ?? 0;
+
     return (
-        <div className="flex-1 flex flex-col min-w-0 bg-primary">
-            <div className="flex items-center justify-between p-4 border-b border-tertiary flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <button onClick={props.toggleSidebar} className="md:hidden p-2 rounded-md hover:bg-secondary">
-                        <MenuIcon className="text-2xl" />
+        <div className="flex-1 flex flex-col min-w-0 bg-primary overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="flex-shrink-0 p-3 sm:p-4 border-b border-tertiary">
+                <div className="flex items-center justify-between mb-3 gap-2">
+                    <button onClick={props.onBack} className="lg:hidden p-2 rounded-md hover:bg-secondary flex-shrink-0 transition-colors">
+                        <ArrowBackIcon className="text-xl sm:text-2xl" />
                     </button>
-                    <div>
-                        <h2 className="text-2xl font-bold">{props.habit.name}</h2>
-                        {props.habit.description && <p className="text-text-muted text-sm">{props.habit.description}</p>}
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-xl sm:text-2xl font-bold truncate">{props.habit.name}</h2>
+                        {props.habit.description && <p className="text-text-muted text-xs sm:text-sm mt-1 line-clamp-2">{props.habit.description}</p>}
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={props.onEdit} className="p-2 rounded-md hover:bg-secondary text-text-primary">
-                        <EditIcon className="text-xl" />
-                    </button>
-                    <button onClick={props.onDelete} className="p-2 rounded-md hover:bg-secondary text-text-primary">
-                        <DeleteIcon className="text-xl" />
-                    </button>
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                        <button onClick={props.onEdit} className="p-2 rounded-md hover:bg-secondary text-text-primary transition-colors">
+                            <EditIcon className="text-lg sm:text-xl" />
+                        </button>
+                        <button onClick={props.onDelete} className="p-2 rounded-md hover:bg-secondary text-text-primary transition-colors">
+                            <DeleteIcon className="text-lg sm:text-xl" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                        <div className="text-text-muted text-sm">Current Streak</div>
-                        <div className="text-3xl font-bold flex items-center gap-2 mt-2">
-                            <FireIcon className="text-2xl text-orange-500" />
-                            {props.streaks[props.habit.id!]?.currentStreak ?? 0}
-                        </div>
-                    </div>
-                    <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                        <div className="text-text-muted text-sm">Completion Rate</div>
-                        <div className="text-3xl font-bold mt-2">{completionRate}%</div>
-                    </div>
-                    <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                        <div className="text-text-muted text-sm">Status</div>
-                        <div className="text-lg font-bold mt-2 flex items-center gap-2">
-                            {props.habit.isActive === false ? (
-                                <>
-                                    <PauseIcon className="text-xl" />
-                                    Paused
-                                </>
-                            ) : (
-                                <>
-                                    <PlayIcon className="text-xl text-green-500" />
-                                    Active
-                                </>
-                            )}
-                        </div>
-                    </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    <StatCard
+                        label="Current Streak"
+                        value={currentStreak}
+                        icon={<FireIcon className="text-xl sm:text-2xl text-orange-500" />}
+                    />
+                    <StatCard
+                        label="Longest Streak"
+                        value={longestStreak}
+                        icon={<TrendingUpIcon className="text-xl sm:text-2xl text-blue-500" />}
+                    />
+                    <StatCard
+                        label="Completion Rate"
+                        value={`${completionRate}%`}
+                        icon={<CheckCircleIcon className="text-xl sm:text-2xl text-green-500" />}
+                    />
+                    <StatCard
+                        label="Status"
+                        value={props.habit.isActive === false ? 'Paused' : 'Active'}
+                        icon={props.habit.isActive === false ? <PauseIcon className="text-xl sm:text-2xl text-yellow-500" /> : <PlayIcon className="text-xl sm:text-2xl text-green-500" />}
+                    />
                 </div>
 
-                <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                    <h3 className="font-bold mb-4">Last 14 Days</h3>
-                    <div className="grid grid-cols-7 gap-2">
+                {/* Calendar */}
+                <div className="bg-secondary rounded-lg p-3 sm:p-4 border border-tertiary">
+                    <h3 className="font-bold mb-3 sm:mb-4 text-base sm:text-lg">Last 30 Days</h3>
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
                         {completionData.map((day, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => props.onToggle(props.habit, day.date)}
-                                className={`aspect-square rounded-lg flex items-center justify-center font-bold transition-colors ${
+                                className={`aspect-square rounded-lg flex items-center justify-center font-bold text-xs sm:text-sm transition-all active:scale-95 ${
                                     day.completed
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-primary border border-tertiary text-text-muted hover:bg-secondary'
+                                        ? 'bg-green-500 text-white shadow-lg hover:shadow-xl'
+                                        : 'bg-primary border border-tertiary text-text-muted hover:bg-secondary active:bg-tertiary'
                                 }`}
                                 title={day.date}
                             >
@@ -778,20 +908,55 @@ const HabitDetailPanel: React.FC<HabitDetailPanelProps> = (props) => {
                     </div>
                 </div>
 
-                {props.habit.category && (
-                    <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                        <div className="text-text-muted text-sm">Category</div>
-                        <div className="text-lg font-semibold mt-2">{props.habit.category}</div>
-                    </div>
-                )}
+                {/* Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {props.habit.category && (
+                        <div className="bg-secondary rounded-lg p-3 sm:p-4 border border-tertiary">
+                            <div className="text-text-muted text-xs sm:text-sm font-medium">Category</div>
+                            <div className="text-base sm:text-lg font-semibold mt-2">{props.habit.category}</div>
+                        </div>
+                    )}
 
-                {props.habit.reminderEnabled && props.habit.reminderTime && (
-                    <div className="bg-secondary rounded-lg p-4 border border-tertiary">
-                        <div className="text-text-muted text-sm">Reminder</div>
-                        <div className="text-lg font-semibold mt-2">{props.habit.reminderTime}</div>
+                    {props.habit.reminderEnabled && props.habit.reminderTime && (
+                        <div className="bg-secondary rounded-lg p-3 sm:p-4 border border-tertiary">
+                            <div className="text-text-muted text-xs sm:text-sm font-medium">Reminder</div>
+                            <div className="text-base sm:text-lg font-semibold mt-2">{props.habit.reminderTime}</div>
+                        </div>
+                    )}
+
+                    <div className="bg-secondary rounded-lg p-3 sm:p-4 border border-tertiary">
+                        <div className="text-text-muted text-xs sm:text-sm font-medium">Frequency</div>
+                        <div className="text-base sm:text-lg font-semibold mt-2 capitalize">{props.habit.frequency}</div>
                     </div>
-                )}
+
+                    {props.habit.xp && (
+                        <div className="bg-secondary rounded-lg p-3 sm:p-4 border border-tertiary">
+                            <div className="text-text-muted text-xs sm:text-sm font-medium">XP Reward</div>
+                            <div className="text-base sm:text-lg font-semibold mt-2">{props.habit.xp} XP</div>
+                        </div>
+                    )}
+                </div>
             </div>
+        </div>
+    );
+};
+
+// ============ STAT CARD COMPONENT ============
+
+interface StatCardProps {
+    label: string;
+    value: string | number;
+    icon: React.ReactNode;
+}
+
+const StatCard: React.FC<StatCardProps> = (props) => {
+    return (
+        <div className="bg-secondary rounded-lg p-2 sm:p-3 border border-tertiary">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+                <div className="text-text-muted text-xs font-medium">{props.label}</div>
+                {props.icon}
+            </div>
+            <div className="text-lg sm:text-2xl font-bold">{props.value}</div>
         </div>
     );
 };
@@ -806,85 +971,149 @@ interface HabitEditModalProps {
 
 const HabitEditModal: React.FC<HabitEditModalProps> = (props) => {
     const [formData, setFormData] = useState<Habit>(props.habit);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const handleChange = (field: keyof Habit, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+    };
+
+    const validateForm = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formData.name.trim()) {
+            newErrors.name = 'Habit name is required';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSave = () => {
+        if (validateForm()) {
+            props.onSave(formData);
+        }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-secondary rounded-lg border border-tertiary max-w-md w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold">{formData.id ? 'Edit Habit' : 'New Habit'}</h2>
-                        <button onClick={props.onClose} className="p-1 rounded hover:bg-primary">
-                            <CloseIcon className="text-2xl" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+            <div className="bg-secondary rounded-lg border border-tertiary max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-2">
+                        <h2 className="text-xl sm:text-2xl font-bold">{formData.id ? 'Edit Habit' : 'Create New Habit'}</h2>
+                        <button onClick={props.onClose} className="p-1 rounded hover:bg-primary flex-shrink-0">
+                            <CloseIcon className="text-xl sm:text-2xl" />
                         </button>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Name</label>
-                        <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => handleChange('name', e.target.value)}
-                            className="w-full px-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary focus:outline-none focus:border-accent"
-                        />
+                    {/* Form Fields */}
+                    <div className="space-y-3 sm:space-y-4">
+                        {/* Name */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2">Habit Name *</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => handleChange('name', e.target.value)}
+                                placeholder="e.g., Morning Exercise"
+                                className={`w-full px-4 py-2 bg-primary border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent transition ${
+                                    errors.name ? 'border-red-500' : 'border-tertiary'
+                                }`}
+                            />
+                            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                            <label className="block text-sm font-semibold mb-2">Description</label>
+                            <textarea
+                                value={formData.description || ''}
+                                onChange={(e) => handleChange('description', e.target.value)}
+                                placeholder="Add notes about this habit..."
+                                className="w-full px-4 py-2 bg-primary border border-tertiary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent resize-none transition"
+                                rows={3}
+                            />
+                        </div>
+
+                        {/* Category and Frequency */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div>
+                                <label className="block text-xs sm:text-sm font-semibold mb-2">Category</label>
+                                <input
+                                    type="text"
+                                    value={formData.category || ''}
+                                    onChange={(e) => handleChange('category', e.target.value)}
+                                    placeholder="e.g., Health, Productivity"
+                                    className="w-full px-3 sm:px-4 py-2 bg-primary border border-tertiary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent transition text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm font-semibold mb-2">Frequency</label>
+                                <select
+                                    value={formData.frequency}
+                                    onChange={(e) => handleChange('frequency', e.target.value)}
+                                    className="w-full px-3 sm:px-4 py-2 bg-primary border border-tertiary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent transition text-sm"
+                                >
+                                    <option value="daily">Daily</option>
+                                    <option value="custom">Custom Days</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Reminder Settings */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-primary rounded-lg border border-tertiary">
+                                <input
+                                    type="checkbox"
+                                    id="reminder"
+                                    checked={formData.reminderEnabled || false}
+                                    onChange={(e) => handleChange('reminderEnabled', e.target.checked)}
+                                    className="rounded w-4 h-4 cursor-pointer"
+                                />
+                                <label htmlFor="reminder" className="text-sm font-medium cursor-pointer flex-1">Enable Reminder</label>
+                            </div>
+
+                            {formData.reminderEnabled && (
+                                <div>
+                                    <label className="block text-xs sm:text-sm font-semibold mb-2">Reminder Time</label>
+                                    <input
+                                        type="time"
+                                        value={formData.reminderTime || '09:00'}
+                                        onChange={(e) => handleChange('reminderTime', e.target.value)}
+                                        className="w-full px-3 sm:px-4 py-2 bg-primary border border-tertiary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent transition text-sm"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="flex items-center gap-3 p-3 bg-primary rounded-lg border border-tertiary">
+                            <input
+                                type="checkbox"
+                                id="active"
+                                checked={formData.isActive !== false}
+                                onChange={(e) => handleChange('isActive', e.target.checked)}
+                                className="rounded w-4 h-4 cursor-pointer"
+                            />
+                            <label htmlFor="active" className="text-xs sm:text-sm font-medium cursor-pointer flex-1">
+                                {formData.isActive === false ? 'Paused' : 'Active'}
+                            </label>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Description</label>
-                        <textarea
-                            value={formData.description || ''}
-                            onChange={(e) => handleChange('description', e.target.value)}
-                            className="w-full px-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary focus:outline-none focus:border-accent resize-none"
-                            rows={3}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Category</label>
-                        <input
-                            type="text"
-                            value={formData.category || ''}
-                            onChange={(e) => handleChange('category', e.target.value)}
-                            className="w-full px-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary focus:outline-none focus:border-accent"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Frequency</label>
-                        <select
-                            value={formData.frequency}
-                            onChange={(e) => handleChange('frequency', e.target.value)}
-                            className="w-full px-3 py-2 bg-primary border border-tertiary rounded-md text-text-primary focus:outline-none focus:border-accent"
-                        >
-                            <option value="daily">Daily</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="active"
-                            checked={formData.isActive !== false}
-                            onChange={(e) => handleChange('isActive', e.target.checked)}
-                            className="rounded"
-                        />
-                        <label htmlFor="active" className="text-sm">Active</label>
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
+                    {/* Actions */}
+                    <div className="flex gap-2 sm:gap-3 pt-4 sm:pt-6 border-t border-tertiary">
                         <button
-                            onClick={() => props.onSave(formData)}
-                            className="flex-1 px-4 py-2 bg-accent text-accent-foreground rounded-md font-medium hover:opacity-90"
+                            onClick={handleSave}
+                            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-accent text-accent-foreground rounded-lg font-semibold text-sm sm:text-base hover:opacity-90 transition active:scale-95"
                         >
-                            Save
+                            {formData.id ? 'Update' : 'Create'}
                         </button>
                         <button
                             onClick={props.onClose}
-                            className="flex-1 px-4 py-2 bg-primary border border-tertiary rounded-md font-medium hover:bg-secondary"
+                            className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-primary border border-tertiary rounded-lg font-semibold text-sm sm:text-base hover:bg-secondary transition active:scale-95"
                         >
                             Cancel
                         </button>
