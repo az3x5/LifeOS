@@ -1025,27 +1025,26 @@ const HabitDetailPanel: React.FC<{
 
     return (
         <>
-            {/* Mobile Modal Overlay - Only on mobile */}
-            <div className="fixed inset-0 bg-black/50 md:hidden z-40" onClick={onClose} />
+            {/* Modal Overlay */}
+            <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4" onClick={onClose}>
+                {/* Modal Box */}
+                <div
+                    className="bg-secondary rounded-2xl shadow-2xl z-50 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 md:p-6 border-b border-tertiary">
+                        <h2 className="text-xl font-bold text-text-primary">Habit Details</h2>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-tertiary rounded-lg transition-colors"
+                        >
+                            <CloseIcon className="text-xl" />
+                        </button>
+                    </div>
 
-            {/* Desktop Overlay - Click outside to close */}
-            <div className="hidden md:fixed md:inset-0 md:z-40" onClick={onClose} />
-
-            {/* Detail Panel - Desktop Side Panel / Mobile Modal */}
-            <div className="fixed inset-y-0 right-0 w-full md:w-[400px] lg:w-[450px] bg-secondary border-l border-tertiary shadow-2xl z-50 flex flex-col md:rounded-l-2xl overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 md:p-6 border-b border-tertiary">
-                    <h2 className="text-xl font-bold text-text-primary">Habit Details</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-tertiary rounded-lg transition-colors"
-                    >
-                        <CloseIcon className="text-xl" />
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
                     {/* Habit Name */}
                     <div>
                         <h3 className={`text-2xl font-bold ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
@@ -1168,6 +1167,7 @@ const HabitDetailPanel: React.FC<{
                     >
                         Close
                     </button>
+                </div>
                 </div>
             </div>
         </>
