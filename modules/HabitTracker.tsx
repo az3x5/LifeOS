@@ -879,6 +879,72 @@ const HabitItem: React.FC<{
     )
 }
 
+// Heatmap Component
+const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ habitId, habitLogs }) => {
+    const heatmapData = useMemo(() => {
+        const today = new Date();
+        const data: { date: string; count: number }[] = [];
+
+        // Generate last 90 days
+        for (let i = 89; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const hasLog = habitLogs?.some(log => log.habitId === habitId && log.date === dateStr);
+            data.push({ date: dateStr, count: hasLog ? 1 : 0 });
+        }
+
+        return data;
+    }, [habitId, habitLogs]);
+
+    // Group by weeks
+    const weeks = useMemo(() => {
+        const result: { date: string; count: number }[][] = [];
+        for (let i = 0; i < heatmapData.length; i += 7) {
+            result.push(heatmapData.slice(i, i + 7));
+        }
+        return result;
+    }, [heatmapData]);
+
+    return (
+        <div className="bg-primary rounded-lg p-4 overflow-x-auto">
+            <div className="flex gap-1 min-w-max">
+                {weeks.map((week, weekIdx) => (
+                    <div key={weekIdx} className="flex flex-col gap-1">
+                        {week.map((day, dayIdx) => {
+                            const date = new Date(day.date);
+                            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+                            const monthDay = date.getDate();
+
+                            return (
+                                <div
+                                    key={day.date}
+                                    title={`${day.date} - ${day.count > 0 ? 'Completed' : 'Not completed'}`}
+                                    className={`w-3 h-3 rounded-sm transition-all duration-200 hover:scale-125 ${
+                                        day.count > 0
+                                            ? 'bg-green-500 hover:bg-green-400'
+                                            : 'bg-tertiary hover:bg-tertiary/70'
+                                    }`}
+                                />
+                            );
+                        })}
+                    </div>
+                ))}
+            </div>
+            <div className="flex items-center gap-2 mt-3 text-xs text-text-secondary">
+                <span>Less</span>
+                <div className="flex gap-1">
+                    <div className="w-3 h-3 bg-tertiary rounded-sm" />
+                    <div className="w-3 h-3 bg-green-500/30 rounded-sm" />
+                    <div className="w-3 h-3 bg-green-500/60 rounded-sm" />
+                    <div className="w-3 h-3 bg-green-500 rounded-sm" />
+                </div>
+                <span>More</span>
+            </div>
+        </div>
+    );
+};
+
 const HabitDetailPanel: React.FC<{
     habit: Habit | null;
     streak: number;
@@ -981,6 +1047,14 @@ const HabitDetailPanel: React.FC<{
                             </div>
                             <p className="text-2xl font-bold text-text-primary">{Math.round(completionRate)}%</p>
                         </div>
+                    </div>
+
+                    {/* Heatmap - Last 90 Days */}
+                    <div>
+                        <h4 className="text-sm font-semibold text-text-secondary mb-3 flex items-center gap-2">
+                            <CalendarIcon className="text-lg" /> Activity Heatmap (Last 90 Days)
+                        </h4>
+                        <HabitHeatmap habitId={habit.id!} habitLogs={habitLogs} />
                     </div>
 
                     {/* Frequency */}
