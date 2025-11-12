@@ -67,7 +67,6 @@ export interface Habit {
     userId?: string;
     name: string;
     description?: string;
-    category?: string;
     frequency: 'daily' | 'custom';
     targetDays?: number[] | null;
     daysOfWeek?: number[] | null;

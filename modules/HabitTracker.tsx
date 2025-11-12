@@ -43,6 +43,7 @@ const HabitTracker: React.FC = () => {
     const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
 
     const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
+    const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
     const [habitFilter, setHabitFilter] = useState<HabitFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isHabitsSidebarOpen, setIsHabitsSidebarOpen] = useState(false);
@@ -74,7 +75,6 @@ const HabitTracker: React.FC = () => {
 
     const selectedHabit = useMemo(() => {
         const habit = allHabits?.find(h => h.id === selectedHabitId);
-        console.log('selectedHabit memo:', { selectedHabitId, habit: habit?.name, allHabitsCount: allHabits?.length });
         if (habit) return habit;
         if (selectedHabitId) setSelectedHabitId(null);
         return null;
@@ -95,7 +95,6 @@ const HabitTracker: React.FC = () => {
     };
 
     const handleSelectHabit = (id: number | null) => {
-        console.log('handleSelectHabit called with id:', id);
         setSelectedHabitId(id);
         setIsHabitsSidebarOpen(false);
     };
@@ -126,6 +125,11 @@ const HabitTracker: React.FC = () => {
         let tempHabits = allHabits ?? [];
         const today = getTodayDateString();
 
+        // Filter by folder first (if a folder is selected)
+        if (selectedFolderId !== null) {
+            tempHabits = tempHabits.filter(h => h.folderId === selectedFolderId);
+        }
+
         switch(habitFilter) {
             case 'active': tempHabits = tempHabits.filter(h => h.isActive); break;
             case 'paused': tempHabits = tempHabits.filter(h => !h.isActive); break;
@@ -153,7 +157,7 @@ const HabitTracker: React.FC = () => {
             tempHabits = tempHabits.filter(h => h.name.toLowerCase().includes(q) || h.description?.toLowerCase().includes(q));
         }
         return tempHabits.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    }, [allHabits, habitFilter, searchQuery, habitLogs]);
+    }, [allHabits, habitFilter, searchQuery, habitLogs, selectedFolderId]);
 
     return (
         <div className="flex h-full bg-primary font-sans relative overflow-hidden">
@@ -167,6 +171,8 @@ const HabitTracker: React.FC = () => {
                 setHabitFilter={setHabitFilter}
                 selectedHabitId={selectedHabitId}
                 setSelectedHabitId={handleSelectHabit}
+                selectedFolderId={selectedFolderId}
+                setSelectedFolderId={setSelectedFolderId}
                 onNewHabit={handleNewHabit}
                 onEditHabit={(habit) => {
                     setEditingHabit(habit);
@@ -351,6 +357,7 @@ const HabitTracker: React.FC = () => {
 const Sidebar: React.FC<{
     habitFolders?: HabitFolder[]; habits?: Habit[]; habitFilter: HabitFilter; setHabitFilter: (f: HabitFilter) => void;
     selectedHabitId: number | null; setSelectedHabitId: (id: number | null) => void;
+    selectedFolderId: number | null; setSelectedFolderId: (id: number | null) => void;
     onNewHabit: (folderId?: number) => void; onEditHabit?: (habit: Habit) => void;
     searchQuery: string; setSearchQuery: (q: string) => void;
     isHabitsSidebarOpen: boolean;
@@ -468,6 +475,8 @@ const Sidebar: React.FC<{
                         habits={props.habits}
                         selectedHabitId={props.selectedHabitId}
                         setSelectedHabitId={props.setSelectedHabitId}
+                        selectedFolderId={props.selectedFolderId}
+                        setSelectedFolderId={props.setSelectedFolderId}
                         onNewHabit={props.onNewHabit}
                         onEditHabit={props.onEditHabit}
                         renamingHabitId={renamingHabitId}
@@ -736,6 +745,7 @@ const HabitListItem: React.FC<{
 const FolderTree: React.FC<{
     habitFolders?: HabitFolder[]; habits?: Habit[]; parentId?: number | null; level?: number;
     selectedHabitId: number | null; setSelectedHabitId: (id: number | null) => void;
+    selectedFolderId: number | null; setSelectedFolderId: (id: number | null) => void;
     onNewHabit: (folderId?: number) => void; onEditHabit?: (habit: Habit) => void; renamingHabitId: number | null; setRenamingHabitId: (id: number | null) => void;
     onRenameHabit: (habit: Habit, newName: string) => void;
     expandedFolders: Set<number>; toggleFolder: (folderId: number) => void;
@@ -744,7 +754,7 @@ const FolderTree: React.FC<{
     setConfirmModal: (modal: { isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null) => void;
     setAlertModal: (modal: { isOpen: boolean; title: string; message: string; icon?: string } | null) => void;
 }> = (props) => {
-    const { habitFolders, habits, parentId = null, level = 0, selectedHabitId, setSelectedHabitId, onNewHabit, onEditHabit, renamingHabitId, setRenamingHabitId, onRenameHabit, expandedFolders, toggleFolder, renamingFolderId, setRenamingFolderId, onNewFolder } = props;
+    const { habitFolders, habits, parentId = null, level = 0, selectedHabitId, setSelectedHabitId, selectedFolderId, setSelectedFolderId, onNewHabit, onEditHabit, renamingHabitId, setRenamingHabitId, onRenameHabit, expandedFolders, toggleFolder, renamingFolderId, setRenamingFolderId, onNewFolder } = props;
 
     const childFolders = useMemo(() => habitFolders?.filter(f => f.parentId === parentId) ?? [], [habitFolders, parentId]);
     const childHabits = useMemo(() => habits?.filter(h => h.folderId === (parentId || undefined) && h.isActive).sort((a,b) => a.name.localeCompare(b.name)) ?? [], [habits, parentId]);
@@ -798,7 +808,14 @@ const FolderTree: React.FC<{
                         </div>
                     ) : (
                         <div className="w-full text-left flex items-center pr-1 rounded-md text-sm group" >
-                            <button onClick={() => toggleFolder(folder.id!)} title={expandedFolders.has(folder.id!) ? 'Collapse folder' : 'Expand folder'} className={`flex-1 flex items-center p-1 rounded-md text-text-primary hover:bg-tertiary`}>
+                            <button
+                                onClick={() => {
+                                    toggleFolder(folder.id!);
+                                    setSelectedFolderId(folder.id!);
+                                }}
+                                title={expandedFolders.has(folder.id!) ? 'Collapse folder' : 'Expand folder'}
+                                className={`flex-1 flex items-center p-1 rounded-md text-text-primary hover:bg-tertiary ${selectedFolderId === folder.id ? 'bg-accent/20' : ''}`}
+                            >
                                 <ChevronRightIcon className={`transition-transform text-lg ${expandedFolders.has(folder.id!) ? 'rotate-90' : ''}`} />
                                 <FolderIcon className="text-lg mr-2" />
                                 <span className="truncate">{folder.name}</span>
@@ -885,15 +902,24 @@ const HabitItem: React.FC<{
 }
 
 // Heatmap Component
-const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ habitId, habitLogs }) => {
+const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[]; habitCreatedAt?: Date | string }> = ({ habitId, habitLogs, habitCreatedAt }) => {
     const [timeRange, setTimeRange] = useState<number>(90);
 
     const heatmapData = useMemo(() => {
         const today = new Date();
+        const createdDate = habitCreatedAt ? new Date(habitCreatedAt) : null;
         const data: { date: string; count: number }[] = [];
 
-        // Generate last N days based on selected range
-        for (let i = timeRange - 1; i >= 0; i--) {
+        // Calculate days since creation
+        const daysSinceCreation = createdDate
+            ? Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            : timeRange;
+
+        // Use the minimum of selected range and days since creation
+        const actualRange = Math.min(timeRange, daysSinceCreation);
+
+        // Generate last N days based on actual range
+        for (let i = actualRange - 1; i >= 0; i--) {
             const date = new Date(today);
             date.setDate(date.getDate() - i);
             const dateStr = date.toISOString().split('T')[0];
@@ -902,7 +928,7 @@ const HabitHeatmap: React.FC<{ habitId: number; habitLogs?: HabitLog[] }> = ({ h
         }
 
         return data;
-    }, [habitId, habitLogs, timeRange]);
+    }, [habitId, habitLogs, timeRange, habitCreatedAt]);
 
     // Group by weeks
     const weeks = useMemo(() => {
@@ -1003,14 +1029,24 @@ const HabitDetailPanel: React.FC<{
 }> = ({ habit, streak, isCompleted, habitLogs, onClose, onEdit, onToggleCompletion }) => {
     const [isToggling, setIsToggling] = useState(false);
 
-    console.log('HabitDetailPanel rendering:', { habit: habit?.name, habitId: habit?.id });
-
     if (!habit) return null;
 
     const today = getTodayDateString();
-    // Calculate completion rate from last 30 days
-    const last30Days = habitLogs?.filter(l => l.habitId === habit.id).length ?? 0;
-    const completionRate = Math.min((last30Days / 30) * 100, 100);
+
+    // Calculate completion rate based on days since creation
+    const completionRate = useMemo(() => {
+        if (!habit.createdAt) return 0;
+
+        const createdDate = new Date(habit.createdAt);
+        const todayDate = new Date();
+        const daysSinceCreation = Math.floor((todayDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        // Count completed days
+        const completedDays = habitLogs?.filter(l => l.habitId === habit.id).length ?? 0;
+
+        // Calculate percentage
+        return daysSinceCreation > 0 ? Math.round((completedDays / daysSinceCreation) * 100) : 0;
+    }, [habit.id, habit.createdAt, habitLogs]);
 
     const handleToggleCompletion = async () => {
         setIsToggling(true);
@@ -1054,9 +1090,6 @@ const HabitDetailPanel: React.FC<{
                         <h3 className={`text-2xl font-bold ${!habit.isActive ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
                             {habit.name}
                         </h3>
-                        {habit.category && (
-                            <p className="text-sm text-text-secondary mt-2">{habit.category}</p>
-                        )}
                     </div>
 
                     {/* Status */}
@@ -1093,7 +1126,7 @@ const HabitDetailPanel: React.FC<{
                                 <CheckIcon className="text-green-400 text-lg" />
                                 <span className="text-sm text-text-secondary">Completion</span>
                             </div>
-                            <p className="text-2xl font-bold text-text-primary">{Math.round(completionRate)}%</p>
+                            <p className="text-2xl font-bold text-text-primary">{completionRate}%</p>
                         </div>
                     </div>
 
@@ -1102,7 +1135,7 @@ const HabitDetailPanel: React.FC<{
                         <h4 className="text-sm font-semibold text-text-secondary mb-3 flex items-center gap-2">
                             <CalendarIcon className="text-lg" /> Activity Heatmap
                         </h4>
-                        <HabitHeatmap habitId={habit.id!} habitLogs={habitLogs} />
+                        <HabitHeatmap habitId={habit.id!} habitLogs={habitLogs} habitCreatedAt={habit.createdAt} />
                     </div>
 
                     {/* Frequency */}
@@ -1135,12 +1168,6 @@ const HabitDetailPanel: React.FC<{
                         <p className="text-text-primary">
                             {habit.createdAt ? new Date(habit.createdAt).toLocaleDateString() : 'N/A'}
                         </p>
-                    </div>
-
-                    {/* XP Reward */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-text-secondary mb-2">XP Reward</h4>
-                        <p className="text-text-primary font-semibold text-lg">{habit.xp} XP</p>
                     </div>
                 </div>
 
@@ -1189,7 +1216,6 @@ const HabitEditModal: React.FC<{
     const [description, setDescription] = useState(habit.description || '');
     const [frequency, setFrequency] = useState(habit.frequency || 'daily');
     const [daysOfWeek, setDaysOfWeek] = useState(habit.daysOfWeek || []);
-    const [category, setCategory] = useState(habit.category || 'personal');
     const [xp, setXp] = useState(habit.xp || 10);
     const [isActive, setIsActive] = useState(habit.isActive ?? true);
     const [folderId, setFolderId] = useState(habit.folderId || null);
@@ -1203,7 +1229,6 @@ const HabitEditModal: React.FC<{
                 description,
                 frequency: frequency as 'daily' | 'custom',
                 daysOfWeek: frequency === 'custom' ? daysOfWeek : undefined,
-                category,
                 xp,
                 isActive,
                 folderId,
@@ -1213,7 +1238,7 @@ const HabitEditModal: React.FC<{
         } catch (error) {
             console.error('Error saving habit:', error);
         }
-    }, [name, description, frequency, daysOfWeek, category, xp, isActive, folderId, habit, onSave, onClose]);
+    }, [name, description, frequency, daysOfWeek, xp, isActive, folderId, habit, onSave, onClose]);
 
     if (!isOpen) return null;
 
@@ -1301,34 +1326,18 @@ const HabitEditModal: React.FC<{
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">Category</label>
-                            <select
-                                value={category}
-                                onChange={e => setCategory(e.target.value)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                            >
-                                <option value="personal">Personal</option>
-                                <option value="health">Health</option>
-                                <option value="fitness">Fitness</option>
-                                <option value="learning">Learning</option>
-                                <option value="work">Work</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-text-secondary mb-2">Folder</label>
-                            <select
-                                value={folderId || ''}
-                                onChange={e => setFolderId(e.target.value ? parseInt(e.target.value) : null)}
-                                className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
-                            >
-                                <option value="">No Folder</option>
-                                {habitFolders?.map(folder => (
-                                    <option key={folder.id} value={folder.id}>{folder.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2">Folder</label>
+                        <select
+                            value={folderId || ''}
+                            onChange={e => setFolderId(e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full bg-primary border border-tertiary rounded-lg px-4 py-2 text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                        >
+                            <option value="">No Folder</option>
+                            {habitFolders?.map(folder => (
+                                <option key={folder.id} value={folder.id}>{folder.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="flex items-center justify-between p-3 bg-primary rounded-lg">
