@@ -6,6 +6,7 @@ import { calculateStreaks } from '../utils/habits';
 import ConfirmModal from '../components/modals/ConfirmModal';
 import AlertModal from '../components/modals/AlertModal';
 
+const TABS = ['Dashboard', 'All Habits', 'Active', 'Completed'];
 type HabitFilter = 'all' | 'active' | 'paused' | 'today' | 'completed';
 
 // --- ICONS ---
@@ -42,11 +43,9 @@ const HabitTracker: React.FC = () => {
     const habitFolders = useSupabaseQuery<HabitFolder>('habit_folders');
     const habitLogs = useSupabaseQuery<HabitLog>('habit_logs');
 
+    const [activeTab, setActiveTab] = useState(TABS[0]);
     const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
-    const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
-    const [habitFilter, setHabitFilter] = useState<HabitFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isHabitsSidebarOpen, setIsHabitsSidebarOpen] = useState(false);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; icon?: string } | null>(null);
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
     const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -54,24 +53,6 @@ const HabitTracker: React.FC = () => {
     const [viewStyle, setViewStyle] = useState<'grid' | 'list'>('grid');
 
     const streaks = useMemo(() => calculateStreaks(allHabits ?? [], habitLogs ?? []), [allHabits, habitLogs]);
-    const [scrollY, setScrollY] = useState(0);
-    const [showFAB, setShowFAB] = useState(true);
-
-    // Track scroll for mobile FAB visibility
-    useEffect(() => {
-        const handleScroll = (e: Event) => {
-            const target = e.target as HTMLElement;
-            const currentScroll = target.scrollTop;
-            setShowFAB(currentScroll < 100 || currentScroll < scrollY);
-            setScrollY(currentScroll);
-        };
-
-        const mainContent = document.querySelector('[data-habits-scroll]');
-        if (mainContent) {
-            mainContent.addEventListener('scroll', handleScroll);
-            return () => mainContent.removeEventListener('scroll', handleScroll);
-        }
-    }, [scrollY]);
 
     const selectedHabit = useMemo(() => {
         const habit = allHabits?.find(h => h.id === selectedHabitId);
@@ -80,7 +61,7 @@ const HabitTracker: React.FC = () => {
         return null;
     }, [allHabits, selectedHabitId]);
 
-    const handleNewHabit = (folderId?: number) => {
+    const handleNewHabit = () => {
         const newHabit: Habit = {
             name: 'Untitled Habit',
             frequency: 'daily',
@@ -88,7 +69,7 @@ const HabitTracker: React.FC = () => {
             isActive: true,
             origin: 'user',
             createdAt: new Date(),
-            folderId: folderId || null,
+            folderId: null,
         };
         setEditingHabit(newHabit);
         setIsEditModalOpen(true);
@@ -96,7 +77,6 @@ const HabitTracker: React.FC = () => {
 
     const handleSelectHabit = (id: number | null) => {
         setSelectedHabitId(id);
-        setIsHabitsSidebarOpen(false);
     };
 
     const handleSaveHabit = async (habit: Habit) => {
@@ -106,7 +86,6 @@ const HabitTracker: React.FC = () => {
             } else {
                 const newHabit = await habitsService.create(habit);
                 if (newHabit && newHabit.id) {
-                    setHabitFilter('all');
                     handleSelectHabit(newHabit.id);
                 }
             }
@@ -121,43 +100,34 @@ const HabitTracker: React.FC = () => {
         }
     };
 
-    const displayHabits = useMemo(() => {
+    const getFilteredHabits = useCallback((filter: string) => {
         let tempHabits = allHabits ?? [];
         const today = getTodayDateString();
 
-        // Filter by folder first (if a folder is selected)
-        if (selectedFolderId !== null) {
-            tempHabits = tempHabits.filter(h => h.folderId === selectedFolderId);
-        }
-
-        switch(habitFilter) {
-            case 'active': tempHabits = tempHabits.filter(h => h.isActive); break;
-            case 'paused': tempHabits = tempHabits.filter(h => !h.isActive); break;
-            case 'today':
-                tempHabits = tempHabits.filter(h => {
-                    if (!h.isActive) return false;
-                    if (h.frequency === 'daily') return true;
-                    if (h.frequency === 'custom' && h.daysOfWeek) {
-                        const dayOfWeek = new Date().getDay();
-                        return h.daysOfWeek.includes(dayOfWeek);
-                    }
-                    return false;
-                });
+        switch(filter) {
+            case 'Active':
+                tempHabits = tempHabits.filter(h => h.isActive && h.origin !== 'system-islamic');
                 break;
-            case 'completed':
+            case 'Completed':
                 tempHabits = tempHabits.filter(h => {
                     const log = habitLogs?.find(l => l.habitId === h.id && l.date === today);
                     return !!log;
                 });
                 break;
-            default: tempHabits = tempHabits.filter(h => h.origin !== 'system-islamic');
+            case 'All Habits':
+                tempHabits = tempHabits.filter(h => h.origin !== 'system-islamic');
+                break;
+            default:
+                tempHabits = tempHabits.filter(h => h.origin !== 'system-islamic');
         }
+
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             tempHabits = tempHabits.filter(h => h.name.toLowerCase().includes(q) || h.description?.toLowerCase().includes(q));
         }
+
         return tempHabits.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    }, [allHabits, habitFilter, searchQuery, habitLogs, selectedFolderId]);
+    }, [allHabits, searchQuery, habitLogs]);
 
     return (
         <div className="flex h-full bg-primary font-sans relative overflow-hidden">
