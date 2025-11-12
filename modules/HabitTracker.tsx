@@ -129,134 +129,114 @@ const HabitTracker: React.FC = () => {
         return tempHabits.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     }, [allHabits, searchQuery, habitLogs]);
 
-    return (
-        <div className="flex h-full bg-primary font-sans relative overflow-hidden">
-            {isHabitsSidebarOpen && (
-                <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsHabitsSidebarOpen(false)} />
-            )}
-            <Sidebar
-                habitFolders={habitFolders}
-                habits={allHabits}
-                habitFilter={habitFilter}
-                setHabitFilter={setHabitFilter}
-                selectedHabitId={selectedHabitId}
-                setSelectedHabitId={handleSelectHabit}
-                selectedFolderId={selectedFolderId}
-                setSelectedFolderId={setSelectedFolderId}
-                onNewHabit={handleNewHabit}
-                onEditHabit={(habit) => {
-                    setEditingHabit(habit);
-                    setIsEditModalOpen(true);
-                }}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                isHabitsSidebarOpen={isHabitsSidebarOpen}
-                setConfirmModal={setConfirmModal}
-                setAlertModal={setAlertModal}
-            />
-            <main className="flex-1 flex flex-col min-w-0 bg-primary">
-                <div className="p-4 border-b border-tertiary flex-shrink-0 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setIsHabitsSidebarOpen(true)} title="Toggle sidebar" className="md:hidden p-2 rounded-md text-text-primary bg-secondary border border-tertiary">
-                            <MenuIcon className="text-2xl" />
-                        </button>
-                        <h1 className="text-2xl font-bold">Habits</h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handleNewHabit()}
-                            title="Create new habit"
-                            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-md hover:bg-accent/90 font-medium text-sm"
-                        >
-                            <AddIcon className="text-lg" />
-                            <span>New Habit</span>
-                        </button>
-                        <button
-                            onClick={() => setViewStyle('grid')}
-                            title="Grid view"
-                            className={`p-2 rounded-md ${viewStyle === 'grid' ? 'bg-accent text-white' : 'bg-secondary text-text-primary border border-tertiary hover:bg-tertiary'}`}
-                        >
-                            <GridViewIcon className="text-xl" />
-                        </button>
-                        <button
-                            onClick={() => setViewStyle('list')}
-                            title="List view"
-                            className={`p-2 rounded-md ${viewStyle === 'list' ? 'bg-accent text-white' : 'bg-secondary text-text-primary border border-tertiary hover:bg-tertiary'}`}
-                        >
-                            <ListViewIcon className="text-xl" />
-                        </button>
-                    </div>
-                </div>
+    const renderTabContent = () => {
+        const habits = getFilteredHabits(activeTab);
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6" data-habits-scroll>
-                    <div className="max-w-[1600px] mx-auto">
-                        {displayHabits.length === 0 ? (
-                            <div className="flex items-center justify-center h-full min-h-[400px]">
-                                <div className="text-center space-y-4">
-                                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-accent/10">
-                                        <EmptyIcon className="text-5xl text-accent" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-text-primary mb-2">No habits yet</h2>
-                                        <p className="text-text-secondary mb-6 max-w-sm">Start building better habits today. Create your first habit to begin your journey.</p>
-                                    </div>
-                                    <button onClick={() => handleNewHabit()} className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all duration-200 font-medium">
-                                        <AddIcon className="text-lg" />
-                                        Create Your First Habit
-                                    </button>
-                                </div>
+        return (
+            <div className="mt-6">
+                {habits.length === 0 ? (
+                    <div className="flex items-center justify-center min-h-[400px]">
+                        <div className="text-center space-y-4">
+                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-accent/10">
+                                <EmptyIcon className="text-5xl text-accent" />
                             </div>
-                        ) : viewStyle === 'grid' ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5">
-                                {displayHabits.map(habit => (
-                                    <HabitCard
-                                        key={habit.id}
-                                        habit={habit}
-                                        isSelected={selectedHabitId === habit.id}
-                                        streak={streaks[habit.id!]?.currentStreak ?? 0}
-                                        isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
-                                        onSelect={() => handleSelectHabit(habit.id!)}
-                                        onEdit={() => {
-                                            setEditingHabit(habit);
-                                            setIsEditModalOpen(true);
-                                        }}
-                                        setConfirmModal={setConfirmModal}
-                                    />
-                                ))}
+                            <div>
+                                <h2 className="text-2xl font-bold text-text-primary mb-2">No habits yet</h2>
+                                <p className="text-text-secondary mb-6 max-w-sm">Start building better habits today. Create your first habit to begin your journey.</p>
                             </div>
-                        ) : (
-                            <div className="space-y-3 max-w-5xl mx-auto">
-                                {displayHabits.map(habit => (
-                                    <HabitListItem
-                                        key={habit.id}
-                                        habit={habit}
-                                        isSelected={selectedHabitId === habit.id}
-                                        streak={streaks[habit.id!]?.currentStreak ?? 0}
-                                        isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
-                                        onSelect={() => handleSelectHabit(habit.id!)}
-                                        onEdit={() => {
-                                            setEditingHabit(habit);
-                                            setIsEditModalOpen(true);
-                                        }}
-                                        setConfirmModal={setConfirmModal}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                            <button onClick={handleNewHabit} className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-all duration-200 font-medium">
+                                <AddIcon className="text-lg" />
+                                Create Your First Habit
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                {/* Mobile FAB */}
-                {showFAB && displayHabits.length > 0 && (
-                    <button
-                        onClick={() => handleNewHabit()}
-                        className="fixed bottom-6 right-6 md:hidden w-14 h-14 bg-accent text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center z-40"
-                        title="Add new habit"
-                    >
-                        <AddIcon className="text-2xl" />
-                    </button>
+                ) : viewStyle === 'grid' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5">
+                        {habits.map(habit => (
+                            <HabitCard
+                                key={habit.id}
+                                habit={habit}
+                                isSelected={selectedHabitId === habit.id}
+                                streak={streaks[habit.id!]?.currentStreak ?? 0}
+                                isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
+                                onSelect={() => handleSelectHabit(habit.id!)}
+                                onEdit={() => {
+                                    setEditingHabit(habit);
+                                    setIsEditModalOpen(true);
+                                }}
+                                setConfirmModal={setConfirmModal}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="space-y-3 max-w-5xl mx-auto">
+                        {habits.map(habit => (
+                            <HabitListItem
+                                key={habit.id}
+                                habit={habit}
+                                isSelected={selectedHabitId === habit.id}
+                                streak={streaks[habit.id!]?.currentStreak ?? 0}
+                                isCompleted={habitLogs?.some(l => l.habitId === habit.id && l.date === getTodayDateString()) ?? false}
+                                onSelect={() => handleSelectHabit(habit.id!)}
+                                onEdit={() => {
+                                    setEditingHabit(habit);
+                                    setIsEditModalOpen(true);
+                                }}
+                                setConfirmModal={setConfirmModal}
+                            />
+                        ))}
+                    </div>
                 )}
-            </main>
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-8 animate-fade-in relative">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
+                <h1 className="text-4xl font-bold text-text-primary">Habits</h1>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                        onClick={() => setViewStyle('grid')}
+                        title="Grid view"
+                        className={`p-2 rounded-md ${viewStyle === 'grid' ? 'bg-accent text-white' : 'bg-tertiary text-text-secondary hover:bg-opacity-80'}`}
+                    >
+                        <GridViewIcon className="text-xl" />
+                    </button>
+                    <button
+                        onClick={() => setViewStyle('list')}
+                        title="List view"
+                        className={`p-2 rounded-md ${viewStyle === 'list' ? 'bg-accent text-white' : 'bg-tertiary text-text-secondary hover:bg-opacity-80'}`}
+                    >
+                        <ListViewIcon className="text-xl" />
+                    </button>
+                    <button
+                        onClick={handleNewHabit}
+                        className="bg-accent hover:bg-accent-hover text-white font-bold py-3 px-5 rounded-lg text-sm shadow-md transition-transform transform hover:scale-105"
+                    >
+                        + New Habit
+                    </button>
+                </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="border-b border-tertiary">
+                <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+                    {TABS.map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`${activeTab === tab ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </nav>
+            </div>
+
+            {/* Tab Content */}
+            {renderTabContent()}
 
             {confirmModal && (
                 <ConfirmModal
