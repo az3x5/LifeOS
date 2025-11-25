@@ -1,0 +1,31 @@
+{
+  "statusCode": 200,
+  "code": "OK",
+  "data": [
+    {
+      "name": "Morning Dhikr",
+      "slug": "morning-dhikr",
+      "total": 19
+    },
+    {
+      "name": "Evening Dhikr",
+      "slug": "evening-dhikr",
+      "total": 19
+    },
+    {
+      "name": "Daily Dua",
+      "slug": "daily-dua",
+      "total": 38
+    },
+    {
+      "name": "Selected Dua",
+      "slug": "selected-dua",
+      "total": 8
+    },
+    {
+      "name": "Dhikr After Salah",
+      "slug": "dhikr-after-salah",
+      "total": 13
+    }
+  ]
+}

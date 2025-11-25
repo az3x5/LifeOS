@@ -1,0 +1,206 @@
+[
+  {
+    "category": "Morning Dhikr",
+    "slug": "morning-dhikr",
+    "duas": [
+      {
+        "id": 1,
+        "title": "Ayatul Kursi",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 2,
+        "title": "Al-Ikhlas",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 3,
+        "title": "Al-Falaq",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 4,
+        "title": "An-Naas",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 5,
+        "title": "Upon Entering The Morning by Asking for Protection from Allah",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 6,
+        "title": "Upon Entering The Morning with The Grace of Allah",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 7,
+        "title": "Sayyid al-Istighfar",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 8,
+        "title": "Dua for Protection and Good Health",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 9,
+        "title": "Dua for Salvation in The World and Hereafter",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 10,
+        "title": "Dua for Protection from Shaytan Whispers",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 11,
+        "title": "Asking for Protection from All Harms",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 12,
+        "title": "Declaration of Pleasure with Allah, Islam, and the Prophet Muhammad shallallahu 'alaihi wa sallam",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 13,
+        "title": "Asking Allah for Guidance",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 14,
+        "title": "Entering The Morning Upon The Natural Religion of Islam",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 15,
+        "title": "Tawheed Dhikr",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 16,
+        "title": "Read Tasbih",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 17,
+        "title": "Dua for Useful Knowledge, Good Sustenance, and Accepted Deeds",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 18,
+        "title": "Daily Tasbih and Tahmid",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      },
+      {
+        "id": 19,
+        "title": "Istighfar 100x a Day",
+        "category": "morning-dhikr",
+        "categoryName": "Morning Dhikr"
+      }
+    ]
+  },
+  {
+    "category": "Dhikr After Salah",
+    "slug": "dhikr-after-salah",
+    "duas": [
+      {
+        "id": 1,
+        "title": "Istighfar",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 2,
+        "title": "Allah, The Giver of Peace",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 3,
+        "title": "Allah, The Preventer and The Giver of All Things",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 4,
+        "title": "Allah, The Possessor of All and The Only One Worthy of Worship",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 5,
+        "title": "Tasbih",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 6,
+        "title": "Tahmid",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 7,
+        "title": "Takbir",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 8,
+        "title": "There is No Partner for Allah, and To Him Belongs All Things",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 9,
+        "title": "Ayat al-Kursi",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 10,
+        "title": "Al-Ikhlas",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 11,
+        "title": "Al-Falaq",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 12,
+        "title": "An-Naas",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      },
+      {
+        "id": 13,
+        "title": "Supplication for Beneficial Knowledge, Good Provision, and Accepted Deeds",
+        "category": "dhikr-after-salah",
+        "categoryName": "Dhikr After Salah"
+      }
+    ]
+  }
+]

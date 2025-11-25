@@ -1,0 +1,7 @@
+{
+  "name": "LifeOS",
+  "description": "A personal dashboard for your life. Manage your finances, habits, health, notes, and knowledge, all in one place. Works 100% offline with optional cloud sync.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

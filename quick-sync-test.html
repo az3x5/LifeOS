@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Sync Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Quick Sync Test</h1>
+        <p>This will test if Supabase sync is actually working</p>
+
+        <div class="step">
+            <h3>Step 1: Check Authentication</h3>
+            <button onclick="checkAuth()">Check Auth Status</button>
+            <div id="auth-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Add Test Data Locally</h3>
+            <button onclick="addTestData()">Add Test Habit</button>
+            <div id="add-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Push to Supabase</h3>
+            <button onclick="pushData()">Push to Cloud</button>
+            <div id="push-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Verify on Supabase</h3>
+            <button onclick="verifyRemote()">Check Remote Data</button>
+            <div id="verify-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Pull from Supabase</h3>
+            <button onclick="pullData()">Pull from Cloud</button>
+            <div id="pull-result"></div>
+        </div>
+
+        <hr>
+        <button onclick="runFullTest()" style="background: #007bff; font-size: 18px; padding: 20px 40px;">
+            🚀 Run Full Test (All Steps)
+        </button>
+        <button onclick="location.href='/'" style="background: #6c757d;">
+            ← Back to App
+        </button>
+    </div>
+
+    <script type="module">
+        import { db } from './services/db.ts';
+        import { supabase } from './services/supabase.ts';
+        import { syncAllData, pushAllData, pullAllData } from './services/syncService.ts';
+
+        let testHabitId = null;
+        let currentUser = null;
+
+        function showResult(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+
+        // Step 1: Check Auth
+        window.checkAuth = async function() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) throw error;
+                
+                if (user) {
+                    currentUser = user;
+                    showResult('auth-result', 
+                        `✅ Logged in as: ${user.email}<br>User ID: ${user.id}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('auth-result', 
+                        `❌ NOT LOGGED IN<br><br>Please go to the main app and log in first.<br><a href="/">Go to Login</a>`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('auth-result', `❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Step 2: Add Test Data
+        window.addTestData = async function() {
+            try {
+                if (!currentUser) {
+                    showResult('add-result', '❌ Please check authentication first', 'error');
+                    return;
+                }
+
+                testHabitId = `test-${Date.now()}`;
+                const testHabit = {
+                    id: testHabitId,
+                    name: `Test Habit ${new Date().toLocaleTimeString()}`,
+                    description: 'This is a test habit to verify sync',
+                    frequency: 'daily',
+                    category: 'health',
+                    color: '#4CAF50',
+                    icon: '🧪',
+                    targetDays: [1, 2, 3, 4, 5, 6, 0],
+                    reminderTime: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    isActive: true
+                };
+
+                await db.habits.add(testHabit);
+                
+                const count = await db.habits.count();
+                showResult('add-result', 
+                    `✅ Test habit added to local database<br>Habit ID: ${testHabitId}<br>Total local habits: ${count}`, 
+                    'success'
+                );
+            } catch (error) {
+                showResult('add-result', `❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Step 3: Push Data
+        window.pushData = async function() {
+            try {
+                if (!testHabitId) {
+                    showResult('push-result', '❌ Please add test data first', 'error');
+                    return;
+                }
+
+                showResult('push-result', '⏳ Pushing to Supabase...', 'info');
+                
+                const success = await pushAllData();
+                
+                if (success) {
+                    showResult('push-result', 
+                        `✅ Data pushed to Supabase successfully!<br>Check browser console for detailed logs`, 
+                        'success'
+                    );
+                } else {
+                    showResult('push-result', 
+                        `⚠️ Push completed with some errors<br>Check browser console for details`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('push-result', `❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Step 4: Verify Remote
+        window.verifyRemote = async function() {
+            try {
+                if (!currentUser) {
+                    showResult('verify-result', '❌ Please check authentication first', 'error');
+                    return;
+                }
+
+                const { data, error } = await supabase
+                    .from('habits')
+                    .select('*')
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+
+                const testHabit = data.find(h => h.id === testHabitId);
+                
+                if (testHabit) {
+                    showResult('verify-result', 
+                        `✅ Test habit found on Supabase!<br>` +
+                        `Name: ${testHabit.name}<br>` +
+                        `Total remote habits: ${data.length}<br>` +
+                        `<strong>SYNC IS WORKING! ✅</strong>`, 
+                        'success'
+                    );
+                } else {
+                    showResult('verify-result', 
+                        `⚠️ Test habit NOT found on Supabase<br>` +
+                        `Total remote habits: ${data.length}<br>` +
+                        `This means push didn't work. Check console for errors.`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('verify-result', `❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Step 5: Pull Data
+        window.pullData = async function() {
+            try {
+                if (!currentUser) {
+                    showResult('pull-result', '❌ Please check authentication first', 'error');
+                    return;
+                }
+
+                showResult('pull-result', '⏳ Pulling from Supabase...', 'info');
+                
+                const success = await pullAllData();
+                
+                if (success) {
+                    const count = await db.habits.count();
+                    showResult('pull-result', 
+                        `✅ Data pulled from Supabase successfully!<br>Total local habits: ${count}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('pull-result', 
+                        `⚠️ Pull completed with some errors<br>Check browser console for details`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('pull-result', `❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Run Full Test
+        window.runFullTest = async function() {
+            console.log('=== Starting Full Sync Test ===');
+            
+            await checkAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (!currentUser) {
+                alert('Please log in first!');
+                return;
+            }
+            
+            await addTestData();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await pushData();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await verifyRemote();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await pullData();
+            
+            console.log('=== Full Sync Test Complete ===');
+        };
+
+        // Auto-check auth on load
+        window.addEventListener('load', () => {
+            checkAuth();
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Debug - LifeOS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .container {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #4ecca3;
+            margin-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #0f3460;
+            border-radius: 8px;
+            border-left: 4px solid #4ecca3;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #4ecca3;
+        }
+        button {
+            background: #4ecca3;
+            color: #16213e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #45b393;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+        .log-entry.error {
+            color: #f44;
+        }
+        .log-entry.success {
+            color: #4f4;
+        }
+        .log-entry.warning {
+            color: #ff4;
+        }
+        .log-entry.info {
+            color: #4ff;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        .status.pending {
+            background: #ff9800;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: #0f3460;
+            color: #4ecca3;
+        }
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #000;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Sync Debugging Tool</h1>
+        <p>Diagnose sync issues between local database and Supabase</p>
+
+        <!-- User Status -->
+        <div class="section">
+            <h2>1. User Authentication <span id="auth-status" class="status pending">Checking...</span></h2>
+            <p><strong>User ID:</strong> <span id="user-id">Loading...</span></p>
+            <p><strong>Email:</strong> <span id="user-email">Loading...</span></p>
+            <button onclick="checkAuth()">🔄 Refresh Auth</button>
+            <button onclick="location.href='/'">🔐 Go to Login</button>
+        </div>
+
+        <!-- Local Database -->
+        <div class="section">
+            <h2>2. Local Database (IndexedDB) <span id="local-status" class="status pending">Checking...</span></h2>
+            <table id="local-data-table">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Count</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="local-data-body">
+                    <tr><td colspan="3">Loading...</td></tr>
+                </tbody>
+            </table>
+            <button onclick="checkLocalData()">🔄 Refresh Local Data</button>
+        </div>
+
+        <!-- Remote Database -->
+        <div class="section">
+            <h2>3. Remote Database (Supabase) <span id="remote-status" class="status pending">Checking...</span></h2>
+            <table id="remote-data-table">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Count</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="remote-data-body">
+                    <tr><td colspan="3">Loading...</td></tr>
+                </tbody>
+            </table>
+            <button onclick="checkRemoteData()">🔄 Refresh Remote Data</button>
+        </div>
+
+        <!-- Sync Actions -->
+        <div class="section">
+            <h2>4. Sync Actions</h2>
+            <button onclick="manualSync()">🔄 Manual Sync (Two-Way)</button>
+            <button onclick="pushOnly()">⬆️ Push to Cloud</button>
+            <button onclick="pullOnly()">⬇️ Pull from Cloud</button>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+
+        <!-- Logs -->
+        <div class="section">
+            <h2>5. Sync Logs</h2>
+            <div class="log" id="sync-logs">
+                <div class="log-entry info">Waiting for actions...</div>
+            </div>
+        </div>
+
+        <!-- Data Preview -->
+        <div class="section">
+            <h2>6. Data Preview</h2>
+            <select id="preview-table" onchange="previewData()">
+                <option value="">Select a table...</option>
+                <option value="habits">Habits</option>
+                <option value="transactions">Transactions</option>
+                <option value="notes">Notes</option>
+                <option value="reminders">Reminders</option>
+            </select>
+            <button onclick="previewData()">👁️ Preview Data</button>
+            <div class="data-preview" id="data-preview">
+                Select a table and click Preview Data
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './services/db.ts';
+        import { supabase } from './services/supabase.ts';
+        import { syncAllData, pushAllData, pullAllData } from './services/syncService.ts';
+
+        let currentUser = null;
+
+        // Log function
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('sync-logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // Check authentication
+        window.checkAuth = async function() {
+            log('Checking authentication...', 'info');
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) throw error;
+                
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-id').textContent = user.id;
+                    document.getElementById('user-email').textContent = user.email || 'N/A';
+                    document.getElementById('auth-status').textContent = '✅ Authenticated';
+                    document.getElementById('auth-status').className = 'status success';
+                    log(`Authenticated as: ${user.email} (${user.id})`, 'success');
+                } else {
+                    document.getElementById('user-id').textContent = 'Not logged in';
+                    document.getElementById('user-email').textContent = 'N/A';
+                    document.getElementById('auth-status').textContent = '❌ Not Authenticated';
+                    document.getElementById('auth-status').className = 'status error';
+                    log('No user authenticated. Please log in.', 'error');
+                }
+            } catch (error) {
+                log(`Auth error: ${error.message}`, 'error');
+                document.getElementById('auth-status').textContent = '❌ Error';
+                document.getElementById('auth-status').className = 'status error';
+            }
+        };
+
+        // Check local data
+        window.checkLocalData = async function() {
+            log('Checking local database...', 'info');
+            try {
+                const tables = ['habits', 'transactions', 'notes', 'reminders'];
+                const tbody = document.getElementById('local-data-body');
+                tbody.innerHTML = '';
+
+                for (const tableName of tables) {
+                    const count = await db[tableName].count();
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${tableName}</td>
+                        <td>${count}</td>
+                        <td><button onclick="viewLocalTable('${tableName}')">View</button></td>
+                    `;
+                    log(`Local ${tableName}: ${count} records`, 'info');
+                }
+
+                document.getElementById('local-status').textContent = '✅ Available';
+                document.getElementById('local-status').className = 'status success';
+            } catch (error) {
+                log(`Local DB error: ${error.message}`, 'error');
+                document.getElementById('local-status').textContent = '❌ Error';
+                document.getElementById('local-status').className = 'status error';
+            }
+        };
+
+        // Check remote data
+        window.checkRemoteData = async function() {
+            log('Checking remote database...', 'info');
+            try {
+                if (!currentUser) {
+                    log('Please authenticate first', 'warning');
+                    return;
+                }
+
+                const tables = ['habits', 'transactions', 'notes', 'reminders'];
+                const tbody = document.getElementById('remote-data-body');
+                tbody.innerHTML = '';
+
+                for (const tableName of tables) {
+                    const { count, error } = await supabase
+                        .from(tableName)
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', currentUser.id);
+
+                    if (error) {
+                        log(`Remote ${tableName} error: ${error.message}`, 'error');
+                        continue;
+                    }
+
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${tableName}</td>
+                        <td>${count || 0}</td>
+                        <td><button onclick="viewRemoteTable('${tableName}')">View</button></td>
+                    `;
+                    log(`Remote ${tableName}: ${count || 0} records`, 'info');
+                }
+
+                document.getElementById('remote-status').textContent = '✅ Connected';
+                document.getElementById('remote-status').className = 'status success';
+            } catch (error) {
+                log(`Remote DB error: ${error.message}`, 'error');
+                document.getElementById('remote-status').textContent = '❌ Error';
+                document.getElementById('remote-status').className = 'status error';
+            }
+        };
+
+        // Manual sync
+        window.manualSync = async function() {
+            log('=== Starting manual two-way sync ===', 'info');
+            try {
+                const success = await syncAllData();
+                if (success) {
+                    log('=== Sync completed successfully ===', 'success');
+                } else {
+                    log('=== Sync completed with errors ===', 'warning');
+                }
+                await checkLocalData();
+                await checkRemoteData();
+            } catch (error) {
+                log(`Sync error: ${error.message}`, 'error');
+            }
+        };
+
+        // Push only
+        window.pushOnly = async function() {
+            log('=== Pushing local data to cloud ===', 'info');
+            try {
+                const success = await pushAllData();
+                if (success) {
+                    log('=== Push completed successfully ===', 'success');
+                } else {
+                    log('=== Push completed with errors ===', 'warning');
+                }
+                await checkRemoteData();
+            } catch (error) {
+                log(`Push error: ${error.message}`, 'error');
+            }
+        };
+
+        // Pull only
+        window.pullOnly = async function() {
+            log('=== Pulling data from cloud ===', 'info');
+            try {
+                const success = await pullAllData();
+                if (success) {
+                    log('=== Pull completed successfully ===', 'success');
+                } else {
+                    log('=== Pull completed with errors ===', 'warning');
+                }
+                await checkLocalData();
+            } catch (error) {
+                log(`Pull error: ${error.message}`, 'error');
+            }
+        };
+
+        // Clear logs
+        window.clearLogs = function() {
+            document.getElementById('sync-logs').innerHTML = '<div class="log-entry info">Logs cleared.</div>';
+        };
+
+        // Preview data
+        window.previewData = async function() {
+            const tableName = document.getElementById('preview-table').value;
+            const preview = document.getElementById('data-preview');
+
+            if (!tableName) {
+                preview.textContent = 'Please select a table';
+                return;
+            }
+
+            try {
+                const localData = await db[tableName].toArray();
+                preview.textContent = JSON.stringify(localData, null, 2);
+                log(`Previewing ${tableName}: ${localData.length} records`, 'info');
+            } catch (error) {
+                preview.textContent = `Error: ${error.message}`;
+                log(`Preview error: ${error.message}`, 'error');
+            }
+        };
+
+        // Initialize
+        (async function init() {
+            log('Debug tool initialized', 'success');
+            await checkAuth();
+            await checkLocalData();
+            if (currentUser) {
+                await checkRemoteData();
+            }
+        })();
+    </script>
+</body>
+</html>
+

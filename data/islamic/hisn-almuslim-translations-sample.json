@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "note": "This is a SAMPLE file showing how to add English translations and transliterations to Hisn al-Muslim duas",
+    "instructions": "To add translations, update the main hisn-almuslim-structured.json file by adding 'translation' and 'transliteration' fields to each dua object",
+    "totalTranslated": 10,
+    "totalDuas": 280,
+    "progress": "3.6%"
+  },
+  "sampleDuas": [
+    {
+      "id": 1,
+      "categoryId": 1,
+      "arabic": "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ",
+      "transliteration": "Alhamdu lillahil-lathee ahyana ba'da ma amatana wa ilayhin-nushoor",
+      "translation": "All praise is for Allah who gave us life after having taken it from us and unto Him is the resurrection.",
+      "reference": "البخاري ٦٣١٢",
+      "order": 1
+    },
+    {
+      "id": 2,
+      "categoryId": 1,
+      "arabic": "لا إلهَ إلاّ اللّهُ وَحْدَهُ لا شَريكَ لهُ، لهُ الملكُ ولهُ الحَمد، وهوَ على كلّ شيءٍ قدير، سُبْحانَ اللّهِ، والحمْدُ للّهِ، ولا إلهَ إلاّ اللّه واللّهُ أكبَر، وَلا حَولَ وَلا قوّة إلاّ باللّهِ العليّ العظيم. رَبِّ اغْفرْ لي",
+      "transliteration": "La ilaha illal-lahu wahdahu la shareeka lah, lahul-mulku walahul-hamd, wahuwa 'ala kulli shay'in qadeer, subhanal-lah, walhamdu lillah, wala ilaha illal-lah wallahu akbar, wala hawla wala quwwata illa billahil-'aliyyil-'adheem. Rabbigh-fir lee",
+      "translation": "None has the right to be worshipped except Allah, alone, without partner, to Him belongs sovereignty and praise and He is over all things omnipotent. How perfect Allah is, and all praise is for Allah, and none has the right to be worshipped except Allah, and Allah is the greatest and there is no power nor might except with Allah, The Most High, The Supreme. My Lord, forgive me.",
+      "reference": "البخاري مع الفتح ٣/٣٩ ومسلم ٤/٢٠٨٣",
+      "order": 2
+    },
+    {
+      "id": 5,
+      "categoryId": 2,
+      "arabic": "بِسْمِ اللّهِ",
+      "transliteration": "Bismillah",
+      "translation": "In the name of Allah.",
+      "reference": "أبو داود ٤/٣٢٥ والترمذي ٥/٤٩٩ وصححه الألباني في صحيح الترمذي ٣/١٤٤",
+      "order": 1
+    },
+    {
+      "id": 6,
+      "categoryId": 3,
+      "arabic": "اللّهُمَّ إِنِّي أَسْأَلُكَ مِنْ خَيْرِهِ، وَخَيْرِ مَا هُوَ لَهُ، وَأَعُوذُ بِكَ مِنْ شَرِّهِ، وَشَرِّ مَا هُوَ لَهُ",
+      "transliteration": "Allahumma innee as'aluka min khairihi, wa khairi ma huwa lahu, wa a'oothu bika min sharrihi, wa sharri ma huwa lahu",
+      "translation": "O Allah, I ask You for the good of it and the good for which it was made, and I seek refuge with You from the evil of it and the evil for which it was made.",
+      "reference": "أبو داود ٤/٤٢ وصححه النووي في الأذكار ص ٢٤٤",
+      "order": 1
+    },
+    {
+      "id": 7,
+      "categoryId": 4,
+      "arabic": "تُبْلِي وَيُخْلِفُ اللّهُ تَعَالَى",
+      "transliteration": "Tublee wa yukhliful-lahu ta'ala",
+      "translation": "May it wear out and Allah replace it (with another).",
+      "reference": "أبو داود ٤/٤٠ وصححه الألباني في صحيح أبي داود ٣/٧٦٢",
+      "order": 1
+    },
+    {
+      "id": 8,
+      "categoryId": 4,
+      "arabic": "اِلْبَسْ جَدِيداً وَعِشْ حَمِيداً وَمُتْ شَهِيداً",
+      "transliteration": "Ilbas jadeedan, wa 'ish hameedan, wa mut shaheedan",
+      "translation": "Wear new (clothes), live a praiseworthy life and die a martyr.",
+      "reference": "ابن ماجه ٢/١١٧٨ والبغوي في شرح السنة ١٢/٢١ وحسنه الألباني في صحيح ابن ماجه ٢/٢٣٥",
+      "order": 2
+    },
+    {
+      "id": 9,
+      "categoryId": 5,
+      "arabic": "بِسْمِ اللّهِ",
+      "transliteration": "Bismillah",
+      "translation": "In the name of Allah.",
+      "reference": "الترمذي ٥/٤٩٩ وصححه الألباني في صحيح الترمذي ٣/١٤٤",
+      "order": 1
+    },
+    {
+      "id": 10,
+      "categoryId": 6,
+      "arabic": "اللّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبْثِ وَالْخَبَائِثِ",
+      "transliteration": "Allahumma innee a'oothu bika minal-khubthi wal-khaba'ith",
+      "translation": "O Allah, I take refuge with you from all evil and evil-doers.",
+      "reference": "البخاري ١/٤٥ ومسلم ١/٢٨٣",
+      "order": 1
+    },
+    {
+      "id": 11,
+      "categoryId": 7,
+      "arabic": "غُفْرَانَكَ",
+      "transliteration": "Ghufranaka",
+      "translation": "(I ask You for) Your forgiveness.",
+      "reference": "أبو داود ١/٢٦ والترمذي ١/٨ وصححه الألباني في صحيح أبي داود ١/٢٥",
+      "order": 1
+    },
+    {
+      "id": 12,
+      "categoryId": 8,
+      "arabic": "الْحَمْدُ لِلَّهِ الَّذِي أَذْهَبَ عَنِّي الْأَذَى وَعَافَانِي",
+      "transliteration": "Alhamdu lillahil-lathee athhaba 'annil-atha wa 'afanee",
+      "translation": "Praise is to Allah Who has rid me of impurity and given me relief.",
+      "reference": "ابن ماجه ١/٣٠٠ وصححه الألباني في صحيح ابن ماجه ١/٥٦",
+      "order": 1
+    }
+  ],
+  "howToUse": {
+    "step1": "Copy the 'translation' and 'transliteration' fields from this sample",
+    "step2": "Open data/islamic/hisn-almuslim-structured.json",
+    "step3": "Find the corresponding dua by matching the 'id' field",
+    "step4": "Add the 'translation' and 'transliteration' fields to that dua object",
+    "step5": "Save the file and the app will automatically display the translations"
+  },
+  "sources": {
+    "translations": "Fortress of the Muslim - English translation by various scholars",
+    "transliterations": "Standard Arabic transliteration system",
+    "references": "Original Arabic references from the book"
+  },
+  "note": "You can find complete English translations in PDF format online. Search for 'Fortress of the Muslim English PDF' or 'Hisn al-Muslim English translation'. Then manually add the translations to the JSON file, or use a script to parse the PDF."
+}
+

@@ -1,0 +1,52 @@
+{
+  "source": "HadithMV - The Maldivian Platform for Translations of the Sunnah",
+  "sourceUrl": "https://hadithmv.github.io",
+  "githubUrl": "https://github.com/hadithmv/hadithmv.github.io",
+  "description": "Hadith collections with Dhivehi translations",
+  "totalBooks": 6,
+  "books": [
+    {
+      "id": "muwattaMalik",
+      "name": "Muwatta Malik",
+      "arabicName": "موطأ مالك",
+      "filename": "muwattaMalik.json",
+      "totalHadiths": 2861
+    },
+    {
+      "id": "arbaoonNawawi",
+      "name": "Nawawi's 40 Hadith",
+      "arabicName": "الأربعون النووية",
+      "filename": "arbaoonNawawi.json",
+      "totalHadiths": 50
+    },
+    {
+      "id": "bulughulMaram",
+      "name": "Bulughul Maram",
+      "arabicName": "بلوغ المرام",
+      "filename": "bulughulMaram.json",
+      "totalHadiths": 200
+    },
+    {
+      "id": "umdathulAhkam",
+      "name": "Umdatul Ahkam",
+      "arabicName": "عمدة الأحكام",
+      "filename": "umdathulAhkam.json",
+      "totalHadiths": 414
+    },
+    {
+      "id": "hisnulMuslim",
+      "name": "Hisn al-Muslim",
+      "arabicName": "حصن المسلم",
+      "filename": "hisnulMuslim.json",
+      "totalHadiths": 267
+    },
+    {
+      "id": "kitabulIlmAbiKhaithama",
+      "name": "Abu Khaithama's Book of Knowledge",
+      "arabicName": "كتاب العلم",
+      "filename": "kitabulIlmAbiKhaithama.json",
+      "totalHadiths": 168
+    }
+  ],
+  "lastUpdated": "2025-11-24T10:29:35.571Z"
+}

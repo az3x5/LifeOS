@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="115" fill="#1A2E35"/>
+  
+  <!-- Accent Circle -->
+  <circle cx="256" cy="256" r="180" fill="#00A99D" opacity="0.2"/>
+  
+  <!-- Main Icon - Life Symbol -->
+  <g transform="translate(256, 256)">
+    <!-- Heart/Life Symbol -->
+    <path d="M0,-80 C-44,-80 -80,-44 -80,0 C-80,44 -44,80 0,120 C44,80 80,44 80,0 C80,-44 44,-80 0,-80 Z" 
+          fill="#00A99D" stroke="#E0F2F1" stroke-width="8"/>
+    
+    <!-- Checkmark inside -->
+    <path d="M-30,0 L-10,20 L30,-20" 
+          stroke="#E0F2F1" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="48" font-weight="bold" 
+        fill="#E0F2F1" text-anchor="middle">LifeOS</text>
+</svg>
+
