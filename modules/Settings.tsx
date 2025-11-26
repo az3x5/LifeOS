@@ -662,6 +662,17 @@ const Settings: React.FC = () => {
                         <option value="500">500 MB</option>
                     </select>
                 </SettingItem>
+                <div className="border-t border-tertiary"></div>
+                <SettingItem title="Gemini API Key" description="Google Gemini API key for AI-powered insights.">
+                    <input
+                        type="password"
+                        className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent w-64"
+                        placeholder="Enter your Gemini API key"
+                        value={settings.geminiApiKey}
+                        onChange={(e) => updateSetting('geminiApiKey', e.target.value)}
+                    />
+                </SettingItem>
+                <div className="border-t border-tertiary"></div>
                 <SettingItem title="Enable Debug Mode" description="Show detailed logs for troubleshooting.">
                     <Toggle enabled={false} setEnabled={() => {}} />
                 </SettingItem>

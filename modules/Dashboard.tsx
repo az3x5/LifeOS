@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { useSettings } from '../hooks/useSettings';
 import { Module, Account, Transaction, Category, Habit, HabitLog, HealthLog, Note, HealthMetric, FastingLog, DailyReflection, SmartInsight, IslamicEvent, Reminder } from '../types';
 import { smartInsightsService, transactionsService, habitsService, habitLogsService, healthLogsService, notesService, fastingLogsService, islamicEventsService, remindersService, healthMetricsService } from '../services/dataService';
 import { calculateStreaks } from '../utils/habits';
@@ -38,6 +39,7 @@ const InsightCard: React.FC<{
 );
 
 const SmartInsights: React.FC = () => {
+    const { settings } = useSettings();
     const [isLoading, setIsLoading] = useState(false);
     const allInsights = useSupabaseQuery<SmartInsight>('smart_insights');
     const insights = useMemo(() =>
@@ -75,9 +77,12 @@ const SmartInsights: React.FC = () => {
                 - Health: Average sleep over the last 30 days is ${avgSleep.toFixed(1)} hours.
                 - Notes: Created ${notesCount} notes in the last 30 days.
             `;
-            
+
             // 2. Call Gemini API
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            if (!settings.geminiApiKey) {
+                throw new Error('Gemini API key not configured. Please add your API key in Settings > Advanced Settings.');
+            }
+            const ai = new GoogleGenAI({ apiKey: settings.geminiApiKey });
             const prompt = `Based on the following user data summary, generate 3 short, actionable, and encouraging insights. Be concise.
             Data summary: ${summary}
             Provide the response in a JSON array format. Each object must have 'icon', 'title', and 'insight' keys.
@@ -125,7 +130,7 @@ const SmartInsights: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [allInsights]);
+    }, [allInsights, settings.geminiApiKey]);
 
     useEffect(() => {
         const shouldGenerate = async () => {

@@ -50,6 +50,7 @@ export interface AppSettings {
     offlineMode: boolean;
     autoSyncInterval: 'realtime' | '5' | '15' | '30' | 'manual';
     dataCompression: boolean;
+    geminiApiKey: string; // Google Gemini API key for AI insights
 
     // Backup & Sync
     autoBackup: boolean;
@@ -90,6 +91,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     offlineMode: true,
     autoSyncInterval: 'realtime',
     dataCompression: false,
+    geminiApiKey: '', // Empty by default - user needs to add their own key
     autoBackup: true,
     backupFrequency: 'daily',
     lastBackup: null,
