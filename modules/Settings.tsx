@@ -438,11 +438,8 @@ const Settings: React.FC = () => {
                 </SettingItem>
                 <SettingItem title="Language" description="Choose your preferred language.">
                     <select
-                        value={language}
-                        onChange={(e) => {
-                            setLanguage(e.target.value);
-                            localStorage.setItem('language', e.target.value);
-                        }}
+                        value={settings.language}
+                        onChange={(e) => updateSetting('language', e.target.value)}
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                     >
                         <option value="en">English</option>
@@ -452,11 +449,8 @@ const Settings: React.FC = () => {
                 </SettingItem>
                 <SettingItem title="Week Starts On" description="Choose the first day of the week.">
                     <select
-                        value={weekStartsOn}
-                        onChange={(e) => {
-                            setWeekStartsOn(e.target.value);
-                            localStorage.setItem('weekStartsOn', e.target.value);
-                        }}
+                        value={settings.weekStartsOn}
+                        onChange={(e) => updateSetting('weekStartsOn', e.target.value as 'sunday' | 'monday')}
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                     >
                         <option value="sunday">Sunday</option>
