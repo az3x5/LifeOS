@@ -120,7 +120,7 @@ const PrayerTimes: React.FC = () => {
                       key={island.reg_no}
                       onClick={() => handleIslandSelect(island.reg_no)}
                       className={`w-full text-left px-4 py-3 hover:bg-tertiary transition-colors border-b border-tertiary last:border-b-0 ${
-                        island.reg_no === selectedIsland ? 'bg-accent/10' : ''
+                        island.reg_no === settings.selectedIsland ? 'bg-accent/10' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -128,7 +128,7 @@ const PrayerTimes: React.FC = () => {
                           <p className="text-sm font-medium text-text-primary">{island.name_en}</p>
                           <p className="text-xs text-text-muted">{island.name_dv} • {island.reg_no}</p>
                         </div>
-                        {island.reg_no === selectedIsland && (
+                        {island.reg_no === settings.selectedIsland && (
                           <span className="material-symbols-outlined text-accent">check_circle</span>
                         )}
                       </div>
