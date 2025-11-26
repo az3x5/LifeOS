@@ -39,3 +39,10 @@ public/audio/quran/dhivehi/*.mp3
 data/islamic/prayer_times.json
 data/islamic/islands.json
 data/islamic/atolls.json
+
+# Large files directory (track structure but not the actual large files)
+large-files/audio/**/*.mp3
+large-files/data/**/*.json
+!large-files/README.md
+!large-files/*.ps1
+!large-files/*.sh

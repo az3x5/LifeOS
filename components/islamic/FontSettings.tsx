@@ -1,17 +1,5 @@
-import React, { useState, useEffect } from 'react';
-
-interface FontSettings {
-    quranArabic: string;
-    quranDhivehi: string;
-    quranEnglish: string;
-    duaArabic: string;
-    hadithArabic: string;
-    quranArabicSize: string;
-    quranDhivehiSize: string;
-    quranEnglishSize: string;
-    duaArabicSize: string;
-    hadithArabicSize: string;
-}
+import React from 'react';
+import { useSettings } from '../../hooks/useSettings';
 
 const ARABIC_FONTS = [
     { name: 'Amiri', label: 'Amiri (Traditional)', description: 'Classic Naskh style, ideal for Quran' },
@@ -55,49 +43,22 @@ const FONT_SIZES = [
     { value: '2.5rem', label: 'Giant' },
 ];
 
-const DEFAULT_SETTINGS: FontSettings = {
-    quranArabic: 'Amiri',
-    quranDhivehi: 'Noto Sans Thaana',
-    quranEnglish: 'Inter',
-    duaArabic: 'Amiri',
-    hadithArabic: 'Noto Sans Arabic',
-    quranArabicSize: '2rem',
-    quranDhivehiSize: '1.5rem',
-    quranEnglishSize: '1rem',
-    duaArabicSize: '1.5rem',
-    hadithArabicSize: '1.25rem',
-};
-
 export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const [settings, setSettings] = useState<FontSettings>(DEFAULT_SETTINGS);
-
-    useEffect(() => {
-        // Load settings from localStorage
-        const saved = localStorage.getItem('islamic-font-settings');
-        if (saved) {
-            setSettings(JSON.parse(saved));
-        }
-    }, []);
-
-    useEffect(() => {
-        // Apply font settings to CSS variables
-        document.documentElement.style.setProperty('--font-quran-arabic', settings.quranArabic);
-        document.documentElement.style.setProperty('--font-quran-dhivehi', settings.quranDhivehi);
-        document.documentElement.style.setProperty('--font-quran-english', settings.quranEnglish);
-        document.documentElement.style.setProperty('--font-dua-arabic', settings.duaArabic);
-        document.documentElement.style.setProperty('--font-hadith-arabic', settings.hadithArabic);
-        document.documentElement.style.setProperty('--font-size-quran-arabic', settings.quranArabicSize);
-        document.documentElement.style.setProperty('--font-size-quran-dhivehi', settings.quranDhivehiSize);
-        document.documentElement.style.setProperty('--font-size-quran-english', settings.quranEnglishSize);
-        document.documentElement.style.setProperty('--font-size-dua-arabic', settings.duaArabicSize);
-        document.documentElement.style.setProperty('--font-size-hadith-arabic', settings.hadithArabicSize);
-
-        // Save to localStorage
-        localStorage.setItem('islamic-font-settings', JSON.stringify(settings));
-    }, [settings]);
+    const { settings, updateSetting, updateSettings } = useSettings();
 
     const resetToDefaults = () => {
-        setSettings(DEFAULT_SETTINGS);
+        updateSettings({
+            quranArabicFont: 'Amiri',
+            quranDhivehiFont: 'Noto Sans Thaana',
+            quranEnglishFont: 'Inter',
+            duaArabicFont: 'Amiri',
+            hadithArabicFont: 'Noto Sans Arabic',
+            quranArabicSize: '2rem',
+            quranDhivehiSize: '1.5rem',
+            quranEnglishSize: '1rem',
+            duaArabicSize: '1.5rem',
+            hadithArabicSize: '1.25rem',
+        });
     };
 
     return (
@@ -129,9 +90,9 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             {ARABIC_FONTS.map((font) => (
                                 <button
                                     key={font.name}
-                                    onClick={() => setSettings({ ...settings, quranArabic: font.name })}
+                                    onClick={() => updateSetting('quranArabicFont', font.name)}
                                     className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                        settings.quranArabic === font.name
+                                        settings.quranArabicFont === font.name
                                             ? 'border-accent bg-accent/10'
                                             : 'border-tertiary bg-secondary hover:border-accent/50'
                                     }`}
@@ -148,7 +109,7 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <label className="text-sm font-semibold text-text-secondary">Font Size:</label>
                             <select
                                 value={settings.quranArabicSize}
-                                onChange={(e) => setSettings({ ...settings, quranArabicSize: e.target.value })}
+                                onChange={(e) => updateSetting('quranArabicSize', e.target.value)}
                                 className="px-4 py-2 rounded-lg bg-secondary border border-tertiary text-text-primary"
                             >
                                 {FONT_SIZES.map((size) => (
@@ -168,9 +129,9 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             {DHIVEHI_FONTS.map((font) => (
                                 <button
                                     key={font.name}
-                                    onClick={() => setSettings({ ...settings, quranDhivehi: font.name })}
+                                    onClick={() => updateSetting('quranDhivehiFont', font.name)}
                                     className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                        settings.quranDhivehi === font.name
+                                        settings.quranDhivehiFont === font.name
                                             ? 'border-accent bg-accent/10'
                                             : 'border-tertiary bg-secondary hover:border-accent/50'
                                     }`}
@@ -187,7 +148,7 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <label className="text-sm font-semibold text-text-secondary">Font Size:</label>
                             <select
                                 value={settings.quranDhivehiSize}
-                                onChange={(e) => setSettings({ ...settings, quranDhivehiSize: e.target.value })}
+                                onChange={(e) => updateSetting('quranDhivehiSize', e.target.value)}
                                 className="px-4 py-2 rounded-lg bg-secondary border border-tertiary text-text-primary"
                             >
                                 {FONT_SIZES.map((size) => (
@@ -207,9 +168,9 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             {ENGLISH_FONTS.map((font) => (
                                 <button
                                     key={font.name}
-                                    onClick={() => setSettings({ ...settings, quranEnglish: font.name })}
+                                    onClick={() => updateSetting('quranEnglishFont', font.name)}
                                     className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                        settings.quranEnglish === font.name
+                                        settings.quranEnglishFont === font.name
                                             ? 'border-accent bg-accent/10'
                                             : 'border-tertiary bg-secondary hover:border-accent/50'
                                     }`}
@@ -226,7 +187,7 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <label className="text-sm font-semibold text-text-secondary">Font Size:</label>
                             <select
                                 value={settings.quranEnglishSize}
-                                onChange={(e) => setSettings({ ...settings, quranEnglishSize: e.target.value })}
+                                onChange={(e) => updateSetting('quranEnglishSize', e.target.value)}
                                 className="px-4 py-2 rounded-lg bg-secondary border border-tertiary text-text-primary"
                             >
                                 {FONT_SIZES.map((size) => (
@@ -246,9 +207,9 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             {ARABIC_FONTS.map((font) => (
                                 <button
                                     key={font.name}
-                                    onClick={() => setSettings({ ...settings, duaArabic: font.name })}
+                                    onClick={() => updateSetting('duaArabicFont', font.name)}
                                     className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                        settings.duaArabic === font.name
+                                        settings.duaArabicFont === font.name
                                             ? 'border-accent bg-accent/10'
                                             : 'border-tertiary bg-secondary hover:border-accent/50'
                                     }`}
@@ -265,7 +226,7 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <label className="text-sm font-semibold text-text-secondary">Font Size:</label>
                             <select
                                 value={settings.duaArabicSize}
-                                onChange={(e) => setSettings({ ...settings, duaArabicSize: e.target.value })}
+                                onChange={(e) => updateSetting('duaArabicSize', e.target.value)}
                                 className="px-4 py-2 rounded-lg bg-secondary border border-tertiary text-text-primary"
                             >
                                 {FONT_SIZES.map((size) => (
@@ -285,9 +246,9 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             {ARABIC_FONTS.map((font) => (
                                 <button
                                     key={font.name}
-                                    onClick={() => setSettings({ ...settings, hadithArabic: font.name })}
+                                    onClick={() => updateSetting('hadithArabicFont', font.name)}
                                     className={`p-4 rounded-xl border-2 transition-all text-left ${
-                                        settings.hadithArabic === font.name
+                                        settings.hadithArabicFont === font.name
                                             ? 'border-accent bg-accent/10'
                                             : 'border-tertiary bg-secondary hover:border-accent/50'
                                     }`}
@@ -304,7 +265,7 @@ export const FontSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <label className="text-sm font-semibold text-text-secondary">Font Size:</label>
                             <select
                                 value={settings.hadithArabicSize}
-                                onChange={(e) => setSettings({ ...settings, hadithArabicSize: e.target.value })}
+                                onChange={(e) => updateSetting('hadithArabicSize', e.target.value)}
                                 className="px-4 py-2 rounded-lg bg-secondary border border-tertiary text-text-primary"
                             >
                                 {FONT_SIZES.map((size) => (

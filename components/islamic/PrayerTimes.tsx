@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { islamicDataService, Island } from '../../services/islamicDataService';
+import { useSettings } from '../../hooks/useSettings';
 
 interface PrayerTime {
   date: string;
@@ -12,8 +13,8 @@ interface PrayerTime {
 }
 
 const PrayerTimes: React.FC = () => {
+  const { settings, updateSetting } = useSettings();
   const [prayerTimes, setPrayerTimes] = useState<PrayerTime | null>(null);
-  const [selectedIsland, setSelectedIsland] = useState<string>('K01'); // Default to Male'
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -31,18 +32,18 @@ const PrayerTimes: React.FC = () => {
   }, [islands, searchTerm]);
 
   const selectedIslandData = useMemo(() =>
-    islands.find(i => i.reg_no === selectedIsland),
-    [islands, selectedIsland]
+    islands.find(i => i.reg_no === settings.selectedIsland),
+    [islands, settings.selectedIsland]
   );
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    const times = islamicDataService.getPrayerTimesByDate(today, selectedIsland);
+    const times = islamicDataService.getPrayerTimesByDate(today, settings.selectedIsland);
     setPrayerTimes(times);
-  }, [selectedIsland]);
+  }, [settings.selectedIsland]);
 
   const handleIslandSelect = (regNo: string) => {
-    setSelectedIsland(regNo);
+    updateSetting('selectedIsland', regNo);
     setShowDropdown(false);
     setSearchTerm('');
   };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
+import { useSettings } from '../hooks/useSettings';
 import { Setting, HabitCategory, Category, Transaction } from '../types';
 import { supabase } from '../services/supabase';
 import AlertModal from '../components/modals/AlertModal';
@@ -22,6 +23,7 @@ import { habitsService, habitLogsService, habitCategoriesService, notesService, 
 
 const Settings: React.FC = () => {
     const [user, setUser] = useState<any>(null);
+    const { settings, updateSetting } = useSettings();
 
     const [pinLock, setPinLock] = useState(false);
     const [biometricLock, setBiometricLock] = useState(false);
@@ -29,23 +31,12 @@ const Settings: React.FC = () => {
     const [lockTimeout, setLockTimeoutState] = useState(5);
     const [reminders, setReminders] = useState(Notification.permission === 'granted');
     const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
-    const [language, setLanguage] = useState('en');
-
-    // State for Habit Preferences
-    const [defaultReminderTime, setDefaultReminderTime] = useState('09:00');
-    const [aiInsights, setAiInsights] = useState(true);
-    const [gamification, setGamification] = useState(false);
-    const [weekStartsOn, setWeekStartsOn] = useState('sunday');
 
     const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; icon?: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
     const [pinSetupModal, setPinSetupModal] = useState<{ isOpen: boolean; mode: 'setup' | 'change' } | null>(null);
     const [showManageCategoriesModal, setShowManageCategoriesModal] = useState(false);
     const [showManageFinanceCategoriesModal, setShowManageFinanceCategoriesModal] = useState(false);
-
-    const allSettings = useSupabaseQuery<Setting>('settings');
-    const integrationSetting = useMemo(() => allSettings?.find(s => s.key === 'islamicHabitIntegration'), [allSettings]);
-    const integrationEnabled = integrationSetting?.value ?? false;
 
     useEffect(() => {
         setReminders(Notification.permission === 'granted');
@@ -55,16 +46,9 @@ const Settings: React.FC = () => {
             setUser(data.user);
         });
 
-        // Load settings from localStorage
+        // Load theme from localStorage (theme is still managed separately)
         const savedThemeMode = getThemeMode();
-        const savedLanguage = localStorage.getItem('language') || 'en';
-        const savedWeekStart = localStorage.getItem('weekStartsOn') || 'sunday';
-        const savedReminderTime = localStorage.getItem('defaultReminderTime') || '09:00';
-
         setThemeModeState(savedThemeMode);
-        setLanguage(savedLanguage);
-        setWeekStartsOn(savedWeekStart);
-        setDefaultReminderTime(savedReminderTime);
 
         // Load security settings
         const loadSecuritySettings = async () => {
@@ -296,15 +280,8 @@ const Settings: React.FC = () => {
     };
 
     const handleToggleIntegration = async () => {
-        const newValue = !integrationEnabled;
-        // Update or create setting
-        if (integrationSetting) {
-            // Settings use key as primary key, so we need to delete and recreate
-            await settingsService.delete(integrationSetting.key as any);
-            await settingsService.create({ key: 'islamicHabitIntegration', value: newValue });
-        } else {
-            await settingsService.create({ key: 'islamicHabitIntegration', value: newValue });
-        }
+        const newValue = !settings.islamicHabitIntegration;
+        await updateSetting('islamicHabitIntegration', newValue);
 
         if (newValue) {
             // Create system habits if they don't exist
@@ -416,9 +393,9 @@ const Settings: React.FC = () => {
 
             <SettingsCard title="Module Integrations">
                 <SettingItem title="Sync Islamic Practices with Habits" description="Automatically log fasts and prayers in the Habit Tracker.">
-                    <Toggle enabled={integrationEnabled} onClick={handleToggleIntegration} title={integrationEnabled ? 'Disable Sync' : 'Enable Sync'} />
+                    <Toggle enabled={settings.islamicHabitIntegration} onClick={handleToggleIntegration} title={settings.islamicHabitIntegration ? 'Disable Sync' : 'Enable Sync'} />
                 </SettingItem>
-                {integrationEnabled && (
+                {settings.islamicHabitIntegration && (
                     <div className="mt-4 p-4 bg-accent/20 border border-accent/30 rounded-lg text-accent text-sm">
                         Integration is active. System habits for 'Fasting' and daily prayers are now available in the Habit Tracker.
                     </div>
@@ -497,19 +474,16 @@ const Settings: React.FC = () => {
                 <SettingItem title="Default Reminder Time" description="Set a default notification time for new habits.">
                     <input
                         type="time"
-                        value={defaultReminderTime}
-                        onChange={(e) => {
-                            setDefaultReminderTime(e.target.value);
-                            localStorage.setItem('defaultReminderTime', e.target.value);
-                        }}
+                        value={settings.defaultReminderTime}
+                        onChange={(e) => updateSetting('defaultReminderTime', e.target.value)}
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                 </SettingItem>
                  <SettingItem title="Enable AI Insights" description="Show smart tips on the habits analytics page.">
-                    <Toggle enabled={aiInsights} setEnabled={setAiInsights} />
+                    <Toggle enabled={settings.aiInsights} setEnabled={(val) => updateSetting('aiInsights', val)} />
                 </SettingItem>
                 <SettingItem title="Enable Gamification" description="Earn XP and badges for completing habits.">
-                    <Toggle enabled={gamification} setEnabled={setGamification} disabled={true} title="Gamification (coming soon)" />
+                    <Toggle enabled={settings.gamification} setEnabled={(val) => updateSetting('gamification', val)} disabled={true} title="Gamification (coming soon)" />
                 </SettingItem>
              </SettingsCard>
 
@@ -521,14 +495,15 @@ const Settings: React.FC = () => {
                 <SettingItem title="Default Metric Unit System" description="Choose between metric and imperial units.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="metric"
+                        value={settings.defaultMetricUnit}
+                        onChange={(e) => updateSetting('defaultMetricUnit', e.target.value as 'metric' | 'imperial')}
                     >
                         <option value="metric">Metric</option>
                         <option value="imperial">Imperial</option>
                     </select>
                 </SettingItem>
                 <SettingItem title="Enable Health Reminders" description="Get reminded to log your health metrics.">
-                    <Toggle enabled={true} disabled={true} title="Health Reminders (coming soon)" />
+                    <Toggle enabled={settings.healthReminders} setEnabled={(val) => updateSetting('healthReminders', val)} disabled={true} title="Health Reminders (coming soon)" />
                 </SettingItem>
                 <SettingItem title="Export Health Data" description="Download all your health logs and metrics.">
                     <button disabled title="Export (coming soon)" className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg text-sm opacity-50 cursor-not-allowed">Export CSV</button>
@@ -543,7 +518,8 @@ const Settings: React.FC = () => {
                 <SettingItem title="Default Currency" description="Choose your preferred currency for transactions.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="USD"
+                        value={settings.defaultCurrency}
+                        onChange={(e) => updateSetting('defaultCurrency', e.target.value)}
                     >
                         <option value="USD">USD - US Dollar</option>
                         <option value="EUR">EUR - Euro</option>
@@ -554,12 +530,14 @@ const Settings: React.FC = () => {
                         <option value="INR">INR - Indian Rupee</option>
                         <option value="SAR">SAR - Saudi Riyal</option>
                         <option value="AED">AED - UAE Dirham</option>
+                        <option value="MVR">MVR - Maldivian Rufiyaa</option>
                     </select>
                 </SettingItem>
                 <SettingItem title="Budget Alert Threshold" description="Get notified when spending reaches this percentage.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="75"
+                        value={settings.budgetAlertThreshold}
+                        onChange={(e) => updateSetting('budgetAlertThreshold', Number(e.target.value))}
                     >
                         <option value="50">50%</option>
                         <option value="75">75%</option>
@@ -568,10 +546,10 @@ const Settings: React.FC = () => {
                     </select>
                 </SettingItem>
                 <SettingItem title="Enable Budget Notifications" description="Get notified when approaching budget limits.">
-                    <Toggle enabled={true} disabled={true} title="Budget Notifications (coming soon)" />
+                    <Toggle enabled={settings.budgetNotifications} setEnabled={(val) => updateSetting('budgetNotifications', val)} disabled={true} title="Budget Notifications (coming soon)" />
                 </SettingItem>
                 <SettingItem title="Show Net Worth on Dashboard" description="Display total net worth across all accounts.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={settings.showNetWorth} setEnabled={(val) => updateSetting('showNetWorth', val)} />
                 </SettingItem>
                 <SettingItem title="Export Financial Data" description="Download all your transactions and accounts.">
                     <button disabled title="Export (coming soon)" className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg text-sm opacity-50 cursor-not-allowed">Export CSV</button>
@@ -582,7 +560,8 @@ const Settings: React.FC = () => {
                 <SettingItem title="Default Note View" description="Choose how notes are displayed by default.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="grid"
+                        value={settings.defaultNoteView}
+                        onChange={(e) => updateSetting('defaultNoteView', e.target.value as 'grid' | 'list')}
                     >
                         <option value="grid">Grid View</option>
                         <option value="list">List View</option>
@@ -590,15 +569,16 @@ const Settings: React.FC = () => {
                 </SettingItem>
                 <div className="border-t border-tertiary"></div>
                 <SettingItem title="Auto-Save Notes" description="Automatically save notes as you type.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={settings.autoSaveNotes} setEnabled={(val) => updateSetting('autoSaveNotes', val)} />
                 </SettingItem>
                 <SettingItem title="Enable Markdown Preview" description="Show formatted preview while editing notes.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={settings.markdownPreview} setEnabled={(val) => updateSetting('markdownPreview', val)} />
                 </SettingItem>
                 <SettingItem title="Default Font Size" description="Set the default text size for notes.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="medium"
+                        value={settings.defaultFontSize}
+                        onChange={(e) => updateSetting('defaultFontSize', e.target.value as 'small' | 'medium' | 'large')}
                     >
                         <option value="small">Small</option>
                         <option value="medium">Medium</option>
@@ -655,13 +635,14 @@ const Settings: React.FC = () => {
 
             <SettingsCard title="⚙️ Advanced Settings">
                 <SettingItem title="Enable Offline Mode" description="Use app without internet connection.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={settings.offlineMode} setEnabled={(val) => updateSetting('offlineMode', val)} />
                 </SettingItem>
                 <div className="border-t border-tertiary"></div>
                 <SettingItem title="Auto-Sync Interval" description="How often to sync data with cloud.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="realtime"
+                        value={settings.autoSyncInterval}
+                        onChange={(e) => updateSetting('autoSyncInterval', e.target.value as any)}
                     >
                         <option value="realtime">Real-time</option>
                         <option value="5">Every 5 minutes</option>
@@ -701,13 +682,14 @@ const Settings: React.FC = () => {
 
             <SettingsCard title="🔄 Backup & Sync">
                 <SettingItem title="Auto-Backup to Cloud" description="Automatically backup your data to Supabase.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={settings.autoBackup} setEnabled={(val) => updateSetting('autoBackup', val)} />
                 </SettingItem>
                 <div className="border-t border-tertiary"></div>
                 <SettingItem title="Backup Frequency" description="How often to create automatic backups.">
                     <select
                         className="bg-tertiary border border-primary rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-accent"
-                        defaultValue="daily"
+                        value={settings.backupFrequency}
+                        onChange={(e) => updateSetting('backupFrequency', e.target.value as any)}
                     >
                         <option value="realtime">Real-time</option>
                         <option value="hourly">Every hour</option>
@@ -716,10 +698,10 @@ const Settings: React.FC = () => {
                     </select>
                 </SettingItem>
                 <SettingItem title="Include Media in Backup" description="Backup images and attachments.">
-                    <Toggle enabled={true} setEnabled={() => {}} />
+                    <Toggle enabled={true} setEnabled={() => {}} disabled={true} title="Media backup (coming soon)" />
                 </SettingItem>
                 <SettingItem title="Last Backup" description="View when data was last backed up.">
-                    <span className="text-sm text-text-secondary">Just now</span>
+                    <span className="text-sm text-text-secondary">{settings.lastBackup || 'Never'}</span>
                 </SettingItem>
                 <SettingItem title="Restore from Backup" description="Restore your data from a previous backup.">
                     <button disabled title="Restore (coming soon)" className="bg-tertiary text-text-secondary font-bold py-2 px-4 rounded-lg text-sm opacity-50 cursor-not-allowed">Restore</button>
