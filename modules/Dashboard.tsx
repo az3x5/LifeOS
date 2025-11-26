@@ -253,8 +253,8 @@ const WeekdayPerformanceWidget: React.FC<{ habits: Habit[], habitLogs: HabitLog[
     return (
         <div className="bg-primary p-3 rounded-lg border border-tertiary h-full min-h-[200px]">
             <h3 className="text-sm font-semibold mb-2 text-text-primary">Weekday Performance</h3>
-            <div className="h-[calc(100%-2rem)] min-h-[160px]">
-                <ResponsiveContainer width="100%" height="100%" minHeight={160}>
+            <div style={{ width: '100%', height: 160 }}>
+                <ResponsiveContainer>
                     <BarChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
                         <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} />
@@ -380,8 +380,8 @@ const HealthAnalyticsWidget: React.FC<{ metrics?: HealthMetric[], logs?: HealthL
                 </div>
             </div>
 
-            <div className="h-[240px] min-h-[240px]">
-                <ResponsiveContainer width="100%" height="100%" minHeight={240}>
+            <div style={{ width: '100%', height: 240 }}>
+                <ResponsiveContainer>
                     <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
                         <XAxis dataKey="date" stroke="#94A3B8" fontSize={10} />
